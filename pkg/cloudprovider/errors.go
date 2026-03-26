@@ -6,13 +6,13 @@ import "fmt"
 type ErrorCode string
 
 const (
-	ErrProviderNotFound     ErrorCode = "ProviderNotFound"
-	ErrInvalidCredentials   ErrorCode = "InvalidCredentials"
-	ErrResourceNotFound     ErrorCode = "ResourceNotFound"
+	ErrProviderNotFound      ErrorCode = "ProviderNotFound"
+	ErrInvalidCredentials    ErrorCode = "InvalidCredentials"
+	ErrResourceNotFound      ErrorCode = "ResourceNotFound"
 	ErrResourceAlreadyExists ErrorCode = "ResourceAlreadyExists"
-	ErrOperationFailed      ErrorCode = "OperationFailed"
-	ErrTimeout              ErrorCode = "Timeout"
-	ErrUnsupportedOperation ErrorCode = "UnsupportedOperation"
+	ErrOperationFailed       ErrorCode = "OperationFailed"
+	ErrTimeout               ErrorCode = "Timeout"
+	ErrUnsupportedOperation  ErrorCode = "UnsupportedOperation"
 )
 
 // CloudError 云操作错误

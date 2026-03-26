@@ -29,7 +29,7 @@ func (CloudAccount) TableName() string {
 type CloudAccountStatus string
 
 const (
-	CloudAccountStatusActive  CloudAccountStatus = "active"
+	CloudAccountStatusActive   CloudAccountStatus = "active"
 	CloudAccountStatusInactive CloudAccountStatus = "inactive"
-	CloudAccountStatusError   CloudAccountStatus = "error"
+	CloudAccountStatusError    CloudAccountStatus = "error"
 )
