@@ -1,0 +1,17 @@
+server:
+  port: 8080
+  mode: debug  # debug, release, test
+
+database:
+  driver: mysql
+  dsn: "root:password@tcp(127.0.0.1:3306)/opencmp?charset=utf8mb4&parseTime=True&loc=Local"
+  max_idle_conns: 10
+  max_open_conns: 100
+
+auth:
+  jwt_secret: "your-secret-key-change-in-production"
+  token_expire_hours: 24
+
+log:
+  level: info
+  format: json
