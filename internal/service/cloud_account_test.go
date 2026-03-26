@@ -129,7 +129,7 @@ func TestCloudAccountService_VerifyCloudAccount(t *testing.T) {
 	// 注意：这个测试会失败，因为 alibaba provider 需要真实的 SDK
 	// 实际项目中应该使用 mock provider
 	valid, err := service.VerifyCloudAccount(context.Background(), account)
-	
+
 	// 预期会失败（因为没有真实的云账户）
 	assert.False(t, valid)
 	assert.Error(t, err)
