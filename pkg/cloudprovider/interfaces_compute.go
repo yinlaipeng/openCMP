@@ -77,8 +77,3 @@ type ICompute interface {
 	IImage
 	IKeypair
 }
-
-// ICloudProvider 云提供商总接口
-type ICloudProvider interface {
-	ICompute
-}

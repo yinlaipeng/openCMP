@@ -123,21 +123,6 @@ type SubnetConfig struct {
 	Tags   map[string]string `json:"tags"`
 }
 
-// SubnetFilter 子网过滤条件
-type SubnetFilter struct {
-	VPCID      string
-	ZoneID     string
-	Tags       map[string]string
-	MaxResults int
-}
-
-// VPCFilter VPC 过滤条件
-type VPCFilter struct {
-	Tags       map[string]string
-	RegionID   string
-	MaxResults int
-}
-
 // SecurityGroup 安全组
 type SecurityGroup struct {
 	ID          string            `json:"id"`
@@ -159,59 +144,46 @@ type SGConfig struct {
 
 // SGRule 安全组规则
 type SGRule struct {
-	Direction       string `json:"direction"`  // ingress/egress
-	Protocol        string `json:"protocol"`   // tcp/udp/icmp
-	PortRange       string `json:"port_range"` // 80/80, 1-65535
-	CIDRBlock       string `json:"cidr_block"` // 0.0.0.0/0
-	Policy          string `json:"policy"`     // accept/drop
-	Priority        int    `json:"priority"`   // 1-100
-	Description     string `json:"description"`
-	SecurityGroupID string `json:"security_group_id"`
-}
-
-// SGFilter 安全组过滤条件
-type SGFilter struct {
-	VPCID      string
-	Tags       map[string]string
-	MaxResults int
+	Direction   string `json:"direction"` // ingress/egress
+	Protocol    string `json:"protocol"`  // tcp/udp/icmp/all
+	PortRange   string `json:"port_range"`
+	CIDR        string `json:"cidr"`
+	Action      string `json:"action"` // accept/drop
+	Description string `json:"description"`
+	Priority    int    `json:"priority"`
+	RuleID      string `json:"rule_id,omitempty"`
 }
 
 // EIP 弹性公网 IP
 type EIP struct {
-	ID             string            `json:"id"`
-	Name           string            `json:"name"`
-	IPAddress      string            `json:"ip_address"`
-	Status         string            `json:"status"`
-	AssociatedWith string            `json:"associated_with"` // 关联的资源 ID
-	Tags           map[string]string `json:"tags"`
-	CreatedAt      time.Time         `json:"created_at"`
+	ID           string    `json:"id"`
+	Address      string    `json:"address"`
+	Bandwidth    int       `json:"bandwidth"` // Mbps
+	Status       string    `json:"status"`    // available/associated
+	ResourceID   string    `json:"resource_id"`
+	ResourceType string    `json:"resource_type"`
+	RegionID     string    `json:"region_id"`
+	CreatedAt    time.Time `json:"created_at"`
 }
 
 // EIPConfig EIP 创建配置
 type EIPConfig struct {
-	Name      string            `json:"name"`
-	Bandwidth int               `json:"bandwidth"` // Mbps
+	Bandwidth int               `json:"bandwidth"`
+	RegionID  string            `json:"region_id"`
 	Tags      map[string]string `json:"tags"`
-}
-
-// EIPFilter EIP 过滤条件
-type EIPFilter struct {
-	Status     string
-	Tags       map[string]string
-	MaxResults int
 }
 
 // Disk 云硬盘
 type Disk struct {
-	ID           string            `json:"id"`
-	Name         string            `json:"name"`
-	Size         int               `json:"size"` // GB
-	Type         string            `json:"type"`
-	Status       string            `json:"status"`
-	AttachedVMID string            `json:"attached_vm_id"`
-	Tags         map[string]string `json:"tags"`
-	CreatedAt    time.Time         `json:"created_at"`
-	ZoneID       string            `json:"zone_id"`
+	ID        string            `json:"id"`
+	Name      string            `json:"name"`
+	Size      int               `json:"size"`   // GB
+	Type      string            `json:"type"`   // SSD/HDD/ESSD
+	Status    string            `json:"status"` // available/in-use
+	VMID      string            `json:"vm_id"`
+	ZoneID    string            `json:"zone_id"`
+	Tags      map[string]string `json:"tags"`
+	CreatedAt time.Time         `json:"created_at"`
 }
 
 // DiskConfig 云硬盘创建配置
@@ -223,39 +195,104 @@ type DiskConfig struct {
 	Tags   map[string]string `json:"tags"`
 }
 
-// DiskFilter 云硬盘过滤条件
-type DiskFilter struct {
-	ZoneID     string
-	Status     string
-	Tags       map[string]string
-	MaxResults int
-}
-
 // Snapshot 快照
 type Snapshot struct {
-	ID        string            `json:"id"`
-	Name      string            `json:"name"`
-	DiskID    string            `json:"disk_id"`
-	Size      int               `json:"size"` // GB
-	Status    string            `json:"status"`
-	Tags      map[string]string `json:"tags"`
-	CreatedAt time.Time         `json:"created_at"`
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	DiskID    string    `json:"disk_id"`
+	Size      int       `json:"size"` // GB
+	Status    string    `json:"status"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 // SnapshotFilter 快照过滤条件
 type SnapshotFilter struct {
+	SnapshotID string
 	DiskID     string
-	Tags       map[string]string
 	MaxResults int
 }
 
-// InstanceType 实例类型
+// InstanceType 实例规格
 type InstanceType struct {
-	ID             string   `json:"id"`
 	Name           string   `json:"name"`
 	CPU            int      `json:"cpu"`    // 核心数
 	Memory         int      `json:"memory"` // MB
-	Generation     string   `json:"generation"`
-	Family         string   `json:"family"`
+	GPU            int      `json:"gpu"`
+	Category       string   `json:"category"` // 通用型/计算型/内存型
 	SupportedZones []string `json:"supported_zones"`
+}
+
+// LoadBalancer 负载均衡
+type LoadBalancer struct {
+	ID          string            `json:"id"`
+	Name        string            `json:"name"`
+	Type        string            `json:"type"`   // alb/nlb
+	Scheme      string            `json:"scheme"` // internet-facing/internal
+	Address     string            `json:"address"`
+	VPCID       string            `json:"vpc_id"`
+	SubnetID    string            `json:"subnet_id"`
+	ListenerIDs []string          `json:"listener_ids"`
+	Tags        map[string]string `json:"tags"`
+	CreatedAt   time.Time         `json:"created_at"`
+}
+
+// LBConfig 负载均衡创建配置
+type LBConfig struct {
+	Name     string            `json:"name"`
+	Type     string            `json:"type"`
+	Scheme   string            `json:"scheme"`
+	VPCID    string            `json:"vpc_id"`
+	SubnetID string            `json:"subnet_id"`
+	Tags     map[string]string `json:"tags"`
+}
+
+// Listener 监听器
+type Listener struct {
+	ID             string `json:"id"`
+	Name           string `json:"name"`
+	LBID           string `json:"lb_id"`
+	Protocol       string `json:"protocol"` // HTTP/HTTPS/TCP/UDP
+	Port           int    `json:"port"`
+	BackendGroupID string `json:"backend_group_id"`
+	Status         string `json:"status"`
+}
+
+// ListenerConfig 监听器创建配置
+type ListenerConfig struct {
+	Name           string `json:"name"`
+	Protocol       string `json:"protocol"`
+	Port           int    `json:"port"`
+	BackendGroupID string `json:"backend_group_id"`
+}
+
+// DNSZone DNS 区域
+type DNSZone struct {
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	Status    string    `json:"status"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// DNSZoneConfig DNS 区域创建配置
+type DNSZoneConfig struct {
+	Name string `json:"name"`
+}
+
+// DNSRecord DNS 记录
+type DNSRecord struct {
+	ID     string `json:"id"`
+	ZoneID string `json:"zone_id"`
+	Name   string `json:"name"`
+	Type   string `json:"type"` // A/AAAA/CNAME/MX/TXT/SRV
+	Value  string `json:"value"`
+	TTL    int    `json:"ttl"`
+	Status string `json:"status"`
+}
+
+// DNSRecordConfig DNS 记录创建配置
+type DNSRecordConfig struct {
+	Name  string `json:"name"`
+	Type  string `json:"type"`
+	Value string `json:"value"`
+	TTL   int    `json:"ttl"`
 }
