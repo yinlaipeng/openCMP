@@ -3,6 +3,8 @@ module github.com/opencmp/opencmp
 go 1.25.8
 
 require (
+	github.com/DATA-DOG/go-sqlmock v1.5.2
+	github.com/aliyun/alibaba-cloud-sdk-go v1.63.107
 	github.com/gin-gonic/gin v1.12.0
 	github.com/stretchr/testify v1.11.1
 	go.uber.org/zap v1.27.1
@@ -14,8 +16,6 @@ require (
 
 require (
 	filippo.io/edwards25519 v1.2.0 // indirect
-	github.com/DATA-DOG/go-sqlmock v1.5.2 // indirect
-	github.com/aliyun/alibaba-cloud-sdk-go v1.63.107 // indirect
 	github.com/bytedance/gopkg v0.1.3 // indirect
 	github.com/bytedance/sonic v1.15.0 // indirect
 	github.com/bytedance/sonic/loader v0.5.0 // indirect
