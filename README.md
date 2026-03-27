@@ -137,6 +137,12 @@ docker run -d -p 3000:3000 opencmp-frontend:latest
 - 安全组管理
 - 弹性 IP 管理
 
+### 认证与安全管理 (IAM)
+- **认证源管理**: 支持 LDAP、OIDC、SAML 认证源配置和测试
+- **用户管理**: 用户创建、启用/禁用、删除
+- **角色权限**: 角色创建、权限分配、角色管理
+- **数据模型**: 域、项目、用户组、消息中心、通知渠道等
+
 ## API 端点
 
 ### 云账户管理
@@ -157,6 +163,22 @@ docker run -d -p 3000:3000 opencmp-frontend:latest
 - `GET /api/v1/network/subnets` - 列出子网
 - `GET /api/v1/network/security-groups` - 列出安全组
 - `GET /api/v1/network/eips` - 列出弹性 IP
+
+### 认证与安全 (IAM)
+- `GET /api/v1/auth-sources` - 列出认证源
+- `POST /api/v1/auth-sources` - 创建认证源
+- `POST /api/v1/auth-sources/:id/test` - 测试认证源连接
+- `GET /api/v1/users` - 列出用户
+- `POST /api/v1/users` - 创建用户
+- `DELETE /api/v1/users/:id` - 删除用户
+- `POST /api/v1/users/:id/enable` - 启用用户
+- `POST /api/v1/users/:id/disable` - 禁用用户
+- `GET /api/v1/roles` - 列出角色
+- `POST /api/v1/roles` - 创建角色
+- `DELETE /api/v1/roles/:id` - 删除角色
+- `GET /api/v1/roles/permissions` - 列出权限
+- `POST /api/v1/roles/:id/permissions` - 分配权限给角色
+- `GET /api/v1/roles/:id/permissions` - 获取角色权限
 
 ## 技术栈
 
