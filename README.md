@@ -70,6 +70,8 @@ go run cmd/server/main.go -config configs/config.yaml
 
 后端服务运行在 `http://localhost:8080`
 
+**默认管理员账号**: `admin` / `admin123`
+
 #### 方式二：本地 MySQL
 
 ```bash
@@ -101,6 +103,10 @@ npm run dev
 ```
 
 前端服务运行在 `http://localhost:3000`
+
+**首次访问会跳转到登录页面，使用默认管理员账号登录**:
+- 用户名：`admin`
+- 密码：`admin123`
 
 ### Docker 部署
 
