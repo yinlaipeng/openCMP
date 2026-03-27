@@ -71,7 +71,28 @@ func main() {
 	}
 
 	// 自动迁移表结构
-	if err := db.AutoMigrate(&model.CloudAccount{}); err != nil {
+	if err := db.AutoMigrate(
+		&model.CloudAccount{},
+		&model.Domain{},
+		&model.Project{},
+		&model.User{},
+		&model.Group{},
+		&model.UserGroup{},
+		&model.Role{},
+		&model.Permission{},
+		&model.RolePermission{},
+		&model.UserRole{},
+		&model.ProjectUserRole{},
+		&model.GroupRole{},
+		&model.AuthSource{},
+		&model.SecurityAlert{},
+		&model.MessageType{},
+		&model.Message{},
+		&model.NotificationChannel{},
+		&model.MessageSubscription{},
+		&model.Robot{},
+		&model.Receiver{},
+	); err != nil {
 		log.Fatalf("failed to migrate database: %v", err)
 	}
 
@@ -87,6 +108,18 @@ func main() {
 	v1 := r.Group("/api/v1")
 	v1.Use(middleware.AuthMiddleware())
 	{
+		// 云账户路由
+		cloudAccountHandler := handler.NewCloudAccountHandler(db, logger)
+		cloudAccountGroup := v1.Group("/cloud-accounts")
+		{
+			cloudAccountGroup.POST("", cloudAccountHandler.Create)
+			cloudAccountGroup.GET("", cloudAccountHandler.List)
+			cloudAccountGroup.GET("/:id", cloudAccountHandler.Get)
+			cloudAccountGroup.PUT("/:id", cloudAccountHandler.Update)
+			cloudAccountGroup.DELETE("/:id", cloudAccountHandler.Delete)
+			cloudAccountGroup.POST("/:id/verify", cloudAccountHandler.Verify)
+		}
+
 		// 计算资源路由
 		computeHandler := handler.NewComputeHandler(db, logger)
 		computeGroup := v1.Group("/compute")
@@ -98,9 +131,6 @@ func main() {
 			computeGroup.POST("/vms/:id/action", computeHandler.VMAction)
 			computeGroup.GET("/images", computeHandler.ListImages)
 		}
-		// 云账户路由（后续实现）
-		// compute 路由（后续实现）
-		// network 路由（后续实现）
 
 		// 网络资源路由
 		networkHandler := handler.NewNetworkHandler(db, logger)
@@ -118,6 +148,39 @@ func main() {
 
 			networkGroup.POST("/eips", networkHandler.CreateEIP)
 			networkGroup.GET("/eips", networkHandler.ListEIPs)
+		}
+
+		// IAM 认证与安全路由
+		authSourceHandler := handler.NewAuthSourceHandler(db, logger)
+		authSourceGroup := v1.Group("/auth-sources")
+		{
+			authSourceGroup.GET("", authSourceHandler.List)
+			authSourceGroup.GET("/:id", authSourceHandler.Get)
+			authSourceGroup.POST("", authSourceHandler.Create)
+			authSourceGroup.POST("/:id/test", authSourceHandler.Test)
+		}
+
+		userHandler := handler.NewUserHandler(db, logger)
+		userGroup := v1.Group("/users")
+		{
+			userGroup.GET("", userHandler.List)
+			userGroup.GET("/:id", userHandler.Get)
+			userGroup.POST("", userHandler.Create)
+			userGroup.DELETE("/:id", userHandler.Delete)
+			userGroup.POST("/:id/enable", userHandler.Enable)
+			userGroup.POST("/:id/disable", userHandler.Disable)
+		}
+
+		roleHandler := handler.NewRoleHandler(db, logger)
+		roleGroup := v1.Group("/roles")
+		{
+			roleGroup.GET("", roleHandler.List)
+			roleGroup.GET("/:id", roleHandler.Get)
+			roleGroup.POST("", roleHandler.Create)
+			roleGroup.DELETE("/:id", roleHandler.Delete)
+			roleGroup.GET("/permissions", roleHandler.ListPermissions)
+			roleGroup.POST("/:id/permissions", roleHandler.AssignPermission)
+			roleGroup.GET("/:id/permissions", roleHandler.GetPermissions)
 		}
 	}
 
