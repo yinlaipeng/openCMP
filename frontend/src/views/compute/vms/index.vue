@@ -118,10 +118,6 @@ const handleDelete = async (row: VirtualMachine) => {
   }
 }
 
-const handleCreate = () => {
-  ElMessage.info('创建虚拟机功能开发中')
-}
-
 onMounted(() => {
   loadVMs()
 })
