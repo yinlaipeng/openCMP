@@ -93,6 +93,18 @@ const routes = [
             meta: { title: '角色权限' }
           },
           {
+            path: 'permissions',
+            name: 'Permissions',
+            component: () => import('@/views/iam/permissions/index.vue'),
+            meta: { title: '权限管理' }
+          },
+          {
+            path: 'policies',
+            name: 'Policies',
+            component: () => import('@/views/iam/policies/index.vue'),
+            meta: { title: '策略管理' }
+          },
+          {
             path: 'messages',
             name: 'Messages',
             component: () => import('@/views/iam/messages/index.vue'),
