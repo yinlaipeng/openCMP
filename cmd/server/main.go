@@ -13,6 +13,7 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 
+	"github.com/opencmp/opencmp/internal/handler"
 	"github.com/opencmp/opencmp/internal/middleware"
 	"github.com/opencmp/opencmp/internal/model"
 )
@@ -86,6 +87,17 @@ func main() {
 	v1 := r.Group("/api/v1")
 	v1.Use(middleware.AuthMiddleware())
 	{
+		// 计算资源路由
+		computeHandler := handler.NewComputeHandler(db, logger)
+		computeGroup := v1.Group("/compute")
+		{
+			computeGroup.POST("/vms", computeHandler.CreateVM)
+			computeGroup.GET("/vms", computeHandler.ListVMs)
+			computeGroup.GET("/vms/:id", computeHandler.GetVM)
+			computeGroup.DELETE("/vms/:id", computeHandler.DeleteVM)
+			computeGroup.POST("/vms/:id/action", computeHandler.VMAction)
+			computeGroup.GET("/images", computeHandler.ListImages)
+		}
 		// 云账户路由（后续实现）
 		// compute 路由（后续实现）
 		// network 路由（后续实现）
