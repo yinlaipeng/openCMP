@@ -36,6 +36,16 @@
           <el-menu-item index="/network/security-groups">安全组管理</el-menu-item>
           <el-menu-item index="/network/eips">弹性 IP</el-menu-item>
         </el-sub-menu>
+        
+        <el-sub-menu index="iam">
+          <template #title>
+            <el-icon><Lock /></el-icon>
+            <span>认证与安全</span>
+          </template>
+          <el-menu-item index="/iam/auth-sources">认证源</el-menu-item>
+          <el-menu-item index="/iam/users">用户管理</el-menu-item>
+          <el-menu-item index="/iam/roles">角色权限</el-menu-item>
+        </el-sub-menu>
       </el-menu>
     </el-aside>
     

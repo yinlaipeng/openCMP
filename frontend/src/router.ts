@@ -62,6 +62,31 @@ const routes = [
             meta: { title: '弹性 IP' }
           }
         ]
+      },
+      {
+        path: '/iam',
+        name: 'IAM',
+        meta: { title: '认证与安全', icon: 'Lock' },
+        children: [
+          {
+            path: 'auth-sources',
+            name: 'AuthSources',
+            component: () => import('@/views/iam/auth-sources/index.vue'),
+            meta: { title: '认证源' }
+          },
+          {
+            path: 'users',
+            name: 'Users',
+            component: () => import('@/views/iam/users/index.vue'),
+            meta: { title: '用户管理' }
+          },
+          {
+            path: 'roles',
+            name: 'Roles',
+            component: () => import('@/views/iam/roles/index.vue'),
+            meta: { title: '角色权限' }
+          }
+        ]
       }
     ]
   }
