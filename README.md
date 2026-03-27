@@ -50,6 +50,28 @@ openCMP/
 
 ### 后端启动
 
+#### 方式一：使用 Docker Compose (推荐)
+
+```bash
+cd backend
+
+# 启动 MySQL
+docker-compose up -d
+
+# 等待 MySQL 启动完成
+sleep 10
+
+# 安装依赖
+go mod download
+
+# 运行
+go run cmd/server/main.go -config configs/config.yaml
+```
+
+后端服务运行在 `http://localhost:8080`
+
+#### 方式二：本地 MySQL
+
 ```bash
 cd backend
 
@@ -65,8 +87,6 @@ vim configs/config.yaml
 # 运行
 go run cmd/server/main.go -config configs/config.yaml
 ```
-
-后端服务运行在 `http://localhost:8080`
 
 ### 前端启动
 

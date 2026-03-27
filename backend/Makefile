@@ -1,4 +1,4 @@
-.PHONY: build run test clean docker-build docker-run help deps fmt lint
+.PHONY: build run test clean docker-build docker-run help deps fmt lint docker-up docker-down
 
 # 变量
 BINARY_NAME=opencmp
@@ -40,6 +40,16 @@ docker-run:
 	@echo "Running Docker container..."
 	docker run -d -p 8080:8080 --name $(BINARY_NAME) $(BINARY_NAME):latest
 
+# Docker Compose 启动 MySQL
+docker-up:
+	@echo "Starting MySQL with docker-compose..."
+	docker-compose up -d
+
+# Docker Compose 停止 MySQL
+docker-down:
+	@echo "Stopping MySQL..."
+	docker-compose down
+
 # 安装依赖
 deps:
 	@echo "Installing dependencies..."
@@ -68,3 +78,5 @@ help:
 	@echo "  make lint         - Run linter"
 	@echo "  make docker-build - Build Docker image"
 	@echo "  make docker-run   - Run Docker container"
+	@echo "  make docker-up    - Start MySQL with docker-compose"
+	@echo "  make docker-down  - Stop MySQL"

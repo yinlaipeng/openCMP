@@ -4,7 +4,7 @@ server:
 
 database:
   driver: mysql
-  dsn: "root:password@tcp(127.0.0.1:3306)/opencmp?charset=utf8mb4&parseTime=True&loc=Local"
+  dsn: "root:opencmp123@tcp(127.0.0.1:3306)/opencmp?charset=utf8mb4&parseTime=True&loc=Local"
   max_idle_conns: 10
   max_open_conns: 100
 
