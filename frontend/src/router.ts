@@ -3,6 +3,12 @@ import Layout from '@/layout/index.vue'
 
 const routes = [
   {
+    path: '/login',
+    name: 'Login',
+    component: () => import('@/views/login/index.vue'),
+    meta: { title: '登录' }
+  },
+  {
     path: '/',
     component: Layout,
     redirect: '/cloud-accounts',
@@ -85,6 +91,18 @@ const routes = [
             name: 'Roles',
             component: () => import('@/views/iam/roles/index.vue'),
             meta: { title: '角色权限' }
+          },
+          {
+            path: 'messages',
+            name: 'Messages',
+            component: () => import('@/views/iam/messages/index.vue'),
+            meta: { title: '消息中心' }
+          },
+          {
+            path: 'alerts',
+            name: 'Alerts',
+            component: () => import('@/views/iam/alerts/index.vue'),
+            meta: { title: '安全告警' }
           }
         ]
       }
@@ -95,6 +113,21 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(),
   routes
+})
+
+// 路由守卫
+router.beforeEach((to, from, next) => {
+  const token = localStorage.getItem('token')
+  
+  if (to.path === '/login') {
+    next()
+  } else {
+    if (token) {
+      next()
+    } else {
+      next('/login')
+    }
+  }
 })
 
 export default router

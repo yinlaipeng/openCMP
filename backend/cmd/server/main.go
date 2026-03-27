@@ -189,6 +189,10 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 
+	// 认证路由（不需要认证）
+	authHandler := handler.NewAuthHandler(db, logger)
+	r.POST("/api/v1/auth/login", authHandler.Login)
+
 	// 启动服务
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)
 	logger.Info("starting server", zap.String("addr", addr))

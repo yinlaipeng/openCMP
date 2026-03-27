@@ -45,6 +45,8 @@
           <el-menu-item index="/iam/auth-sources">认证源</el-menu-item>
           <el-menu-item index="/iam/users">用户管理</el-menu-item>
           <el-menu-item index="/iam/roles">角色权限</el-menu-item>
+          <el-menu-item index="/iam/messages">消息中心</el-menu-item>
+          <el-menu-item index="/iam/alerts">安全告警</el-menu-item>
         </el-sub-menu>
       </el-menu>
     </el-aside>
@@ -58,7 +60,29 @@
           </el-breadcrumb>
         </div>
         <div class="header-right">
-          <el-tag size="small" type="success">多云管理平台</el-tag>
+          <el-dropdown @command="handleCommand">
+            <span class="user-info">
+              <el-avatar :size="32" :icon="User" />
+              <span class="username">{{ currentUser?.display_name || currentUser?.name || '用户' }}</span>
+              <el-icon><ArrowDown /></el-icon>
+            </span>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="profile">
+                  <el-icon><User /></el-icon>
+                  个人信息
+                </el-dropdown-item>
+                <el-dropdown-item command="password">
+                  <el-icon><Lock /></el-icon>
+                  修改密码
+                </el-dropdown-item>
+                <el-dropdown-item divided command="logout">
+                  <el-icon><SwitchButton /></el-icon>
+                  退出登录
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </div>
       </el-header>
       
@@ -70,21 +94,64 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, ref } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { ElMessageBox, ElMessage } from 'element-plus'
+import { User, ArrowDown, SwitchButton, Lock } from '@element-plus/icons-vue'
 
+const router = useRouter()
 const route = useRoute()
+
+const currentUser = ref<any>(() => {
+  try {
+    const userStr = localStorage.getItem('user')
+    return userStr ? JSON.parse(userStr) : null
+  } catch {
+    return null
+  }
+})
 
 const activeMenu = computed(() => {
   const path = route.path
   if (path.startsWith('/compute')) return 'compute'
   if (path.startsWith('/network')) return 'network'
+  if (path.startsWith('/iam')) return 'iam'
   return path
 })
 
 const currentRoute = computed(() => {
   return route.meta.title as string || ''
 })
+
+const handleCommand = async (command: string) => {
+  switch (command) {
+    case 'logout':
+      await handleLogout()
+      break
+    case 'password':
+      ElMessage.info('修改密码功能开发中')
+      break
+    case 'profile':
+      ElMessage.info('个人信息功能开发中')
+      break
+  }
+}
+
+const handleLogout = async () => {
+  try {
+    await ElMessageBox.confirm('确定要退出登录吗？', '提示', {
+      type: 'warning'
+    })
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+    ElMessage.success('已退出登录')
+    router.push('/login')
+  } catch (e: any) {
+    if (e !== 'cancel') {
+      console.error(e)
+    }
+  }
+}
 </script>
 
 <style scoped>
@@ -123,6 +190,30 @@ const currentRoute = computed(() => {
 
 .header-left {
   flex: 1;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 4px;
+  transition: background-color 0.3s;
+}
+
+.user-info:hover {
+  background-color: #f5f5f5;
+}
+
+.username {
+  font-size: 14px;
+  color: #333;
 }
 
 .main-content {
