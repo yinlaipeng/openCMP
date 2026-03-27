@@ -101,6 +101,24 @@ func main() {
 		// 云账户路由（后续实现）
 		// compute 路由（后续实现）
 		// network 路由（后续实现）
+
+		// 网络资源路由
+		networkHandler := handler.NewNetworkHandler(db, logger)
+		networkGroup := v1.Group("/network")
+		{
+			networkGroup.POST("/vpcs", networkHandler.CreateVPC)
+			networkGroup.GET("/vpcs", networkHandler.ListVPCs)
+			networkGroup.DELETE("/vpcs/:id", networkHandler.DeleteVPC)
+
+			networkGroup.POST("/subnets", networkHandler.CreateSubnet)
+			networkGroup.GET("/subnets", networkHandler.ListSubnets)
+
+			networkGroup.POST("/security-groups", networkHandler.CreateSecurityGroup)
+			networkGroup.GET("/security-groups", networkHandler.ListSecurityGroups)
+
+			networkGroup.POST("/eips", networkHandler.CreateEIP)
+			networkGroup.GET("/eips", networkHandler.ListEIPs)
+		}
 	}
 
 	// 健康检查（不需要认证）
