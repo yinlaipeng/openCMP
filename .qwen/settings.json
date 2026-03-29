@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx *)",
+      "WebFetch(skills.sh)",
+      "Bash(pkill *)",
+      "Bash(sleep *)",
+      "Bash(npm run *)",
+      "Bash(curl *)",
+      "Bash(python3 *)",
+      "Bash(go *)"
+    ]
+  }
+}

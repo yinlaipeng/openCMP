@@ -3,86 +3,168 @@
     <el-card class="page-card">
       <template #header>
         <div class="card-header">
-          <span class="title">策略管理</span>
+          <div class="header-left">
+            <span class="title">策略管理</span>
+            <el-tabs v-model="activeScope" class="policy-tabs" @tab-change="handleScopeChange">
+              <el-tab-pane label="全部" name="all">
+                <span class="tab-count">({{ totalPolicies }})</span>
+              </el-tab-pane>
+              <el-tab-pane label="系统策略" name="system">
+                <span class="tab-count">({{ systemPolicies.length }})</span>
+              </el-tab-pane>
+              <el-tab-pane label="自定义策略" name="custom">
+                <span class="tab-count">({{ customPolicies.length }})</span>
+              </el-tab-pane>
+            </el-tabs>
+          </div>
           <el-button type="primary" @click="handleCreate">
             <el-icon><Plus /></el-icon>
             创建策略
           </el-button>
         </div>
       </template>
-      
-      <el-table :data="policies" v-loading="loading">
-        <el-table-column prop="id" label="策略 ID" width="100" />
-        <el-table-column prop="name" label="策略名称" width="200" />
-        <el-table-column prop="description" label="描述" />
-        <el-table-column prop="type" label="类型" width="100">
+
+      <el-form :inline="true" :model="queryForm" class="query-form">
+        <el-form-item label="作用域">
+          <el-select v-model="queryForm.scope" placeholder="全部" clearable @change="loadPolicies">
+            <el-option label="全部" value="" />
+            <el-option label="系统级 (system)" value="system" />
+            <el-option label="域级 (domain)" value="domain" />
+            <el-option label="项目级 (project)" value="project" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="">
+          <el-input
+            v-model="queryForm.keyword"
+            placeholder="搜索策略名称或描述"
+            clearable
+            @input="loadPolicies"
+            style="width: 240px"
+          >
+            <template #prefix>
+              <el-icon><Search /></el-icon>
+            </template>
+          </el-input>
+        </el-form-item>
+      </el-form>
+
+      <el-table :data="displayedPolicies" v-loading="loading" row-key="id" :height="tableHeight">
+        <el-table-column prop="id" label="策略 ID" width="180" />
+        <el-table-column prop="name" label="策略名称" min-width="200" show-overflow-tooltip>
           <template #default="{ row }">
-            <el-tag :type="row.type === 'system' ? 'warning' : ''">
-              {{ row.type === 'system' ? '系统' : '自定义' }}
+            <span class="policy-name">{{ row.name }}</span>
+            <el-tag v-if="row.is_system" type="warning" size="small" style="margin-left: 8px">系统</el-tag>
+            <el-tag v-if="!row.enabled" type="info" size="small" style="margin-left: 8px">禁用</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="scope" label="作用域" width="120">
+          <template #default="{ row }">
+            <el-tag :type="getScopeTagType(row.scope)" size="small">
+              {{ getScopeName(row.scope) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="user_count" label="关联用户" width="100" />
-        <el-table-column prop="role_count" label="关联角色" width="100" />
-        <el-table-column prop="created_at" label="创建时间" width="180" />
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="updated_at" label="更新时间" width="180" />
+        <el-table-column label="操作" width="220" fixed="right">
           <template #default="{ row }">
             <el-button size="small" @click="handleView(row)">查看</el-button>
-            <el-button size="small" @click="handleEdit(row)">编辑</el-button>
-            <el-button 
-              v-if="row.type === 'custom'" 
-              size="small" 
-              type="danger" 
+            <el-button size="small" @click="handleEdit(row)" :disabled="!row.can_update">编辑</el-button>
+            <el-button
+              v-if="row.can_delete"
+              size="small"
+              type="danger"
               @click="handleDelete(row)"
             >
               删除
             </el-button>
+            <el-tag v-else size="small" type="info">不可删除</el-tag>
           </template>
         </el-table-column>
       </el-table>
+
+      <div class="pagination">
+        <el-pagination
+          v-model:current-page="pagination.page"
+          v-model:page-size="pagination.pageSize"
+          :total="pagination.total"
+          :page-sizes="[50, 100, 170]"
+          layout="total, sizes, prev, pager, next, jumper"
+          @size-change="loadPolicies"
+          @current-change="loadPolicies"
+        />
+      </div>
     </el-card>
-    
+
     <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑策略' : '创建策略'" width="800px">
       <el-form :model="form" :rules="rules" ref="formRef" label-width="120px">
         <el-form-item label="策略名称" prop="name">
-          <el-input v-model="form.name" placeholder="请输入策略名称" />
+          <el-input v-model="form.name" placeholder="例如：domain-vm-admin" />
+          <div class="form-tip">命名规范：{scope}-{service}-{role}，如 domain-vm-admin</div>
         </el-form-item>
         <el-form-item label="描述" prop="description">
           <el-input v-model="form.description" type="textarea" :rows="3" placeholder="策略描述" />
         </el-form-item>
-        <el-form-item label="策略内容" prop="statement">
+        <el-form-item label="作用域" prop="scope">
+          <el-select v-model="form.scope" placeholder="请选择作用域" style="width: 100%">
+            <el-option label="系统级 (system)" value="system" />
+            <el-option label="域级 (domain)" value="domain" />
+            <el-option label="项目级 (project)" value="project" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="策略内容" prop="policy">
           <div class="policy-editor">
+            <el-alert
+              title="策略语法说明"
+              type="info"
+              :closable="false"
+              style="margin-bottom: 15px"
+            >
+              <template #default>
+                <div>策略格式：{ service: { resource: { action: "allow" | "deny" } } }</div>
+                <div>例如：{ "compute": { "servers": { "*": "allow" } } } 表示允许管理所有虚拟机</div>
+              </template>
+            </el-alert>
             <el-table :data="form.statements" border style="margin-bottom: 10px">
-              <el-table-column label="效果" width="120">
-                <template #default="{ row, $index }">
-                  <el-select v-model="row.effect" size="small" style="width: 100%">
-                    <el-option label="允许" value="Allow" />
-                    <el-option label="拒绝" value="Deny" />
+              <el-table-column label="服务" width="150">
+                <template #default="{ $index }">
+                  <el-select v-model="form.statements[$index].service" size="small" style="width: 100%">
+                    <el-option label="计算 (compute)" value="compute" />
+                    <el-option label="镜像 (image)" value="image" />
+                    <el-option label="网络 (network)" value="network" />
+                    <el-option label="存储 (storage)" value="storage" />
+                    <el-option label="监控 (monitor)" value="monitor" />
+                    <el-option label="计费 (meter)" value="meter" />
+                    <el-option label="身份 (identity)" value="identity" />
+                    <el-option label="容器 (k8s)" value="k8s" />
+                    <el-option label="云账号 (compute/cloudaccounts)" value="compute_cloudaccounts" />
+                    <el-option label="全部 (*)" value="*" />
                   </el-select>
                 </template>
               </el-table-column>
-              <el-table-column label="资源类型">
-                <template #default="{ row, $index }">
-                  <el-select v-model="row.resource" size="small" style="width: 100%">
-                    <el-option label="云账户" value="cloud_account:*" />
-                    <el-option label="虚拟机" value="vm:*" />
-                    <el-option label="网络资源" value="network:*" />
-                    <el-option label="存储" value="storage:*" />
-                    <el-option label="用户" value="user:*" />
-                    <el-option label="角色" value="role:*" />
-                    <el-option label="所有资源" value="*:*" />
+              <el-table-column label="资源" width="150">
+                <template #default="{ $index }">
+                  <el-input v-model="form.statements[$index].resource" size="small" placeholder="如：servers" />
+                </template>
+              </el-table-column>
+              <el-table-column label="效果" width="120">
+                <template #default="{ $index }">
+                  <el-select v-model="form.statements[$index].effect" size="small" style="width: 100%">
+                    <el-option label="允许" value="allow" />
+                    <el-option label="拒绝" value="deny" />
                   </el-select>
                 </template>
               </el-table-column>
               <el-table-column label="操作">
-                <template #default="{ row, $index }">
-                  <el-select v-model="row.action" size="small" style="width: 100%" multiple>
-                    <el-option label="查看列表" value="list" />
-                    <el-option label="查看详情" value="get" />
-                    <el-option label="创建" value="create" />
-                    <el-option label="更新" value="update" />
-                    <el-option label="删除" value="delete" />
-                    <el-option label="所有操作" value="*" />
+                <template #default="{ $index }">
+                  <el-select v-model="form.statements[$index].actions" size="small" style="width: 100%" multiple>
+                    <el-option label="所有操作 (*)" value="*" />
+                    <el-option label="查看列表 (list)" value="list" />
+                    <el-option label="查看详情 (get)" value="get" />
+                    <el-option label="创建 (create)" value="create" />
+                    <el-option label="更新 (update)" value="update" />
+                    <el-option label="删除 (delete)" value="delete" />
+                    <el-option label="执行操作 (perform)" value="perform" />
                   </el-select>
                 </template>
               </el-table-column>
@@ -101,41 +183,48 @@
         <el-button type="primary" @click="handleSubmit" :loading="submitting">确定</el-button>
       </template>
     </el-dialog>
-    
-    <el-dialog v-model="viewVisible" title="策略详情" width="700px">
+
+    <el-dialog v-model="viewVisible" title="策略详情" width="900px">
       <div v-if="currentPolicy" class="policy-detail">
-        <el-descriptions :column="2" border>
-          <el-descriptions-item label="策略 ID">{{ currentPolicy.id }}</el-descriptions-item>
-          <el-descriptions-item label="类型">
-            <el-tag :type="currentPolicy.type === 'system' ? 'warning' : ''">
-              {{ currentPolicy.type === 'system' ? '系统' : '自定义' }}
+        <el-descriptions :column="3" border>
+          <el-descriptions-item label="策略 ID" :span="3">{{ currentPolicy.id }}</el-descriptions-item>
+          <el-descriptions-item label="策略名称" :span="2">
+            <span class="policy-name">{{ currentPolicy.name }}</span>
+            <el-tag v-if="currentPolicy.is_system" type="warning" size="small" style="margin-left: 8px">系统</el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="作用域">
+            <el-tag :type="getScopeTagType(currentPolicy.scope)" size="small">
+              {{ getScopeName(currentPolicy.scope) }}
             </el-tag>
           </el-descriptions-item>
-          <el-descriptions-item label="策略名称" :span="2">{{ currentPolicy.name }}</el-descriptions-item>
-          <el-descriptions-item label="描述" :span="2">{{ currentPolicy.description }}</el-descriptions-item>
-          <el-descriptions-item label="关联用户">{{ currentPolicy.user_count }}</el-descriptions-item>
-          <el-descriptions-item label="关联角色">{{ currentPolicy.role_count }}</el-descriptions-item>
-          <el-descriptions-item label="创建时间" :span="2">{{ currentPolicy.created_at }}</el-descriptions-item>
+          <el-descriptions-item label="描述" :span="3">{{ currentPolicy.description }}</el-descriptions-item>
+          <el-descriptions-item label="创建时间">{{ currentPolicy.created_at }}</el-descriptions-item>
+          <el-descriptions-item label="更新时间">{{ currentPolicy.updated_at }}</el-descriptions-item>
+          <el-descriptions-item label="状态">
+            <el-tag :type="currentPolicy.enabled ? 'success' : 'info'" size="small">
+              {{ currentPolicy.enabled ? '已启用' : '已禁用' }}
+            </el-tag>
+          </el-descriptions-item>
         </el-descriptions>
-        
-        <h4>策略内容</h4>
-        <el-table :data="currentPolicy.statements" border>
-          <el-table-column prop="effect" label="效果">
-            <template #default="{ row }">
-              <el-tag :type="row.effect === 'Allow' ? 'success' : 'danger'">
-                {{ row.effect === 'Allow' ? '允许' : '拒绝' }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column prop="resource" label="资源" />
-          <el-table-column prop="action" label="操作">
-            <template #default="{ row }">
-              <el-tag v-for="action in row.action" :key="action" size="small" style="margin-right: 5px">
-                {{ action }}
-              </el-tag>
-            </template>
-          </el-table-column>
-        </el-table>
+
+        <h4 class="section-title">策略内容</h4>
+        <el-card class="policy-content">
+          <pre>{{ JSON.stringify(currentPolicy.policy, null, 2) }}</pre>
+        </el-card>
+
+        <h4 class="section-title">删除限制</h4>
+        <el-alert
+          v-if="!currentPolicy.can_delete && currentPolicy.delete_fail_reason"
+          :title="currentPolicy.delete_fail_reason.details"
+          type="warning"
+          :closable="false"
+        />
+        <el-alert
+          v-else-if="currentPolicy.can_delete"
+          title="此策略可以被删除"
+          type="success"
+          :closable="false"
+        />
       </div>
     </el-dialog>
   </div>

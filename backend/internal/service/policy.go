@@ -1,0 +1,227 @@
+package service
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"time"
+
+	"github.com/google/uuid"
+	"gorm.io/datatypes"
+	"gorm.io/gorm"
+
+	"github.com/opencmp/opencmp/internal/model"
+)
+
+// PolicyService 策略服务
+type PolicyService struct {
+	db *gorm.DB
+}
+
+// NewPolicyService 创建策略服务
+func NewPolicyService(db *gorm.DB) *PolicyService {
+	return &PolicyService{db: db}
+}
+
+// ListPolicies 列出策略
+func (s *PolicyService) ListPolicies(ctx context.Context, scope string, domainID *string, limit, offset int) ([]model.Policy, int64, error) {
+	var policies []model.Policy
+	var total int64
+
+	query := s.db.WithContext(ctx).Model(&model.Policy{})
+
+	// 按作用域筛选
+	if scope != "" {
+		query = query.Where("scope = ?", scope)
+	}
+
+	// 按域 ID 筛选
+	if domainID != nil && *domainID != "" {
+		query = query.Where("domain_id = ? OR scope = 'system'", *domainID)
+	}
+
+	// 获取总数
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// 分页查询
+	if err := query.Order("created_at DESC").Limit(limit).Offset(offset).Find(&policies).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// 计算每个策略的是否可删除/更新
+	for i := range policies {
+		s.calculatePolicyPermissions(&policies[i])
+	}
+
+	return policies, total, nil
+}
+
+// GetPolicy 获取策略详情
+func (s *PolicyService) GetPolicy(ctx context.Context, id string) (*model.Policy, error) {
+	var policy model.Policy
+	if err := s.db.WithContext(ctx).First(&policy, "id = ?", id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	s.calculatePolicyPermissions(&policy)
+	return &policy, nil
+}
+
+// CreatePolicy 创建策略
+func (s *PolicyService) CreatePolicy(ctx context.Context, policy *model.Policy) error {
+	// 生成策略 ID
+	if policy.ID == "" {
+		policy.ID = uuid.New().String()
+	}
+
+	// 设置默认值
+	policy.Enabled = true
+	policy.IsSystem = false
+	policy.IsEmulated = false
+	policy.IsPublic = true
+	policy.PublicScope = "system"
+	policy.UpdateVersion = 0
+
+	return s.db.WithContext(ctx).Create(policy).Error
+}
+
+// UpdatePolicy 更新策略
+func (s *PolicyService) UpdatePolicy(ctx context.Context, id string, updates map[string]interface{}) error {
+	// 系统策略不可更新
+	var policy model.Policy
+	if err := s.db.WithContext(ctx).First(&policy, "id = ?", id).Error; err != nil {
+		return err
+	}
+
+	if policy.IsSystem {
+		return errors.New("不可更新系统策略")
+	}
+
+	updates["updated_at"] = time.Now()
+	updates["update_version"] = policy.UpdateVersion + 1
+
+	return s.db.WithContext(ctx).Model(&policy).Updates(updates).Error
+}
+
+// DeletePolicy 删除策略
+func (s *PolicyService) DeletePolicy(ctx context.Context, id string) error {
+	var policy model.Policy
+	if err := s.db.WithContext(ctx).First(&policy, "id = ?", id).Error; err != nil {
+		return err
+	}
+
+	// 系统策略不可删除
+	if policy.IsSystem {
+		return errors.New("不可删除系统策略")
+	}
+
+	// 检查是否有关联的角色
+	var count int64
+	if err := s.db.Model(&model.RolePolicy{}).Where("policy_id = ?", id).Count(&count).Error; err != nil {
+		return err
+	}
+
+	if count > 0 {
+		return fmt.Errorf("策略已关联 %d 个角色，无法删除", count)
+	}
+
+	return s.db.WithContext(ctx).Delete(&policy).Error
+}
+
+// calculatePolicyPermissions 计算策略的权限（是否可删除/更新）
+func (s *PolicyService) calculatePolicyPermissions(policy *model.Policy) {
+	// 系统策略不可删除和更新
+	if policy.IsSystem {
+		policy.CanDelete = false
+		policy.CanUpdate = false
+		policy.DeleteFailReason = datatypes.JSON(`{"class":"ForbiddenError","code":403,"details":"不可删除系统策略定义"}`)
+		return
+	}
+
+	// 检查是否有关联的角色
+	var count int64
+	s.db.Model(&model.RolePolicy{}).Where("policy_id = ?", policy.ID).Count(&count)
+
+	if count > 0 {
+		policy.CanDelete = false
+		policy.DeleteFailReason = datatypes.JSON(fmt.Sprintf(`{"class":"NotEmptyError","code":406,"details":"policy is in associated with %d roles"}`, count))
+	} else {
+		policy.CanDelete = true
+	}
+
+	// 非系统策略可以更新
+	policy.CanUpdate = true
+}
+
+// GetPolicyByScope 按作用域获取策略列表
+func (s *PolicyService) GetPolicyByScope(ctx context.Context, scope string) ([]model.Policy, error) {
+	var policies []model.Policy
+	query := s.db.WithContext(ctx).Where("scope = ? AND enabled = ? AND deleted = ?", scope, true, false)
+
+	if err := query.Order("name ASC").Find(&policies).Error; err != nil {
+		return nil, err
+	}
+
+	return policies, nil
+}
+
+// BatchCreatePolicies 批量创建策略（用于初始化）
+func (s *PolicyService) BatchCreatePolicies(ctx context.Context, policies []model.Policy) error {
+	return s.db.WithContext(ctx).CreateInBatches(policies, 50).Error
+}
+
+// CheckPolicyExists 检查策略是否存在
+func (s *PolicyService) CheckPolicyExists(ctx context.Context, name string) (bool, error) {
+	var count int64
+	if err := s.db.WithContext(ctx).Model(&model.Policy{}).Where("name = ?", name).Count(&count).Error; err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
+// AssignPolicyToRole 分配策略给角色
+func (s *PolicyService) AssignPolicyToRole(ctx context.Context, roleID uint, policyID string) error {
+	// 检查是否已关联
+	var count int64
+	if err := s.db.Model(&model.RolePolicy{}).Where("role_id = ? AND policy_id = ?", roleID, policyID).Count(&count).Error; err != nil {
+		return err
+	}
+
+	if count > 0 {
+		return errors.New("策略已关联到该角色")
+	}
+
+	rolePolicy := &model.RolePolicy{
+		RoleID:   roleID,
+		PolicyID: policyID,
+	}
+
+	return s.db.Create(rolePolicy).Error
+}
+
+// GetRolePolicies 获取角色的策略列表
+func (s *PolicyService) GetRolePolicies(ctx context.Context, roleID uint) ([]model.Policy, error) {
+	var policies []model.Policy
+	err := s.db.WithContext(ctx).
+		Joins("JOIN role_policies ON policies.id = role_policies.policy_id").
+		Where("role_policies.role_id = ?", roleID).
+		Find(&policies).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return policies, nil
+}
+
+// RevokePolicyFromRole 从角色撤销策略
+func (s *PolicyService) RevokePolicyFromRole(ctx context.Context, roleID uint, policyID string) error {
+	return s.db.WithContext(ctx).
+		Where("role_id = ? AND policy_id = ?", roleID, policyID).
+		Delete(&model.RolePolicy{}).Error
+}

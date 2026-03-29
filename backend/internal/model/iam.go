@@ -7,6 +7,49 @@ import (
 	"gorm.io/gorm"
 )
 
+// ============= 策略管理 =============
+
+// Policy 策略（参考 OneCloud 设计）
+type Policy struct {
+	ID                 string         `gorm:"primaryKey;size:64" json:"id"` // 策略 ID（UUID）
+	Name               string         `gorm:"uniqueIndex;not null;size:100" json:"name"` // 策略名称
+	Description        string         `gorm:"size:500" json:"description"` // 策略描述
+	Scope              string         `gorm:"type:varchar(20);not null;index" json:"scope"` // system/domain/project
+	DomainID           string         `gorm:"size:64;index" json:"domain_id"` // 域 ID
+	ProjectID          string         `gorm:"size:64;index" json:"project_id"` // 项目 ID
+	Policy             datatypes.JSON `gorm:"type:json;not null" json:"policy"` // 策略内容（JSON 格式）
+	IsSystem           bool           `gorm:"default:false;index" json:"is_system"` // 是否系统策略
+	IsPublic           bool           `gorm:"default:false" json:"is_public"` // 是否公开
+	IsEmulated         bool           `gorm:"default:false" json:"is_emulated"` // 是否预置策略
+	Enabled            bool           `gorm:"default:true;index" json:"enabled"` // 是否启用
+	CanDelete          bool           `gorm:"-" json:"can_delete"` // 是否可删除（计算字段）
+	CanUpdate          bool           `gorm:"-" json:"can_update"` // 是否可更新（计算字段）
+	DeleteFailReason   datatypes.JSON `gorm:"type:json" json:"delete_fail_reason"` // 删除失败原因
+	PendingDeleted     bool           `gorm:"default:false" json:"pending_deleted"` // 是否待删除
+	Deleted            bool           `gorm:"default:false" json:"deleted"` // 是否已删除
+	PublicScope        string         `gorm:"type:varchar(20)" json:"public_scope"` // 公开范围
+	UpdateVersion      int            `gorm:"default:0" json:"update_version"` // 更新版本
+	CreatedAt          time.Time      `gorm:"index" json:"created_at"`
+	UpdatedAt          time.Time      `gorm:"index" json:"updated_at"`
+	DeletedAt          gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+func (Policy) TableName() string {
+	return "policies"
+}
+
+// RolePolicy 角色策略关联
+type RolePolicy struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	RoleID    uint      `gorm:"index;uniqueIndex:role_policy" json:"role_id"`
+	PolicyID  string    `gorm:"index;uniqueIndex:role_policy;size:64" json:"policy_id"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+func (RolePolicy) TableName() string {
+	return "role_policies"
+}
+
 // ============= 域管理 =============
 
 // Domain 域（租户）

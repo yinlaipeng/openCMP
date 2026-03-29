@@ -92,6 +92,8 @@ func main() {
 		&model.MessageSubscription{},
 		&model.Robot{},
 		&model.Receiver{},
+		&model.Policy{},
+		&model.RolePolicy{},
 	); err != nil {
 		log.Fatalf("failed to migrate database: %v", err)
 	}
@@ -177,10 +179,28 @@ func main() {
 			roleGroup.GET("", roleHandler.List)
 			roleGroup.GET("/:id", roleHandler.Get)
 			roleGroup.POST("", roleHandler.Create)
+			roleGroup.PUT("/:id", roleHandler.Update)
 			roleGroup.DELETE("/:id", roleHandler.Delete)
-			roleGroup.GET("/permissions", roleHandler.ListPermissions)
-			roleGroup.POST("/:id/permissions", roleHandler.AssignPermission)
-			roleGroup.GET("/:id/permissions", roleHandler.GetPermissions)
+		}
+
+		// 权限管理路由
+		permissionGroup := v1.Group("/permissions")
+		{
+			permissionGroup.GET("", roleHandler.ListPermissions)
+			permissionGroup.GET("/:id", roleHandler.GetPermission)
+			permissionGroup.POST("", roleHandler.CreatePermission)
+			permissionGroup.PUT("/:id", roleHandler.UpdatePermission)
+			permissionGroup.DELETE("/:id", roleHandler.DeletePermission)
+			permissionGroup.GET("/resources", roleHandler.ListResources)
+			permissionGroup.GET("/actions", roleHandler.ListActions)
+		}
+
+		// 角色权限关联路由
+		rolePermissionGroup := v1.Group("/roles")
+		{
+			rolePermissionGroup.GET("/:id/permissions", roleHandler.GetPermissions)
+			rolePermissionGroup.POST("/:id/permissions", roleHandler.AssignPermission)
+			rolePermissionGroup.DELETE("/:id/permissions", roleHandler.RevokePermission)
 		}
 	}
 
