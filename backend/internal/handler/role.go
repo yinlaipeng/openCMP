@@ -47,7 +47,21 @@ func (h *RoleHandler) List(c *gin.Context) {
 		domainID = &uid
 	}
 
-	roles, total, err := h.service.ListRoles(c.Request.Context(), domainID, limit, offset)
+	// 获取筛选参数
+	keyword := c.Query("keyword")
+	roleType := c.Query("type")
+	enabledStr := c.Query("enabled")
+
+	var enabled *bool
+	if enabledStr != "" {
+		if enabledStr == "true" {
+			enabled = func() *bool { b := true; return &b }()
+		} else if enabledStr == "false" {
+			enabled = func() *bool { b := false; return &b }()
+		}
+	}
+
+	roles, total, err := h.service.ListRoles(c.Request.Context(), domainID, keyword, roleType, enabled, limit, offset)
 	if err != nil {
 		h.logger.Error("failed to list roles", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -428,4 +442,172 @@ func (h *RoleHandler) ListActions(c *gin.Context) {
 		"items": actions,
 		"total": len(actions),
 	})
+}
+
+// Enable 启用角色
+func (h *RoleHandler) Enable(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	if err := h.service.EnableRole(c.Request.Context(), uint(id)); err != nil {
+		h.logger.Error("failed to enable role", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "enabled"})
+}
+
+// Disable 禁用角色
+func (h *RoleHandler) Disable(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	if err := h.service.DisableRole(c.Request.Context(), uint(id)); err != nil {
+		h.logger.Error("failed to disable role", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "disabled"})
+}
+
+// MakePublic 公开角色
+func (h *RoleHandler) MakePublic(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	if err := h.service.MakeRolePublic(c.Request.Context(), uint(id)); err != nil {
+		h.logger.Error("failed to make role public", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "public"})
+}
+
+// GetRoleUsers 获取角色的用户列表
+func (h *RoleHandler) GetRoleUsers(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+
+	users, total, err := h.service.GetRoleUsers(c.Request.Context(), uint(id), limit, offset)
+	if err != nil {
+		h.logger.Error("failed to get role users", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"items": users,
+		"total": total,
+	})
+}
+
+// GetRoleGroups 获取角色的用户组列表
+func (h *RoleHandler) GetRoleGroups(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+
+	groups, total, err := h.service.GetRoleGroups(c.Request.Context(), uint(id), limit, offset)
+	if err != nil {
+		h.logger.Error("failed to get role groups", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"items": groups,
+		"total": total,
+	})
+}
+
+// GetRolePolicies 获取角色的策略列表
+func (h *RoleHandler) GetRolePolicies(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	policies, err := h.service.GetRolePolicies(c.Request.Context(), uint(id))
+	if err != nil {
+		h.logger.Error("failed to get role policies", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"items": policies,
+		"total": len(policies),
+	})
+}
+
+// AssignPolicyToRole 分配策略给角色
+func (h *RoleHandler) AssignPolicyToRole(c *gin.Context) {
+	roleID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	var req struct {
+		PolicyID string `json:"policy_id" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.service.AssignPolicyToRole(c.Request.Context(), uint(roleID), req.PolicyID); err != nil {
+		h.logger.Error("failed to assign policy to role", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "assigned"})
+}
+
+// RevokePolicyFromRole 从角色撤销策略
+func (h *RoleHandler) RevokePolicyFromRole(c *gin.Context) {
+	roleID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	policyID := c.Query("policy_id")
+	if policyID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "policy_id is required"})
+		return
+	}
+
+	if err := h.service.RevokePolicyFromRole(c.Request.Context(), uint(roleID), policyID); err != nil {
+		h.logger.Error("failed to revoke policy from role", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "revoked"})
 }

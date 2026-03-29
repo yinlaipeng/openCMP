@@ -81,16 +81,34 @@ const routes = [
             meta: { title: '认证源' }
           },
           {
+            path: 'domains',
+            name: 'Domains',
+            component: () => import('@/views/iam/domains/index.vue'),
+            meta: { title: '域' }
+          },
+          {
+            path: 'projects',
+            name: 'Projects',
+            component: () => import('@/views/iam/projects/index.vue'),
+            meta: { title: '项目' }
+          },
+          {
             path: 'users',
             name: 'Users',
             component: () => import('@/views/iam/users/index.vue'),
-            meta: { title: '用户管理' }
+            meta: { title: '用户' }
+          },
+          {
+            path: 'groups',
+            name: 'Groups',
+            component: () => import('@/views/iam/groups/index.vue'),
+            meta: { title: '用户组' }
           },
           {
             path: 'roles',
             name: 'Roles',
             component: () => import('@/views/iam/roles/index.vue'),
-            meta: { title: '角色权限' }
+            meta: { title: '角色' }
           },
           {
             path: 'permissions',

@@ -112,6 +112,16 @@ func (s *AuthSourceService) SyncAuthSource(ctx context.Context, id uint) error {
 	return nil
 }
 
+// EnableAuthSource 启用认证源
+func (s *AuthSourceService) EnableAuthSource(ctx context.Context, id uint) error {
+	return s.db.WithContext(ctx).Model(&model.AuthSource{}).Where("id = ?", id).Update("enabled", true).Error
+}
+
+// DisableAuthSource 禁用认证源
+func (s *AuthSourceService) DisableAuthSource(ctx context.Context, id uint) error {
+	return s.db.WithContext(ctx).Model(&model.AuthSource{}).Where("id = ?", id).Update("enabled", false).Error
+}
+
 // LDAPConfig LDAP 配置
 type LDAPConfig struct {
 	URL          string `json:"url"`

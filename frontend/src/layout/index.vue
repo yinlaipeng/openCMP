@@ -43,8 +43,11 @@
             <span>认证与安全</span>
           </template>
           <el-menu-item index="/iam/auth-sources">认证源</el-menu-item>
+          <el-menu-item index="/iam/domains">域</el-menu-item>
+          <el-menu-item index="/iam/projects">项目</el-menu-item>
           <el-menu-item index="/iam/users">用户管理</el-menu-item>
-          <el-menu-item index="/iam/roles">角色权限</el-menu-item>
+          <el-menu-item index="/iam/groups">用户组</el-menu-item>
+          <el-menu-item index="/iam/roles">角色</el-menu-item>
           <el-menu-item index="/iam/permissions">权限管理</el-menu-item>
           <el-menu-item index="/iam/policies">策略管理</el-menu-item>
           <el-menu-item index="/iam/messages">消息中心</el-menu-item>

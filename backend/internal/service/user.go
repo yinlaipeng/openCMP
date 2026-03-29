@@ -112,3 +112,77 @@ func (s *UserService) ResetPassword(ctx context.Context, id uint) (string, error
 	// TODO: 生成随机密码并发送给用户
 	return "", nil
 }
+
+// ResetUserPassword 重置用户密码
+func (s *UserService) ResetUserPassword(ctx context.Context, id uint, newPassword string) error {
+	return s.db.WithContext(ctx).Model(&model.User{}).Where("id = ?", id).Update("password", newPassword).Error
+}
+
+// GetUserRoles 获取用户角色
+func (s *UserService) GetUserRoles(ctx context.Context, userID, domainID uint) ([]*model.Role, error) {
+	var roles []*model.Role
+	err := s.db.WithContext(ctx).
+		Table("roles").
+		Joins("JOIN user_roles ON user_roles.role_id = roles.id").
+		Where("user_roles.user_id = ? AND user_roles.domain_id = ?", userID, domainID).
+		Find(&roles).Error
+	return roles, err
+}
+
+// GetUserGroups 获取用户组
+func (s *UserService) GetUserGroups(ctx context.Context, userID uint) ([]*model.Group, error) {
+	var groups []*model.Group
+	err := s.db.WithContext(ctx).
+		Table("groups").
+		Joins("JOIN user_groups ON user_groups.group_id = groups.id").
+		Where("user_groups.user_id = ?", userID).
+		Find(&groups).Error
+	return groups, err
+}
+
+// AddUserToGroup 添加用户到用户组
+func (s *UserService) AddUserToGroup(ctx context.Context, userID, groupID uint) error {
+	// 检查是否已存在
+	var count int64
+	if err := s.db.Model(&model.UserGroup{}).Where("user_id = ? AND group_id = ?", userID, groupID).Count(&count).Error; err != nil {
+		return err
+	}
+	if count > 0 {
+		return gorm.ErrDuplicatedKey
+	}
+
+	ug := &model.UserGroup{
+		UserID:  userID,
+		GroupID: groupID,
+	}
+	return s.db.WithContext(ctx).Create(ug).Error
+}
+
+// RemoveUserFromGroup 从用户组移除用户
+func (s *UserService) RemoveUserFromGroup(ctx context.Context, userID, groupID uint) error {
+	return s.db.WithContext(ctx).Where("user_id = ? AND group_id = ?", userID, groupID).Delete(&model.UserGroup{}).Error
+}
+
+// AssignUserRole 分配角色给用户
+func (s *UserService) AssignUserRole(ctx context.Context, userID, roleID, domainID uint) error {
+	// 检查是否已存在
+	var count int64
+	if err := s.db.Model(&model.UserRole{}).Where("user_id = ? AND role_id = ? AND domain_id = ?", userID, roleID, domainID).Count(&count).Error; err != nil {
+		return err
+	}
+	if count > 0 {
+		return gorm.ErrDuplicatedKey
+	}
+
+	ur := &model.UserRole{
+		UserID:   userID,
+		RoleID:   roleID,
+		DomainID: domainID,
+	}
+	return s.db.WithContext(ctx).Create(ur).Error
+}
+
+// RevokeUserRole 撤销用户角色
+func (s *UserService) RevokeUserRole(ctx context.Context, userID, roleID, domainID uint) error {
+	return s.db.WithContext(ctx).Where("user_id = ? AND role_id = ? AND domain_id = ?", userID, roleID, domainID).Delete(&model.UserRole{}).Error
+}

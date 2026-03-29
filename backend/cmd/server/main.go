@@ -98,6 +98,11 @@ func main() {
 		log.Fatalf("failed to migrate database: %v", err)
 	}
 
+	// 初始化内置认证源
+	if err := initBuiltInAuthSource(db); err != nil {
+		logger.Warn("failed to init built-in auth source", zap.Error(err))
+	}
+
 	// 初始化 Gin
 	gin.SetMode(cfg.Server.Mode)
 	r := gin.New()
@@ -159,7 +164,45 @@ func main() {
 			authSourceGroup.GET("", authSourceHandler.List)
 			authSourceGroup.GET("/:id", authSourceHandler.Get)
 			authSourceGroup.POST("", authSourceHandler.Create)
+			authSourceGroup.PUT("/:id", authSourceHandler.Update)
+			authSourceGroup.DELETE("/:id", authSourceHandler.Delete)
 			authSourceGroup.POST("/:id/test", authSourceHandler.Test)
+			authSourceGroup.POST("/:id/enable", authSourceHandler.Enable)
+			authSourceGroup.POST("/:id/disable", authSourceHandler.Disable)
+		}
+
+		// 域管理路由
+		domainHandler := handler.NewDomainHandler(db, logger)
+		domainGroup := v1.Group("/domains")
+		{
+			domainGroup.GET("", domainHandler.List)
+			domainGroup.GET("/:id", domainHandler.Get)
+			domainGroup.POST("", domainHandler.Create)
+			domainGroup.PUT("/:id", domainHandler.Update)
+			domainGroup.DELETE("/:id", domainHandler.Delete)
+			domainGroup.POST("/:id/enable", domainHandler.Enable)
+			domainGroup.POST("/:id/disable", domainHandler.Disable)
+			domainGroup.GET("/:id/users", domainHandler.GetUsers)
+			domainGroup.GET("/:id/groups", domainHandler.GetGroups)
+			domainGroup.GET("/:id/projects", domainHandler.GetProjects)
+			domainGroup.GET("/:id/roles", domainHandler.GetRoles)
+		}
+
+		// 项目管理路由
+		projectHandler := handler.NewProjectHandler(db, logger)
+		projectGroup := v1.Group("/projects")
+		{
+			projectGroup.GET("", projectHandler.List)
+			projectGroup.GET("/:id", projectHandler.Get)
+			projectGroup.POST("", projectHandler.Create)
+			projectGroup.PUT("/:id", projectHandler.Update)
+			projectGroup.DELETE("/:id", projectHandler.Delete)
+			projectGroup.POST("/:id/enable", projectHandler.Enable)
+			projectGroup.POST("/:id/disable", projectHandler.Disable)
+			projectGroup.POST("/:id/join", projectHandler.Join)
+			projectGroup.GET("/:id/users", projectHandler.GetUsers)
+			projectGroup.GET("/:id/roles", projectHandler.GetRoles)
+			projectGroup.DELETE("/:id/users", projectHandler.RemoveUser)
 		}
 
 		userHandler := handler.NewUserHandler(db, logger)
@@ -168,12 +211,35 @@ func main() {
 			userGroup.GET("", userHandler.List)
 			userGroup.GET("/:id", userHandler.Get)
 			userGroup.POST("", userHandler.Create)
+			userGroup.PUT("/:id", userHandler.Update)
 			userGroup.DELETE("/:id", userHandler.Delete)
 			userGroup.POST("/:id/enable", userHandler.Enable)
 			userGroup.POST("/:id/disable", userHandler.Disable)
+			userGroup.POST("/:id/reset-password", userHandler.ResetPassword)
+			userGroup.GET("/:id/roles", userHandler.GetRoles)
+			userGroup.POST("/:id/roles", userHandler.AssignRole)
+			userGroup.DELETE("/:id/roles", userHandler.RevokeRole)
+			userGroup.GET("/:id/groups", userHandler.GetGroups)
+			userGroup.POST("/:id/groups", userHandler.JoinGroup)
+			userGroup.DELETE("/:id/groups", userHandler.LeaveGroup)
+		}
+
+		// 用户组路由
+		groupHandler := handler.NewGroupHandler(db, logger)
+		groupGroup := v1.Group("/groups")
+		{
+			groupGroup.GET("", groupHandler.List)
+			groupGroup.GET("/:id", groupHandler.Get)
+			groupGroup.POST("", groupHandler.Create)
+			groupGroup.PUT("/:id", groupHandler.Update)
+			groupGroup.DELETE("/:id", groupHandler.Delete)
+			groupGroup.GET("/:id/users", groupHandler.GetUsers)
+			groupGroup.POST("/:id/users", groupHandler.AddUser)
+			groupGroup.DELETE("/:id/users", groupHandler.RemoveUser)
 		}
 
 		roleHandler := handler.NewRoleHandler(db, logger)
+		policyHandler := handler.NewPolicyHandler(db, logger)
 		roleGroup := v1.Group("/roles")
 		{
 			roleGroup.GET("", roleHandler.List)
@@ -181,6 +247,11 @@ func main() {
 			roleGroup.POST("", roleHandler.Create)
 			roleGroup.PUT("/:id", roleHandler.Update)
 			roleGroup.DELETE("/:id", roleHandler.Delete)
+			roleGroup.POST("/:id/enable", roleHandler.Enable)
+			roleGroup.POST("/:id/disable", roleHandler.Disable)
+			roleGroup.POST("/:id/public", roleHandler.MakePublic)
+			roleGroup.GET("/:id/users", roleHandler.GetRoleUsers)
+			roleGroup.GET("/:id/groups", roleHandler.GetRoleGroups)
 		}
 
 		// 权限管理路由
@@ -201,6 +272,19 @@ func main() {
 			rolePermissionGroup.GET("/:id/permissions", roleHandler.GetPermissions)
 			rolePermissionGroup.POST("/:id/permissions", roleHandler.AssignPermission)
 			rolePermissionGroup.DELETE("/:id/permissions", roleHandler.RevokePermission)
+			rolePermissionGroup.GET("/:id/policies", roleHandler.GetRolePolicies)
+			rolePermissionGroup.POST("/:id/policies", roleHandler.AssignPolicyToRole)
+			rolePermissionGroup.DELETE("/:id/policies", roleHandler.RevokePolicyFromRole)
+		}
+
+		// 策略管理路由
+		policyGroup := v1.Group("/policies")
+		{
+			policyGroup.GET("", policyHandler.List)
+			policyGroup.GET("/:id", policyHandler.GetPolicy)
+			policyGroup.POST("", policyHandler.CreatePolicy)
+			policyGroup.PUT("/:id", policyHandler.UpdatePolicy)
+			policyGroup.DELETE("/:id", policyHandler.DeletePolicy)
 		}
 	}
 
@@ -254,6 +338,33 @@ func initLogger(cfg LogConfig) (*zap.Logger, error) {
 	}
 
 	return config.Build()
+}
+
+// initBuiltInAuthSource 初始化内置认证源
+func initBuiltInAuthSource(db *gorm.DB) error {
+	// 检查是否已存在系统认证源
+	var count int64
+	if err := db.Model(&model.AuthSource{}).Where("type = ?", "local").Count(&count).Error; err != nil {
+		return err
+	}
+
+	if count > 0 {
+		return nil // 已存在，不需要创建
+	}
+
+	// 创建系统认证源（本地认证/SQL 认证）
+	authSource := &model.AuthSource{
+		Name:        "系统认证",
+		Description: "系统内置的本地用户认证（SQL 认证）",
+		Type:        "local",
+		Scope:       "system",
+		DomainID:    nil,
+		Enabled:     true,
+		AutoCreate:  false,
+		Config:      nil, // 本地认证不需要额外配置
+	}
+
+	return db.Create(authSource).Error
 }
 
 func initDatabase(cfg DatabaseConfig) (*gorm.DB, error) {

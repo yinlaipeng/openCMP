@@ -154,6 +154,7 @@ type Role struct {
 	DomainID    uint           `gorm:"index" json:"domain_id"` // 为空表示系统角色
 	Type        string         `gorm:"type:varchar(20);default:custom" json:"type"` // system/custom
 	Enabled     bool           `gorm:"default:true" json:"enabled"`
+	IsPublic    bool           `gorm:"default:false" json:"is_public"` // 是否公开
 	CreatedAt   time.Time      `json:"created_at"`
 	UpdatedAt   time.Time      `json:"updated_at"`
 	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
@@ -244,6 +245,8 @@ type AuthSource struct {
 	Name         string         `gorm:"uniqueIndex;not null;size:100" json:"name"`
 	Description  string         `gorm:"size:500" json:"description"`
 	Type         string         `gorm:"type:varchar(20);not null" json:"type"` // ldap/oidc/saml/local
+	Scope        string         `gorm:"type:varchar(20);default:system" json:"scope"` // system/domain
+	DomainID     *uint          `gorm:"index" json:"domain_id"` // 域 ID（仅当 scope=domain 时）
 	Enabled      bool           `gorm:"default:true" json:"enabled"`
 	Config       datatypes.JSON `gorm:"type:json" json:"config"` // 认证源配置（加密）
 	AutoCreate   bool           `gorm:"default:false" json:"auto_create"` // 自动创建用户

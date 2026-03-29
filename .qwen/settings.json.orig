@@ -8,9 +8,7 @@
       "Bash(npm run *)",
       "Bash(curl *)",
       "Bash(python3 *)",
-      "Bash(go *)",
-      "WebFetch(192.168.31.39)"
+      "Bash(go *)"
     ]
-  },
-  "$version": 3
+  }
 }

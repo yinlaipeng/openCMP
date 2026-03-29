@@ -38,13 +38,29 @@ func (s *RoleService) GetRole(ctx context.Context, id uint) (*model.Role, error)
 }
 
 // ListRoles 列出角色
-func (s *RoleService) ListRoles(ctx context.Context, domainID *uint, limit, offset int) ([]*model.Role, int64, error) {
+func (s *RoleService) ListRoles(ctx context.Context, domainID *uint, keyword, roleType string, enabled *bool, limit, offset int) ([]*model.Role, int64, error) {
 	var roles []*model.Role
 	var total int64
 
 	query := s.db.Model(&model.Role{})
 	if domainID != nil {
 		query = query.Where("domain_id = ? OR domain_id IS NULL", *domainID)
+	}
+
+	// 关键词搜索（角色名、显示名、描述）
+	if keyword != "" {
+		keyword = "%" + keyword + "%"
+		query = query.Where("name LIKE ? OR display_name LIKE ? OR description LIKE ?", keyword, keyword, keyword)
+	}
+
+	// 按类型筛选
+	if roleType != "" {
+		query = query.Where("type = ?", roleType)
+	}
+
+	// 按状态筛选
+	if enabled != nil {
+		query = query.Where("enabled = ?", *enabled)
 	}
 
 	if err := query.Count(&total).Error; err != nil {
@@ -269,4 +285,102 @@ func (s *RoleService) GetPermissionActions(ctx context.Context) ([]string, error
 		Order("action").
 		Pluck("action", &actions).Error
 	return actions, err
+}
+
+// EnableRole 启用角色
+func (s *RoleService) EnableRole(ctx context.Context, id uint) error {
+	return s.db.WithContext(ctx).Model(&model.Role{}).Where("id = ?", id).Update("enabled", true).Error
+}
+
+// DisableRole 禁用角色
+func (s *RoleService) DisableRole(ctx context.Context, id uint) error {
+	return s.db.WithContext(ctx).Model(&model.Role{}).Where("id = ?", id).Update("enabled", false).Error
+}
+
+// MakeRolePublic 公开角色
+func (s *RoleService) MakeRolePublic(ctx context.Context, id uint) error {
+	return s.db.WithContext(ctx).Model(&model.Role{}).Where("id = ?", id).Update("is_public", true).Error
+}
+
+// GetRoleUsers 获取角色的用户列表
+func (s *RoleService) GetRoleUsers(ctx context.Context, roleID uint, limit, offset int) ([]*model.User, int64, error) {
+	var users []*model.User
+	var total int64
+
+	if err := s.db.WithContext(ctx).
+		Model(&model.User{}).
+		Joins("JOIN user_roles ON user_roles.user_id = users.id").
+		Where("user_roles.role_id = ?", roleID).
+		Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	err := s.db.WithContext(ctx).
+		Model(&model.User{}).
+		Joins("JOIN user_roles ON user_roles.user_id = users.id").
+		Where("user_roles.role_id = ?", roleID).
+		Limit(limit).
+		Offset(offset).
+		Find(&users).Error
+
+	return users, total, err
+}
+
+// GetRoleGroups 获取角色的用户组列表
+func (s *RoleService) GetRoleGroups(ctx context.Context, roleID uint, limit, offset int) ([]*model.Group, int64, error) {
+	var groups []*model.Group
+	var total int64
+
+	if err := s.db.WithContext(ctx).
+		Model(&model.Group{}).
+		Joins("JOIN group_roles ON group_roles.group_id = groups.id").
+		Where("group_roles.role_id = ?", roleID).
+		Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	err := s.db.WithContext(ctx).
+		Model(&model.Group{}).
+		Joins("JOIN group_roles ON group_roles.group_id = groups.id").
+		Where("group_roles.role_id = ?", roleID).
+		Limit(limit).
+		Offset(offset).
+		Find(&groups).Error
+
+	return groups, total, err
+}
+
+// GetRolePolicies 获取角色的策略列表
+func (s *RoleService) GetRolePolicies(ctx context.Context, roleID uint) ([]*model.Policy, error) {
+	var policies []*model.Policy
+	err := s.db.WithContext(ctx).
+		Table("policies").
+		Joins("JOIN role_policies ON role_policies.policy_id = policies.id").
+		Where("role_policies.role_id = ?", roleID).
+		Find(&policies).Error
+	return policies, err
+}
+
+// AssignPolicyToRole 分配策略给角色
+func (s *RoleService) AssignPolicyToRole(ctx context.Context, roleID uint, policyID string) error {
+	// 检查是否已关联
+	var count int64
+	if err := s.db.Model(&model.RolePolicy{}).Where("role_id = ? AND policy_id = ?", roleID, policyID).Count(&count).Error; err != nil {
+		return err
+	}
+
+	if count > 0 {
+		return gorm.ErrDuplicatedKey
+	}
+
+	rp := &model.RolePolicy{
+		RoleID:   roleID,
+		PolicyID: policyID,
+	}
+	return s.db.WithContext(ctx).Create(rp).Error
+}
+
+// RevokePolicyFromRole 从角色撤销策略
+func (s *RoleService) RevokePolicyFromRole(ctx context.Context, roleID uint, policyID string) error {
+	return s.db.WithContext(ctx).Where("role_id = ? AND policy_id = ?", roleID, policyID).Delete(&model.RolePolicy{}).Error
 }
