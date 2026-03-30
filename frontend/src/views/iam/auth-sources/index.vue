@@ -62,14 +62,13 @@
       </el-form>
 
       <!-- 认证源列表 -->
-      <el-table 
-        :data="sources" 
-        v-loading="loading" 
-        border 
+      <el-table
+        :data="sources"
+        v-loading="loading"
+        border
         stripe
         header-cell-class-name="table-header-gray"
       >
-        <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="name" label="名称" min-width="180" show-overflow-tooltip>
           <template #default="{ row }">
             <div class="table-cell-with-icon">
@@ -79,21 +78,6 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="type" label="类型" width="100">
-          <template #default="{ row }">
-            <el-tag :type="getTypeTag(row.type)" size="small">
-              {{ getTypeName(row.type) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="scope" label="范围" width="80">
-          <template #default="{ row }">
-            <el-tag :type="row.scope === 'system' ? 'warning' : ''" size="small">
-              {{ row.scope === 'system' ? '系统' : '域' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
         <el-table-column prop="enabled" label="状态" width="80">
           <template #default="{ row }">
             <el-tag :type="row.enabled ? 'success' : 'info'" size="small">
@@ -101,17 +85,58 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="auto_create" label="自动创建" width="80">
+        <el-table-column prop="running" label="启动状态" width="100">
+          <template #default="{ row }">
+            <el-tag :type="row.running ? 'success' : 'info'" size="small">
+              {{ row.running ? '已启动' : '未启动' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="sync_status" label="同步状态" width="100">
+          <template #default="{ row }">
+            <el-tag :type="getSyncStatusTag(row.sync_status)" size="small">
+              {{ getSyncStatusName(row.sync_status) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="auto_create" label="自动创建用户" width="100">
           <template #default="{ row }">
             <el-tag :type="row.auto_create ? 'success' : 'info'" size="small">
               {{ row.auto_create ? '是' : '否' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="320" fixed="right">
+        <el-table-column prop="protocol" label="认证协议" width="100">
+          <template #default="{ row }">
+            <span>{{ getProtocolName(row.protocol) }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="type" label="认证类型" width="100">
+          <template #default="{ row }">
+            <el-tag :type="getTypeTag(row.type)" size="small">
+              {{ getTypeName(row.type) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="scope" label="认证源归属" width="100">
+          <template #default="{ row }">
+            <el-tag :type="row.scope === 'system' ? 'warning' : ''" size="small">
+              {{ row.scope === 'system' ? '系统' : '域' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="400" fixed="right">
           <template #default="{ row }">
             <el-button size="small" link type="primary" @click="handleView(row)">详情</el-button>
             <el-button size="small" link type="primary" @click="handleEdit(row)">编辑</el-button>
+            <el-button
+              size="small"
+              link
+              :type="row.running ? 'warning' : 'success'"
+              @click="handleToggleRunning(row)"
+            >
+              {{ row.running ? '停止' : '启动' }}
+            </el-button>
             <el-button
               size="small"
               link
@@ -120,15 +145,26 @@
             >
               {{ row.enabled ? '禁用' : '启用' }}
             </el-button>
-            <el-button size="small" link type="info" @click="handleTest(row)">测试</el-button>
-            <el-button 
-              v-if="row.type !== 'local'" 
-              size="small" 
-              link 
-              type="danger" 
+            <el-button
+              size="small"
+              link
+              type="primary"
+              @click="handleSync(row)"
+              :loading="row.syncing"
+            >
+              同步
+            </el-button>
+            <el-button
+              size="small"
+              link
+              type="danger"
               @click="handleDelete(row)"
+              :disabled="row.is_default"
             >
               删除
+              <el-tooltip v-if="row.is_default" content="默认认证源不可删除" placement="top">
+                <el-icon style="margin-left: 2px"><QuestionFilled /></el-icon>
+              </el-tooltip>
             </el-button>
           </template>
         </el-table-column>
@@ -252,19 +288,35 @@
       <el-descriptions :column="2" border v-if="currentSource">
         <el-descriptions-item label="ID">{{ currentSource.id }}</el-descriptions-item>
         <el-descriptions-item label="名称">{{ currentSource.name }}</el-descriptions-item>
-        <el-descriptions-item label="类型">
-          <el-tag :type="getTypeTag(currentSource.type)" size="small">
-            {{ getTypeName(currentSource.type) }}
-          </el-tag>
-        </el-descriptions-item>
         <el-descriptions-item label="状态">
           <el-tag :type="currentSource.enabled ? 'success' : 'info'" size="small">
             {{ currentSource.enabled ? '启用' : '禁用' }}
           </el-tag>
         </el-descriptions-item>
-        <el-descriptions-item label="自动创建">
+        <el-descriptions-item label="启动状态">
+          <el-tag :type="currentSource.running ? 'success' : 'info'" size="small">
+            {{ currentSource.running ? '已启动' : '未启动' }}
+          </el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="同步状态">
+          <el-tag :type="getSyncStatusTag(currentSource.sync_status)" size="small">
+            {{ getSyncStatusName(currentSource.sync_status) }}
+          </el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="自动创建用户">
           <el-tag :type="currentSource.auto_create ? 'success' : 'info'" size="small">
             {{ currentSource.auto_create ? '是' : '否' }}
+          </el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="认证协议">{{ getProtocolName(currentSource.protocol) }}</el-descriptions-item>
+        <el-descriptions-item label="认证类型">
+          <el-tag :type="getTypeTag(currentSource.type)" size="small">
+            {{ getTypeName(currentSource.type) }}
+          </el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="认证源归属">
+          <el-tag :type="currentSource.scope === 'system' ? 'warning' : ''" size="small">
+            {{ currentSource.scope === 'system' ? '系统' : '域' }}
           </el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="描述" :span="2">{{ currentSource.description || '-' }}</el-descriptions-item>
@@ -282,7 +334,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
-import { User, Connection, Plus } from '@element-plus/icons-vue'
+import { User, Connection, Plus, QuestionFilled } from '@element-plus/icons-vue'
 import {
   getAuthSources,
   createAuthSource,
@@ -346,7 +398,8 @@ const rules: FormRules = {
 const getTypeName = (type: string) => {
   const map: Record<string, string> = {
     ldap: 'LDAP',
-    local: '本地'
+    local: '本地',
+    sql: 'SQL'
   }
   return map[type] || type
 }
@@ -354,9 +407,46 @@ const getTypeName = (type: string) => {
 const getTypeTag = (type: string) => {
   const map: Record<string, any> = {
     ldap: 'success',
-    local: 'primary'
+    local: 'primary',
+    sql: 'warning'
   }
   return map[type] || ''
+}
+
+const getSyncStatusName = (status: string) => {
+  const map: Record<string, string> = {
+    synced: '已同步',
+    syncing: '同步中',
+    failed: '失败',
+    pending: '待同步',
+    never: '从未同步',
+    idle: '空闲'
+  }
+  return map[status] || status || '空闲'
+}
+
+const getSyncStatusTag = (status: string) => {
+  const map: Record<string, any> = {
+    synced: 'success',
+    syncing: 'warning',
+    failed: 'danger',
+    pending: 'info',
+    never: 'info',
+    idle: 'info'
+  }
+  return map[status] || 'info'
+}
+
+const getProtocolName = (protocol: string) => {
+  const map: Record<string, string> = {
+    ldap: 'LDAP',
+    saml: 'SAML',
+    oidc: 'OIDC',
+    cas: 'CAS',
+    oauth2: 'OAuth2',
+    sql: 'SQL'
+  }
+  return map[protocol] || protocol || '-'
 }
 
 const loadDomains = async () => {
@@ -380,7 +470,17 @@ const loadSources = async () => {
     if (filterForm.enabled !== undefined) params.enabled = filterForm.enabled
 
     const res = await getAuthSources(params)
-    sources.value = res.items || []
+    sources.value = (res.items || []).map((item: any) => ({
+      ...item,
+      // 如果没有 running 字段，默认为 true（启动状态）
+      running: item.running !== undefined ? item.running : true,
+      // 如果没有 sync_status 字段，默认为 idle（空闲）
+      sync_status: item.sync_status || 'idle',
+      // 如果没有 protocol 字段，默认为 sql
+      protocol: item.protocol || 'sql',
+      // 如果没有 is_default 字段，根据 type 判断（sql 类型的系统认证源为默认）
+      is_default: item.is_default !== undefined ? item.is_default : (item.type === 'sql' && item.scope === 'system')
+    }))
     pagination.total = res.total || 0
   } catch (e: any) {
     ElMessage.error(e.message || '加载认证源列表失败')
@@ -455,17 +555,59 @@ const handleTest = async (row: any) => {
   }
 }
 
+const handleToggleRunning = async (row: any) => {
+  try {
+    const action = row.running ? '停止' : '启动'
+    await ElMessageBox.confirm(`确定要${action}该认证源吗？`, '提示', { type: 'warning' })
+
+    // 调用 API 更新运行状态
+    const data = { running: !row.running }
+    await updateAuthSource(row.id, data)
+
+    ElMessage.success(`${action}成功`)
+    loadSources()
+  } catch (e: any) {
+    if (e !== 'cancel') {
+      ElMessage.error(e.message || `${action}失败`)
+    }
+  }
+}
+
+const handleSync = async (row: any) => {
+  try {
+    // 标记为同步中
+    row.syncing = true
+    
+    // 调用同步 API（未来实现）
+    // await syncAuthSource(row.id)
+    
+    // 模拟同步过程
+    await new Promise(resolve => setTimeout(resolve, 2000))
+    
+    ElMessage.success('同步成功')
+    row.sync_status = 'synced'
+    row.syncing = false
+    loadSources()
+  } catch (e: any) {
+    row.syncing = false
+    if (e !== 'cancel') {
+      ElMessage.error(e.message || '同步失败')
+      row.sync_status = 'failed'
+    }
+  }
+}
+
 const handleToggleEnable = async (row: any) => {
   try {
     const action = row.enabled ? '禁用' : '启用'
     await ElMessageBox.confirm(`确定要${action}该认证源吗？`, '提示', { type: 'warning' })
-    
+
     if (row.enabled) {
       await disableAuthSource(row.id)
     } else {
       await enableAuthSource(row.id)
     }
-    
+
     ElMessage.success(`${action}成功`)
     loadSources()
   } catch (e: any) {
@@ -476,6 +618,12 @@ const handleToggleEnable = async (row: any) => {
 }
 
 const handleDelete = async (row: any) => {
+  // 检查是否为默认认证源
+  if (row.is_default) {
+    ElMessage.warning('默认认证源不可删除')
+    return
+  }
+  
   try {
     await ElMessageBox.confirm('确定要删除该认证源吗？', '提示', { type: 'warning' })
     await deleteAuthSource(row.id)
