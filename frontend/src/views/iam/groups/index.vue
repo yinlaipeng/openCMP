@@ -144,6 +144,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
+import { Group, User } from '@/types/iam'
 import {
   getGroups,
   createGroup,
@@ -155,7 +156,7 @@ import {
   getUsers
 } from '@/api/iam'
 
-const groups = ref<any[]>([])
+const groups = ref<Group[]>([])
 const loading = ref(false)
 const dialogVisible = ref(false)
 const detailDialogVisible = ref(false)
@@ -165,9 +166,9 @@ const isEdit = ref(false)
 const submitting = ref(false)
 const addUserSubmitting = ref(false)
 const currentGroupId = ref(0)
-const currentGroup = ref<any>(null)
-const groupUsers = ref<any[]>([])
-const allUsers = ref<any[]>([])
+const currentGroup = ref<Group | null>(null)
+const groupUsers = ref<User[]>([])
+const allUsers = ref<User[]>([])
 const usersLoading = ref(false)
 const formRef = ref<FormInstance>()
 
@@ -249,7 +250,7 @@ const handleCreate = () => {
   dialogVisible.value = true
 }
 
-const handleEdit = (row: any) => {
+const handleEdit = (row: Group) => {
   isEdit.value = true
   currentGroupId.value = row.id
   form.name = row.name
@@ -258,7 +259,7 @@ const handleEdit = (row: any) => {
   dialogVisible.value = true
 }
 
-const handleView = async (row: any) => {
+const handleView = async (row: Group) => {
   currentGroup.value = row
   detailTab.value = 'users'
   await loadGroupUsers(row.id)
@@ -290,7 +291,7 @@ const handleAddUserSubmit = async () => {
   }
 }
 
-const handleRemoveUser = async (row: any) => {
+const handleRemoveUser = async (row: User) => {
   try {
     await ElMessageBox.confirm('确定要移除该用户吗？', '提示', { type: 'warning' })
     await removeUserFromGroup(currentGroupId.value, row.id)
@@ -303,7 +304,7 @@ const handleRemoveUser = async (row: any) => {
   }
 }
 
-const handleDelete = async (row: any) => {
+const handleDelete = async (row: Group) => {
   try {
     await ElMessageBox.confirm('确定要删除该用户组吗？', '提示', { type: 'warning' })
     await deleteGroup(row.id)
@@ -318,7 +319,7 @@ const handleDelete = async (row: any) => {
 
 const handleSubmit = async () => {
   if (!formRef.value) return
-  
+
   await formRef.value.validate(async (valid) => {
     if (!valid) return
 

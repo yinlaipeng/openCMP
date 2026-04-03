@@ -409,7 +409,6 @@ export function createDomain(data: {
   name: string
   description?: string
   enabled?: boolean
-  parent_id?: number
 }) {
   return request({
     url: '/domains',
@@ -423,7 +422,6 @@ export function updateDomain(id: number, data: {
   name?: string
   description?: string
   enabled?: boolean
-  parent_id?: number
 }) {
   return request({
     url: `/domains/${id}`,

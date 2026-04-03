@@ -272,6 +272,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
+import { Role, Permission, Policy } from '@/types/iam'
 import {
   getRoles,
   createRole,
@@ -292,7 +293,7 @@ import {
   revokePolicyFromRole
 } from '@/api/iam'
 
-const roles = ref<any[]>([])
+const roles = ref<Role[]>([])
 const loading = ref(false)
 const dialogVisible = ref(false)
 const permDialogVisible = ref(false)
@@ -303,14 +304,14 @@ const isEdit = ref(false)
 const submitting = ref(false)
 const permSubmitting = ref(false)
 const currentRoleId = ref(0)
-const currentRole = ref<any>(null)
+const currentRole = ref<Role | null>(null)
 const selectedPermissions = ref<number[]>([])
-const allPermissions = ref<any[]>([])
+const allPermissions = ref<Permission[]>([])
 const selectedPolicyIds = ref<string[]>([])
-const allPolicies = ref<any[]>([])
-const roleUsers = ref<any[]>([])
-const roleGroups = ref<any[]>([])
-const rolePolicies = ref<any[]>([])
+const allPolicies = ref<Policy[]>([])
+const roleUsers = ref<Role[]>([])
+const roleGroups = ref<Role[]>([])
+const rolePolicies = ref<Policy[]>([])
 const usersLoading = ref(false)
 const groupsLoading = ref(false)
 const policiesLoading = ref(false)
@@ -463,7 +464,7 @@ const handleCreate = async () => {
   dialogVisible.value = true
 }
 
-const handleEdit = async (row: any) => {
+const handleEdit = async (row: Role) => {
   isEdit.value = true
   currentRoleId.value = row.id
   form.name = row.name
@@ -476,7 +477,7 @@ const handleEdit = async (row: any) => {
   dialogVisible.value = true
 }
 
-const handleView = async (row: any) => {
+const handleView = async (row: Role) => {
   currentRole.value = row
   detailTab.value = 'users'
   await loadRoleUsers(row.id)
@@ -485,7 +486,7 @@ const handleView = async (row: any) => {
   detailDialogVisible.value = true
 }
 
-const handlePermissions = async (row: any) => {
+const handlePermissions = async (row: Role) => {
   currentRoleId.value = row.id
   currentRole.value = row
   permTab.value = 'permission'
@@ -547,17 +548,17 @@ const handleSavePermissions = async () => {
   }
 }
 
-const handleToggleEnable = async (row: any) => {
+const handleToggleEnable = async (row: Role) => {
   try {
     const action = row.enabled ? '禁用' : '启用'
     await ElMessageBox.confirm(`确定要${action}该角色吗？`, '提示', { type: 'warning' })
-    
+
     if (row.enabled) {
       await disableRole(row.id)
     } else {
       await enableRole(row.id)
     }
-    
+
     ElMessage.success(`${action}成功`)
     loadRoles()
   } catch (e: any) {
@@ -567,7 +568,7 @@ const handleToggleEnable = async (row: any) => {
   }
 }
 
-const handleMakePublic = async (row: any) => {
+const handleMakePublic = async (row: Role) => {
   try {
     await ElMessageBox.confirm('确定要公开该角色吗？公开后其他域的用户也可以使用此角色。', '提示', { type: 'warning' })
     await makeRolePublic(row.id)
@@ -580,7 +581,7 @@ const handleMakePublic = async (row: any) => {
   }
 }
 
-const handleDelete = async (row: any) => {
+const handleDelete = async (row: Role) => {
   try {
     await ElMessageBox.confirm('确定要删除该角色吗？', '提示', { type: 'warning' })
     await deleteRole(row.id)
@@ -595,7 +596,7 @@ const handleDelete = async (row: any) => {
 
 const handleSubmit = async () => {
   if (!formRef.value) return
-  
+
   await formRef.value.validate(async (valid) => {
     if (!valid) return
 
@@ -629,10 +630,10 @@ const handleSubmit = async () => {
 const updateRolePolicies = async (roleId: number, newPolicyIds: string[]) => {
   const existingPolicies = (await getRolePolicies(roleId)).items || []
   const existingPolicyIds = existingPolicies.map((p: any) => p.id)
-  
+
   const toAdd = newPolicyIds.filter(id => !existingPolicyIds.includes(id))
   const toRemove = existingPolicyIds.filter(id => !newPolicyIds.includes(id))
-  
+
   for (const policyId of toAdd) {
     await assignPolicyToRole(roleId, policyId)
   }

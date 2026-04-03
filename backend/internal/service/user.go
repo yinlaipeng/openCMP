@@ -7,6 +7,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/opencmp/opencmp/internal/model"
+	"github.com/opencmp/opencmp/pkg/utils"
 )
 
 // UserService 用户服务
@@ -21,6 +22,13 @@ func NewUserService(db *gorm.DB) *UserService {
 
 // CreateUser 创建用户
 func (s *UserService) CreateUser(ctx context.Context, user *model.User) error {
+	// 对密码进行哈希处理
+	hashedPassword, err := utils.HashPassword(user.Password)
+	if err != nil {
+		return err
+	}
+	user.Password = hashedPassword
+	
 	return s.db.WithContext(ctx).Create(user).Error
 }
 
@@ -95,7 +103,13 @@ func (s *UserService) DisableUser(ctx context.Context, id uint) error {
 
 // UpdatePassword 更新密码
 func (s *UserService) UpdatePassword(ctx context.Context, id uint, newPassword string) error {
-	return s.db.WithContext(ctx).Model(&model.User{}).Where("id = ?", id).Update("password", newPassword).Error
+	// 对新密码进行哈希处理
+	hashedPassword, err := utils.HashPassword(newPassword)
+	if err != nil {
+		return err
+	}
+	
+	return s.db.WithContext(ctx).Model(&model.User{}).Where("id = ?", id).Update("password", hashedPassword).Error
 }
 
 // UpdateLastLogin 更新最后登录信息
@@ -115,7 +129,13 @@ func (s *UserService) ResetPassword(ctx context.Context, id uint) (string, error
 
 // ResetUserPassword 重置用户密码
 func (s *UserService) ResetUserPassword(ctx context.Context, id uint, newPassword string) error {
-	return s.db.WithContext(ctx).Model(&model.User{}).Where("id = ?", id).Update("password", newPassword).Error
+	// 对新密码进行哈希处理
+	hashedPassword, err := utils.HashPassword(newPassword)
+	if err != nil {
+		return err
+	}
+	
+	return s.db.WithContext(ctx).Model(&model.User{}).Where("id = ?", id).Update("password", hashedPassword).Error
 }
 
 // GetUserRoles 获取用户角色
@@ -185,4 +205,31 @@ func (s *UserService) AssignUserRole(ctx context.Context, userID, roleID, domain
 // RevokeUserRole 撤销用户角色
 func (s *UserService) RevokeUserRole(ctx context.Context, userID, roleID, domainID uint) error {
 	return s.db.WithContext(ctx).Where("user_id = ? AND role_id = ? AND domain_id = ?", userID, roleID, domainID).Delete(&model.UserRole{}).Error
+}
+
+// GetUserRoleIDs 获取用户的角色ID列表
+func (s *UserService) GetUserRoleIDs(ctx context.Context, userID uint) ([]uint, error) {
+	var roleIDs []uint
+	err := s.db.WithContext(ctx).
+		Model(&model.UserRole{}).
+		Where("user_id = ?", userID).
+		Pluck("role_id", &roleIDs).Error
+	if err != nil {
+		return nil, err
+	}
+	
+	// 也获取项目级别的角色
+	var projectRoleIDs []uint
+	err = s.db.WithContext(ctx).
+		Model(&model.ProjectUserRole{}).
+		Where("user_id = ?", userID).
+		Pluck("role_id", &projectRoleIDs).Error
+	if err != nil {
+		return nil, err
+	}
+	
+	// 合并两个切片
+	roleIDs = append(roleIDs, projectRoleIDs...)
+	
+	return roleIDs, nil
 }

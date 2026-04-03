@@ -273,6 +273,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
+import { Project, Domain, User, Role } from '@/types/iam'
 import {
   getProjects,
   createProject,
@@ -289,7 +290,7 @@ import {
   getRoles
 } from '@/api/iam'
 
-const projects = ref<any[]>([])
+const projects = ref<Project[]>([])
 const loading = ref(false)
 const dialogVisible = ref(false)
 const detailDialogVisible = ref(false)
@@ -297,12 +298,12 @@ const detailTab = ref('users')
 const isEdit = ref(false)
 const submitting = ref(false)
 const activeCollapse = ref<string[]>([])
-const currentProject = ref<any>(null)
-const projectUsers = ref<any[]>([])
-const projectRoles = ref<any[]>([])
-const domains = ref<any[]>([])
-const domainUsers = ref<any[]>([])
-const domainRoles = ref<any[]>([])
+const currentProject = ref<Project | null>(null)
+const projectUsers = ref<User[]>([])
+const projectRoles = ref<Role[]>([])
+const domains = ref<Domain[]>([])
+const domainUsers = ref<User[]>([])
+const domainRoles = ref<Role[]>([])
 const usersLoading = ref(false)
 const rolesLoading = ref(false)
 const formRef = ref<FormInstance>()
@@ -434,7 +435,7 @@ const handleCreate = async () => {
 
 const handleSubmit = async () => {
   if (!formRef.value) return
-  
+
   await formRef.value.validate(async (valid) => {
     if (!valid) return
 
@@ -450,10 +451,10 @@ const handleSubmit = async () => {
           description: form.description,
           domain_id: form.domain_id
         })
-        
+
         // 如果折叠面板展开且选择了用户和角色，分配用户到项目
-        if (activeCollapse.value.includes('addUser') && 
-            addUserForm.user_ids.length > 0 && 
+        if (activeCollapse.value.includes('addUser') &&
+            addUserForm.user_ids.length > 0 &&
             addUserForm.role_ids.length > 0) {
           await joinProject(project.id, addUserForm.user_ids, addUserForm.role_ids)
           ElMessage.success('创建成功并添加用户')
@@ -471,7 +472,7 @@ const handleSubmit = async () => {
   })
 }
 
-const handleEdit = async (row: any) => {
+const handleEdit = async (row: Project) => {
   isEdit.value = true
   currentProject.value = row
   form.name = row.name
@@ -481,7 +482,7 @@ const handleEdit = async (row: any) => {
   dialogVisible.value = true
 }
 
-const handleView = async (row: any) => {
+const handleView = async (row: Project) => {
   currentProject.value = row
   detailTab.value = 'users'
   await loadProjectUsers(row.id)
@@ -498,7 +499,7 @@ const handleAddUser = async () => {
   await loadDomainUsersAndRoles(addUserForm.domain_id)
 }
 
-const handleRemoveUser = async (row: any) => {
+const handleRemoveUser = async (row: User) => {
   try {
     await ElMessageBox.confirm('确定要移除该用户吗？', '提示', { type: 'warning' })
     await removeUserFromProject(currentProject.value.id, row.id)
@@ -511,17 +512,17 @@ const handleRemoveUser = async (row: any) => {
   }
 }
 
-const handleToggleEnable = async (row: any) => {
+const handleToggleEnable = async (row: Project) => {
   try {
     const action = row.enabled ? '禁用' : '启用'
     await ElMessageBox.confirm(`确定要${action}该项目吗？`, '提示', { type: 'warning' })
-    
+
     if (row.enabled) {
       await disableProject(row.id)
     } else {
       await enableProject(row.id)
     }
-    
+
     ElMessage.success(`${action}成功`)
     loadProjects()
   } catch (e: any) {
@@ -531,7 +532,7 @@ const handleToggleEnable = async (row: any) => {
   }
 }
 
-const handleDelete = async (row: any) => {
+const handleDelete = async (row: Project) => {
   try {
     await ElMessageBox.confirm('确定要删除该项目吗？', '提示', { type: 'warning' })
     await deleteProject(row.id)

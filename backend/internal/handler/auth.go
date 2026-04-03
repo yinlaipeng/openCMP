@@ -2,27 +2,32 @@ package handler
 
 import (
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 
 	"github.com/opencmp/opencmp/internal/model"
 	"github.com/opencmp/opencmp/internal/service"
+	"github.com/opencmp/opencmp/pkg/utils"
 )
 
 // AuthHandler 认证 Handler
 type AuthHandler struct {
 	userService *service.UserService
 	logger      *zap.Logger
+	jwtSecret   string
+	jwtExpire   int
 }
 
 // NewAuthHandler 创建认证 Handler
-func NewAuthHandler(db *gorm.DB, logger *zap.Logger) *AuthHandler {
+func NewAuthHandler(db *gorm.DB, logger *zap.Logger, jwtSecret string, jwtExpire int) *AuthHandler {
 	return &AuthHandler{
 		userService: service.NewUserService(db),
 		logger:      logger,
+		jwtSecret:   jwtSecret,
+		jwtExpire:   jwtExpire,
 	}
 }
 
@@ -65,17 +70,30 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	// TODO: 验证密码（演示模式跳过）
-	// if !checkPassword(user.Password, req.Password) {
-	// 	c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid username or password"})
-	// 	return
-	// }
+	// 验证密码
+	if !checkPassword(user.Password, req.Password) {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid username or password"})
+		return
+	}
+
+	// 获取用户的角色
+	roleIDs, err := h.userService.GetUserRoleIDs(c.Request.Context(), user.ID)
+	if err != nil {
+		h.logger.Error("failed to get user roles", zap.Error(err))
+		// 如果无法获取角色，继续登录但不包含角色信息
+		roleIDs = []uint{}
+	}
 
 	// 更新最后登录信息
 	h.userService.UpdateLastLogin(c.Request.Context(), user.ID, c.ClientIP())
 
-	// 生成 token（简化实现）
-	token := generateToken(user.ID)
+	// 生成 JWT token
+	token, err := utils.GenerateToken(user.ID, user.Name, roleIDs, h.jwtSecret, h.jwtExpire)
+	if err != nil {
+		h.logger.Error("failed to generate token", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
+		return
+	}
 
 	c.JSON(http.StatusOK, LoginResponse{
 		Token: token,
@@ -85,7 +103,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 // Logout 用户登出
 func (h *AuthHandler) Logout(c *gin.Context) {
-	// TODO: 使 token 失效
+	// TODO: 实现 token 黑名单机制
 	c.JSON(http.StatusOK, gin.H{"message": "logout success"})
 }
 
@@ -126,13 +144,21 @@ func (h *AuthHandler) ChangePassword(c *gin.Context) {
 		return
 	}
 
-	// TODO: 验证旧密码并更新新密码
-	// if !checkPassword(user.Password, req.OldPassword) {
-	// 	c.JSON(http.StatusUnauthorized, gin.H{"error": "old password is incorrect"})
-	// 	return
-	// }
+	// 获取当前用户信息
+	user, err := h.userService.GetUser(c.Request.Context(), userID.(uint))
+	if err != nil {
+		h.logger.Error("failed to get user", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get user info"})
+		return
+	}
 
-	err := h.userService.UpdatePassword(c.Request.Context(), userID.(uint), req.NewPassword)
+	// 验证旧密码
+	if !checkPassword(user.Password, req.OldPassword) {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "old password is incorrect"})
+		return
+	}
+
+	err = h.userService.UpdatePassword(c.Request.Context(), userID.(uint), req.NewPassword)
 	if err != nil {
 		h.logger.Error("failed to change password", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to change password"})
@@ -142,14 +168,8 @@ func (h *AuthHandler) ChangePassword(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "password changed"})
 }
 
-// generateToken 生成 token（简化实现）
-func generateToken(userID uint) string {
-	// 实际应该使用 JWT
-	return "token-" + string(rune(userID)) + "-" + time.Now().Format("20060102")
-}
-
-// checkPassword 验证密码（简化实现）
+// checkPassword 验证密码
 func checkPassword(stored, input string) bool {
-	// 实际应该使用 bcrypt 等加密算法
-	return stored == input
+	err := bcrypt.CompareHashAndPassword([]byte(stored), []byte(input))
+	return err == nil
 }

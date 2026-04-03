@@ -1,257 +1,204 @@
-# openCMP - 多云管理平台
+# openCMP - 开放多云管理平台
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/opencmp/opencmp)](https://goreportcard.com/report/github.com/opencmp/opencmp)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+openCMP 是一个基于 Go + Gin + Gorm 的单体架构多云管理平台，通过统一接口 + 适配器模式，实现对多个云厂商资源的统一管理和快速接入。
 
-openCMP 是一个基于 Go + Vue 的全栈多云管理平台，通过统一接口 + 适配器模式，实现对多个云厂商资源的统一管理和快速接入。
+## 🚀 功能特性
 
-## 特性
+### IAM 模块 (身份与访问管理)
+- **域管理**: 租户隔离顶层单位，支持多域管理
+- **项目管理**: 域内资源分组，支持项目级别的资源划分
+- **用户管理**: 完整的用户生命周期管理，支持密码策略和MFA
+- **组管理**: 用户批量管理，支持组内权限分配
+- **角色管理**: 基于RBAC模型的角色管理，支持系统角色和自定义角色
+- **权限管理**: 细粒度的权限控制，支持资源级权限
+- **策略管理**: 灵活的策略引擎，支持条件策略和策略语句
+- **认证源管理**: 支持多种认证源（LDAP、本地、SQL等）
 
-- **统一多云管理**: 屏蔽底层云厂商差异，提供统一 API 接口
-- **快速接入**: 新增云厂商只需实现标准接口并注册
-- **核心资源覆盖**: 支持 VM、VPC、Subnet、SecurityGroup、Disk、EIP 等资源管理
-- **云账户管理**: 支持多云账户配置和验证
-- **现代化前端**: 基于 Vue 3 + Element Plus 的响应式管理界面
+### 云资源管理
+- **计算资源**: 虚拟机、镜像、密钥对、实例模板管理
+- **网络资源**: VPC、子网、安全组、弹性IP、负载均衡管理
+- **存储资源**: 云磁盘、快照、对象存储管理
+- **数据库服务**: RDS、Redis、MongoDB 等数据库管理
+- **中间件服务**: 消息队列、数据分析等中间件管理
 
-## 项目结构
+### 消息中心
+- **站内信**: 系统通知和消息推送
+- **消息订阅**: 用户自选关注的事件类型
+- **通知渠道**: 支持邮件、企业微信、钉钉、Webhook
+- **接受人管理**: 通知目标管理（用户/用户组/角色）
+- **机器人管理**: 企业微信机器人、钉钉机器人配置
+
+### 多云管理
+- **云账号管理**: 支持多云账号统一管理
+- **同步策略**: 按资源类型配置同步范围
+- **资源同步规则**: 通过标签自动映射到项目
+- **定时同步任务**: 支持cron表达式的定时同步
+
+## 🏗️ 架构设计
 
 ```
-openCMP/
-├── backend/           # 后端 Go 代码
-│   ├── cmd/          # 应用入口
-│   ├── configs/      # 配置文件
-│   ├── internal/     # 内部包 (handler/service/model)
-│   ├── pkg/          # 公共包 (cloudprovider)
-│   ├── scripts/      # 脚本文件
-│   └── ...
-├── frontend/         # 前端 Vue 代码
-│   ├── src/
-│   │   ├── api/     # API 接口
-│   │   ├── layout/  # 布局组件
-│   │   ├── router/  # 路由配置
-│   │   ├── types/   # TypeScript 类型
-│   │   ├── utils/   # 工具函数
-│   │   └── views/   # 页面组件
-│   └── ...
-├── docs/            # 文档
-└── README.md        # 项目说明
+┌──────────────────────────────────────────────────────────────────────┐
+│                         API Layer (Gin)                               │
+│                    RESTful API / HTTP Handlers                        │
+├──────────────────────────────────────────────────────────────────────┤
+│                        Service Layer                                  │
+│           业务逻辑层 (资源管理/账户管理/任务编排/权限控制)              │
+├──────────────────────────────────────────────────────────────────────┤
+│                     Cloud Provider Layer                              │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐             │
+│  │ Alibaba  │  │ Tencent  │  │   AWS    │  │  Azure   │             │
+│  │ Adapter  │  │ Adapter  │  │ Adapter  │  │ Adapter  │             │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘             │
+├──────────────────────────────────────────────────────────────────────┤
+│                  Cloud Interface Layer (分层标准接口)                   │
+│  ┌────────────┐  ┌────────────┐  ┌────────────┐  ┌────────────┐     │
+│  │   计算资源  │  │   网络资源  │  │   存储资源  │  │   数据服务  │     │
+│  │ ICompute   │  │ INetwork   │  │ IStorage   │  │ IDatabase  │     │
+│  └────────────┘  └────────────┘  └────────────┘  └────────────┘     │
+├──────────────────────────────────────────────────────────────────────┤
+│                      Data Layer (Gorm)                                │
+│              MySQL/PostgreSQL / 云账户配置 / 资源元数据存储            │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
-## 支持的云厂商
+## 🛠️ 技术栈
 
-| 云厂商 | 后端实现 | 前端支持 | 支持资源 |
-|--------|---------|---------|----------|
-| 阿里云 | ✅ 完整实现 | ✅ | VM, VPC, Subnet, SecurityGroup, EIP, Disk, Snapshot |
-| 腾讯云 | 🚧 骨架 | ✅ | 待实现 |
-| AWS | 🚧 骨架 | ✅ | 待实现 |
-| Azure | 🚧 骨架 | ✅ | 待实现 |
+### 后端技术栈
+- **语言**: Go 1.19+
+- **Web框架**: Gin
+- **ORM**: Gorm
+- **数据库**: PostgreSQL 12+ / MySQL 8+
+- **认证**: JWT
+- **密码加密**: bcrypt
+- **日志**: Zap
+- **配置**: Viper
 
-## 快速开始
+### 前端技术栈
+- **框架**: Vue 3 + TypeScript
+- **UI组件库**: Element Plus
+- **状态管理**: Pinia
+- **HTTP客户端**: Axios
+- **构建工具**: Vite
+- **测试**: Vitest + Vue Test Utils
 
-### 后端启动
+## 📦 快速开始
 
-#### 方式一：使用 Docker Compose (推荐)
+### 环境要求
+- Go 1.19+
+- Node.js 18+
+- PostgreSQL 12+ 或 MySQL 8+
+- Docker (可选)
 
+### 本地开发
+
+#### 1. 克装依赖
 ```bash
+# 后端
 cd backend
+go mod tidy
 
-# 启动 MySQL
-docker-compose up -d
-
-# 等待 MySQL 启动完成
-sleep 10
-
-# 安装依赖
-go mod download
-
-# 运行
-go run cmd/server/main.go -config configs/config.yaml
-```
-
-后端服务运行在 `http://localhost:8080`
-
-**默认管理员账号**: `admin` / `admin123`
-
-#### 方式二：本地 MySQL
-
-```bash
-cd backend
-
-# 安装依赖
-go mod download
-
-# 初始化数据库
-mysql -u root -p < scripts/init.sql
-
-# 修改配置
-vim configs/config.yaml
-
-# 运行
-go run cmd/server/main.go -config configs/config.yaml
-```
-
-### 前端启动
-
-```bash
+# 前端
 cd frontend
-
-# 安装依赖
 npm install
+```
 
-# 开发模式
+#### 2. 配置数据库
+```bash
+# 创建 PostgreSQL 数据库
+CREATE DATABASE opencmp;
+CREATE USER opencmp WITH PASSWORD 'opencmp123';
+GRANT ALL PRIVILEGES ON DATABASE opencmp TO opencmp;
+```
+
+#### 3. 配置文件
+```bash
+# backend/configs/config.yaml
+server:
+  port: 8080
+  mode: debug
+
+database:
+  driver: postgres
+  dsn: "host=localhost user=opencmp password=opencmp123 dbname=opencmp port=5432 sslmode=disable TimeZone=Asia/Shanghai"
+  max_idle_conns: 10
+  max_open_conns: 100
+
+auth:
+  jwt_secret: "your-super-secret-jwt-key-change-this-in-production"
+  token_expire_hours: 24
+```
+
+#### 4. 启动服务
+```bash
+# 启动后端
+cd backend
+go run cmd/server/main.go
+
+# 启动前端
+cd frontend
 npm run dev
 ```
 
-前端服务运行在 `http://localhost:3000`
-
-**首次访问会跳转到登录页面，使用默认管理员账号登录**:
-- 用户名：`admin`
-- 密码：`admin123`
-
 ### Docker 部署
 
+#### 1. 构建镜像
 ```bash
 # 构建后端镜像
 cd backend
-docker build -t opencmp-backend:latest .
+docker build -t opencmp/backend .
 
 # 构建前端镜像
 cd frontend
-docker build -t opencmp-frontend:latest .
-
-# 运行
-docker run -d -p 8080:8080 opencmp-backend:latest
-docker run -d -p 3000:3000 opencmp-frontend:latest
+docker build -t opencmp/frontend .
 ```
 
-## 功能截图
-
-### 云账户管理
-- 添加/编辑/删除云账户
-- 云账户连接验证
-- 支持阿里云、腾讯云、AWS、Azure
-
-### 计算资源管理
-- 虚拟机列表查看
-- 虚拟机启动/停止/重启
-- 虚拟机创建（对接云厂商 API）
-- 镜像管理
-
-### 网络资源管理
-- VPC 创建和管理
-- 子网管理
-- 安全组管理
-- 弹性 IP 管理
-
-### 认证与安全管理 (IAM)
-- **认证源管理**: 支持 LDAP、OIDC、SAML 认证源配置和测试
-- **用户管理**: 用户创建、启用/禁用、删除
-- **角色权限**: 角色创建、权限分配、角色管理
-- **数据模型**: 域、项目、用户组、消息中心、通知渠道等
-
-## API 端点
-
-### 云账户管理
-- `GET /api/v1/cloud-accounts` - 列出云账户
-- `POST /api/v1/cloud-accounts` - 创建云账户
-- `DELETE /api/v1/cloud-accounts/:id` - 删除云账户
-- `POST /api/v1/cloud-accounts/:id/verify` - 验证云账户
-
-### 计算资源
-- `GET /api/v1/compute/vms` - 列出虚拟机
-- `POST /api/v1/compute/vms` - 创建虚拟机
-- `POST /api/v1/compute/vms/:id/action` - 虚拟机操作
-- `GET /api/v1/compute/images` - 列出镜像
-
-### 网络资源
-- `GET /api/v1/network/vpcs` - 列出 VPC
-- `POST /api/v1/network/vpcs` - 创建 VPC
-- `GET /api/v1/network/subnets` - 列出子网
-- `GET /api/v1/network/security-groups` - 列出安全组
-- `GET /api/v1/network/eips` - 列出弹性 IP
-
-### 认证与安全 (IAM)
-- `GET /api/v1/auth-sources` - 列出认证源
-- `POST /api/v1/auth-sources` - 创建认证源
-- `POST /api/v1/auth-sources/:id/test` - 测试认证源连接
-- `GET /api/v1/users` - 列出用户
-- `POST /api/v1/users` - 创建用户
-- `DELETE /api/v1/users/:id` - 删除用户
-- `POST /api/v1/users/:id/enable` - 启用用户
-- `POST /api/v1/users/:id/disable` - 禁用用户
-- `GET /api/v1/roles` - 列出角色
-- `POST /api/v1/roles` - 创建角色
-- `DELETE /api/v1/roles/:id` - 删除角色
-- `GET /api/v1/roles/permissions` - 列出权限
-- `POST /api/v1/roles/:id/permissions` - 分配权限给角色
-- `GET /api/v1/roles/:id/permissions` - 获取角色权限
-
-## 技术栈
-
-### 后端
-- **语言**: Go 1.21+
-- **Web 框架**: Gin
-- **ORM**: Gorm
-- **日志**: Zap
-- **架构**: 单体模块化 + 适配器模式
-
-### 前端
-- **框架**: Vue 3 + TypeScript
-- **UI 组件**: Element Plus
-- **状态管理**: Pinia
-- **路由**: Vue Router
-- **HTTP 客户端**: Axios
-
-## 接入新云厂商
-
-### 后端接入
-
-1. 在 `backend/pkg/cloudprovider/adapters/` 下创建新目录
-2. 实现 `ICloudProvider` 接口
-3. 在 `init()` 函数中注册
-
-```go
-func init() {
-    cloudprovider.RegisterProvider("huawei", NewHuaweiProvider)
-}
-```
-
-### 前端支持
-
-前端已支持所有云厂商的通用接口，无需修改即可使用新接入的云厂商。
-
-## 开发
-
-### 后端开发
-
+#### 2. 使用 Docker Compose
 ```bash
-cd backend
-
-# 运行测试
-go test ./...
-
-# 代码格式化
-go fmt ./...
-
-# 构建
-go build -o opencmp cmd/server/main.go
+# 启动所有服务
+docker-compose -f docker-compose.prod.yml up -d
 ```
 
-### 前端开发
+## 🔐 安全特性
 
-```bash
-cd frontend
+### 认证与授权
+- JWT Token 认证
+- 基于角色的访问控制 (RBAC)
+- 细粒度权限控制
+- 多因子认证 (MFA) 支持
 
-# 运行测试
-npm run test
+### 数据安全
+- 密码 bcrypt 加密存储
+- API 请求签名验证
+- SQL 注入防护
+- XSS 和 CSRF 防护
 
-# 代码格式化
-npm run lint
+## 📚 文档
 
-# 构建
-npm run build
-```
+- [API 文档](./docs/api/iam-api-spec.md)
+- [前端开发指南](./docs/frontend/iam-frontend-guide.md)
+- [后端开发指南](./docs/backend/iam-backend-guide.md)
+- [部署指南](./docs/deployment/guide.md)
 
-## License
+## 🤝 贡献
 
-Apache License 2.0
+欢迎提交 Issue 和 Pull Request 来帮助改进 openCMP。
+
+### 开发规范
+- Go 代码遵循 Go 官方规范
+- TypeScript 代码遵循 ESLint + Prettier 规范
+- Git 提交信息遵循 conventional commits 规范
+- 代码提交前需通过所有测试
+
+## 📄 许可证
+
+MIT License - 详见 [LICENSE](./LICENSE) 文件
+
+## 🆘 支持
+
+如有问题或建议，请通过以下方式联系我们：
+- 提交 Issue
+- 发送邮件至 [support@opencmp.org](mailto:support@opencmp.org)
+
+---
+
+感谢您使用 openCMP！如果您觉得这个项目有用，请给我们一个 Star ⭐。

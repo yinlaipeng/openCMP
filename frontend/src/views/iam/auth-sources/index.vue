@@ -335,6 +335,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { User, Connection, Plus, QuestionFilled } from '@element-plus/icons-vue'
+import { AuthSource, Domain } from '@/types/iam'
 import {
   getAuthSources,
   createAuthSource,
@@ -346,14 +347,14 @@ import {
   getDomains
 } from '@/api/iam'
 
-const sources = ref<any[]>([])
+const sources = ref<AuthSource[]>([])
 const loading = ref(false)
 const dialogVisible = ref(false)
 const detailDialogVisible = ref(false)
 const isEdit = ref(false)
 const submitting = ref(false)
-const currentSource = ref<any>(null)
-const domains = ref<any[]>([])
+const currentSource = ref<AuthSource | null>(null)
+const domains = ref<Domain[]>([])
 const formRef = ref<FormInstance>()
 
 const filterForm = reactive({
@@ -392,7 +393,7 @@ const rules: FormRules = {
   name: [{ required: true, message: '请输入认证源名称', trigger: 'blur' }],
   type: [{ required: true, message: '请选择认证源类型', trigger: 'change' }],
   scope: [{ required: true, message: '请选择认证源范围', trigger: 'change' }],
-  domain_id: [{ required: true, message: '请选择所属域', trigger: 'change', trigger: 'change' }]
+  domain_id: [{ required: true, message: '请选择所属域', trigger: 'change' }]
 }
 
 const getTypeName = (type: string) => {
@@ -519,7 +520,7 @@ const handleCreate = async () => {
   dialogVisible.value = true
 }
 
-const handleEdit = (row: any) => {
+const handleEdit = (row: AuthSource) => {
   isEdit.value = true
   currentSource.value = row
   form.name = row.name
@@ -541,12 +542,12 @@ const handleEdit = (row: any) => {
   dialogVisible.value = true
 }
 
-const handleView = (row: any) => {
+const handleView = (row: AuthSource) => {
   currentSource.value = row
   detailDialogVisible.value = true
 }
 
-const handleTest = async (row: any) => {
+const handleTest = async (row: AuthSource) => {
   try {
     await testAuthSource(row.id)
     ElMessage.success('连接测试成功')
@@ -555,7 +556,7 @@ const handleTest = async (row: any) => {
   }
 }
 
-const handleToggleRunning = async (row: any) => {
+const handleToggleRunning = async (row: AuthSource) => {
   try {
     const action = row.running ? '停止' : '启动'
     await ElMessageBox.confirm(`确定要${action}该认证源吗？`, '提示', { type: 'warning' })
@@ -573,17 +574,17 @@ const handleToggleRunning = async (row: any) => {
   }
 }
 
-const handleSync = async (row: any) => {
+const handleSync = async (row: AuthSource) => {
   try {
     // 标记为同步中
     row.syncing = true
-    
+
     // 调用同步 API（未来实现）
     // await syncAuthSource(row.id)
-    
+
     // 模拟同步过程
     await new Promise(resolve => setTimeout(resolve, 2000))
-    
+
     ElMessage.success('同步成功')
     row.sync_status = 'synced'
     row.syncing = false
@@ -597,7 +598,7 @@ const handleSync = async (row: any) => {
   }
 }
 
-const handleToggleEnable = async (row: any) => {
+const handleToggleEnable = async (row: AuthSource) => {
   try {
     const action = row.enabled ? '禁用' : '启用'
     await ElMessageBox.confirm(`确定要${action}该认证源吗？`, '提示', { type: 'warning' })
@@ -617,13 +618,13 @@ const handleToggleEnable = async (row: any) => {
   }
 }
 
-const handleDelete = async (row: any) => {
+const handleDelete = async (row: AuthSource) => {
   // 检查是否为默认认证源
   if (row.is_default) {
     ElMessage.warning('默认认证源不可删除')
     return
   }
-  
+
   try {
     await ElMessageBox.confirm('确定要删除该认证源吗？', '提示', { type: 'warning' })
     await deleteAuthSource(row.id)
@@ -653,7 +654,7 @@ const handleSubmit = async () => {
         enabled: form.enabled,
         config: form.config
       }
-      
+
       // 如果是域范围，添加 domain_id
       if (form.scope === 'domain' && form.domain_id) {
         data.domain_id = form.domain_id

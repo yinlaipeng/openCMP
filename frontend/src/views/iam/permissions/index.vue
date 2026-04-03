@@ -203,6 +203,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
+import { Permission } from '@/types/iam'
 import { getPermissions, createPermission, updatePermission, deletePermission, getResources, getActions } from '@/api/iam'
 
 const loading = ref(false)
@@ -226,7 +227,7 @@ const pagination = reactive({
 })
 
 // 所有权限数据
-const allPermissions = ref<any[]>([])
+const allPermissions = ref<Permission[]>([])
 
 // 资源类型和操作类型列表
 const resources = ref<string[]>([])
@@ -484,7 +485,7 @@ const handleCreate = () => {
   dialogVisible.value = true
 }
 
-const handleEdit = (row: any) => {
+const handleEdit = (row: Permission) => {
   isEdit.value = true
   form.id = row.id
   form.name = row.name
@@ -496,7 +497,7 @@ const handleEdit = (row: any) => {
   dialogVisible.value = true
 }
 
-const handleDelete = async (row: any) => {
+const handleDelete = async (row: Permission) => {
   try {
     await ElMessageBox.confirm('确定要删除该权限吗？', '提示', { type: 'warning' })
     await deletePermission(row.id)

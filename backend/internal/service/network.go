@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"strconv"
 
 	"gorm.io/gorm"
 
@@ -36,7 +37,7 @@ func (s *NetworkService) getProvider(ctx context.Context, accountID uint) (cloud
 	}
 
 	providerConfig := cloudprovider.CloudAccountConfig{
-		ID:           string(account.ID),
+		ID:           strconv.Itoa(int(account.ID)),
 		Name:         account.Name,
 		ProviderType: account.ProviderType,
 		Credentials:  creds,

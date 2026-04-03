@@ -384,3 +384,65 @@ func (s *RoleService) AssignPolicyToRole(ctx context.Context, roleID uint, polic
 func (s *RoleService) RevokePolicyFromRole(ctx context.Context, roleID uint, policyID string) error {
 	return s.db.WithContext(ctx).Where("role_id = ? AND policy_id = ?", roleID, policyID).Delete(&model.RolePolicy{}).Error
 }
+
+// CheckUserPermission 检查用户是否有指定权限
+func (s *RoleService) CheckUserPermission(ctx context.Context, userID uint, resource, action string) (bool, error) {
+	// 检查用户直接拥有的角色权限
+	var hasPermission bool
+	
+	// 查询用户在域级别拥有的角色及其权限
+	err := s.db.WithContext(ctx).
+		Raw(`
+			SELECT COUNT(*) > 0 
+			FROM permissions p
+			JOIN role_permissions rp ON p.id = rp.permission_id
+			JOIN user_roles ur ON rp.role_id = ur.role_id
+			WHERE ur.user_id = ? AND p.resource = ? AND p.action = ?
+		`, userID, resource, action).
+		Scan(&hasPermission).Error
+	
+	if err != nil {
+		return false, err
+	}
+	
+	if hasPermission {
+		return true, nil
+	}
+	
+	// 查询用户在项目级别拥有的角色及其权限
+	err = s.db.WithContext(ctx).
+		Raw(`
+			SELECT COUNT(*) > 0 
+			FROM permissions p
+			JOIN role_permissions rp ON p.id = rp.permission_id
+			JOIN project_user_roles pur ON rp.role_id = pur.role_id
+			WHERE pur.user_id = ? AND p.resource = ? AND p.action = ?
+		`, userID, resource, action).
+		Scan(&hasPermission).Error
+	
+	if err != nil {
+		return false, err
+	}
+	
+	if hasPermission {
+		return true, nil
+	}
+	
+	// 检查用户所属组拥有的角色权限
+	err = s.db.WithContext(ctx).
+		Raw(`
+			SELECT COUNT(*) > 0 
+			FROM permissions p
+			JOIN role_permissions rp ON p.id = rp.permission_id
+			JOIN group_roles gr ON rp.role_id = gr.role_id
+			JOIN user_groups ug ON gr.group_id = ug.group_id
+			WHERE ug.user_id = ? AND p.resource = ? AND p.action = ?
+		`, userID, resource, action).
+		Scan(&hasPermission).Error
+	
+	if err != nil {
+		return false, err
+	}
+	
+	return hasPermission, nil
+}

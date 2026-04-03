@@ -153,6 +153,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
+import { Domain } from '@/types/iam'
 import {
   getDomains,
   createDomain,
@@ -166,18 +167,18 @@ import {
   getDomainRoles
 } from '@/api/iam'
 
-const domains = ref<any[]>([])
+const domains = ref<Domain[]>([])
 const loading = ref(false)
 const dialogVisible = ref(false)
 const detailDialogVisible = ref(false)
 const detailTab = ref('users')
 const isEdit = ref(false)
 const submitting = ref(false)
-const currentDomain = ref<any>(null)
-const domainUsers = ref<any[]>([])
-const domainGroups = ref<any[]>([])
-const domainProjects = ref<any[]>([])
-const domainRoles = ref<any[]>([])
+const currentDomain = ref<Domain | null>(null)
+const domainUsers = ref<Domain[]>([])
+const domainGroups = ref<Domain[]>([])
+const domainProjects = ref<Domain[]>([])
+const domainRoles = ref<Domain[]>([])
 const usersLoading = ref(false)
 const groupsLoading = ref(false)
 const projectsLoading = ref(false)
@@ -288,7 +289,7 @@ const handleCreate = () => {
   dialogVisible.value = true
 }
 
-const handleEdit = (row: any) => {
+const handleEdit = (row: Domain) => {
   isEdit.value = true
   currentDomain.value = row
   form.name = row.name
@@ -297,7 +298,7 @@ const handleEdit = (row: any) => {
   dialogVisible.value = true
 }
 
-const handleView = async (row: any) => {
+const handleView = async (row: Domain) => {
   currentDomain.value = row
   detailTab.value = 'users'
   await loadDomainUsers(row.id)
@@ -307,17 +308,17 @@ const handleView = async (row: any) => {
   detailDialogVisible.value = true
 }
 
-const handleToggleEnable = async (row: any) => {
+const handleToggleEnable = async (row: Domain) => {
   try {
     const action = row.enabled ? '禁用' : '启用'
     await ElMessageBox.confirm(`确定要${action}该域吗？`, '提示', { type: 'warning' })
-    
+
     if (row.enabled) {
       await disableDomain(row.id)
     } else {
       await enableDomain(row.id)
     }
-    
+
     ElMessage.success(`${action}成功`)
     loadDomains()
   } catch (e: any) {
@@ -327,7 +328,7 @@ const handleToggleEnable = async (row: any) => {
   }
 }
 
-const handleDelete = async (row: any) => {
+const handleDelete = async (row: Domain) => {
   try {
     await ElMessageBox.confirm('确定要删除该域吗？', '提示', { type: 'warning' })
     await deleteDomain(row.id)
@@ -342,7 +343,7 @@ const handleDelete = async (row: any) => {
 
 const handleSubmit = async () => {
   if (!formRef.value) return
-  
+
   await formRef.value.validate(async (valid) => {
     if (!valid) return
 

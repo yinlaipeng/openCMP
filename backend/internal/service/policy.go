@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -224,4 +225,201 @@ func (s *PolicyService) RevokePolicyFromRole(ctx context.Context, roleID uint, p
 	return s.db.WithContext(ctx).
 		Where("role_id = ? AND policy_id = ?", roleID, policyID).
 		Delete(&model.RolePolicy{}).Error
+}
+
+// CheckUserPermission 检查用户是否有指定权限（通过策略）
+func (s *PolicyService) CheckUserPermission(ctx context.Context, userID uint, resource, action string) (bool, error) {
+	// 获取用户的所有策略（通过角色）
+	var policyIDs []string
+	
+	// 从用户直接拥有的角色获取策略
+	err := s.db.WithContext(ctx).
+		Model(&model.RolePolicy{}).
+		Joins("JOIN user_roles ON role_policies.role_id = user_roles.role_id").
+		Where("user_roles.user_id = ?", userID).
+		Pluck("role_policies.policy_id", &policyIDs).Error
+	
+	if err != nil {
+		return false, err
+	}
+	
+	// 从用户在项目级别拥有的角色获取策略
+	var projectPolicyIDs []string
+	err = s.db.WithContext(ctx).
+		Model(&model.RolePolicy{}).
+		Joins("JOIN project_user_roles ON role_policies.role_id = project_user_roles.role_id").
+		Where("project_user_roles.user_id = ?", userID).
+		Pluck("role_policies.policy_id", &projectPolicyIDs).Error
+	
+	if err != nil {
+		return false, err
+	}
+	
+	policyIDs = append(policyIDs, projectPolicyIDs...)
+	
+	// 从用户所属组拥有的角色获取策略
+	var groupPolicyIDs []string
+	err = s.db.WithContext(ctx).
+		Model(&model.RolePolicy{}).
+		Joins("JOIN group_roles ON role_policies.role_id = group_roles.role_id").
+		Joins("JOIN user_groups ON group_roles.group_id = user_groups.group_id").
+		Where("user_groups.user_id = ?", userID).
+		Pluck("role_policies.policy_id", &groupPolicyIDs).Error
+	
+	if err != nil {
+		return false, err
+	}
+	
+	policyIDs = append(policyIDs, groupPolicyIDs...)
+	
+	if len(policyIDs) == 0 {
+		return false, nil
+	}
+	
+	// 检查这些策略是否允许指定的资源和动作
+	var policies []model.Policy
+	err = s.db.WithContext(ctx).
+		Where("id IN ?", policyIDs).
+		Find(&policies).Error
+	
+	if err != nil {
+		return false, err
+	}
+	
+	// 检查每个策略是否允许请求的操作
+	for _, policy := range policies {
+		if s.evaluatePolicy(policy, resource, action) {
+			return true, nil
+		}
+	}
+	
+	return false, nil
+}
+
+// evaluatePolicy 评估策略是否允许特定资源和动作
+func (s *PolicyService) evaluatePolicy(policy model.Policy, resource, action string) bool {
+	var policyMap map[string]interface{}
+	if err := json.Unmarshal(policy.Policy, &policyMap); err != nil {
+		// 如果无法解析策略，则视为不允许
+		return false
+	}
+
+	// 获取策略语句
+	statements, ok := policyMap["statement"].([]interface{})
+	if !ok {
+		// 尝试其他可能的键名
+		if stmt, exists := policyMap["statements"]; exists {
+			statements, ok = stmt.([]interface{})
+		}
+		if !ok {
+			return false
+		}
+	}
+
+	// 遍历每个策略语句
+	for _, stmt := range statements {
+		stmtMap, ok := stmt.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		// 检查效果（允许还是拒绝）
+		effect, ok := stmtMap["effect"].(string)
+		if !ok || effect != "allow" {
+			continue
+		}
+
+		// 检查资源
+		resources, hasResources := stmtMap["resource"]
+		if hasResources {
+			resourceList, ok := resources.([]interface{})
+			if !ok {
+				// 如果不是数组，尝试字符串
+				resourceStr, ok := resources.(string)
+				if !ok || !matchResource(resourceStr, resource) {
+					continue
+				}
+			} else {
+				matched := false
+				for _, res := range resourceList {
+					resStr, ok := res.(string)
+					if ok && matchResource(resStr, resource) {
+						matched = true
+						break
+					}
+				}
+				if !matched {
+					continue
+				}
+			}
+		}
+
+		// 检查动作
+		actions, hasActions := stmtMap["action"]
+		if hasActions {
+			actionList, ok := actions.([]interface{})
+			if !ok {
+				// 如果不是数组，尝试字符串
+				actionStr, ok := actions.(string)
+				if !ok || !matchAction(actionStr, action) {
+					continue
+				}
+			} else {
+				matched := false
+				for _, act := range actionList {
+					actStr, ok := act.(string)
+					if ok && matchAction(actStr, action) {
+						matched = true
+						break
+					}
+				}
+				if !matched {
+					continue
+				}
+			}
+		}
+
+		// 如果资源和动作都匹配，则允许
+		return true
+	}
+
+	return false
+}
+
+// matchResource 检查资源是否匹配
+func matchResource(policyResource, requestedResource string) bool {
+	// 支持通配符匹配
+	if policyResource == "*" || policyResource == requestedResource {
+		return true
+	}
+	
+	// 检查通配符模式，如 "user:*"
+	if len(policyResource) > 2 && policyResource[len(policyResource)-2:] == ":*" {
+		prefix := policyResource[:len(policyResource)-2]
+		if requestedResource == prefix || len(requestedResource) > len(prefix) && 
+		   requestedResource[:len(prefix)] == prefix && requestedResource[len(prefix)] == ':' {
+			return true
+		}
+	}
+	
+	return false
+}
+
+// matchAction 检查动作是否匹配
+func matchAction(policyAction, requestedAction string) bool {
+	// 支持通配符匹配
+	if policyAction == "*" || policyAction == requestedAction {
+		return true
+	}
+	
+	// 检查通配符模式，如 "user:*"
+	if len(policyAction) > 2 && policyAction[len(policyAction)-2:] == ":*" {
+		prefix := policyAction[:len(policyAction)-2]
+		if requestedAction == prefix || len(requestedAction) > len(prefix) && 
+		   requestedAction[:len(prefix)] == prefix && requestedAction[len(prefix)] == ':' {
+			return true
+		}
+	}
+	
+	return false
 }

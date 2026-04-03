@@ -252,6 +252,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
+import { User, Role, Group, Domain } from '@/types/iam'
 import {
   getUsers,
   createUser,
@@ -267,10 +268,11 @@ import {
   joinGroup,
   leaveGroup,
   getRoles,
-  getGroups
+  getGroups,
+  getDomains
 } from '@/api/iam'
 
-const users = ref<any[]>([])
+const users = ref<User[]>([])
 const loading = ref(false)
 const dialogVisible = ref(false)
 const resetPwdDialogVisible = ref(false)
@@ -284,11 +286,12 @@ const resetPwdSubmitting = ref(false)
 const assignRoleSubmitting = ref(false)
 const joinGroupSubmitting = ref(false)
 const currentUserId = ref(0)
-const currentUser = ref<any>(null)
-const userRoles = ref<any[]>([])
-const userGroups = ref<any[]>([])
-const allRoles = ref<any[]>([])
-const allGroups = ref<any[]>([])
+const currentUser = ref<User | null>(null)
+const userRoles = ref<Role[]>([])
+const userGroups = ref<Group[]>([])
+const allRoles = ref<Role[]>([])
+const allGroups = ref<Group[]>([])
+const allDomains = ref<Domain[]>([])
 const rolesLoading = ref(false)
 const groupsLoading = ref(false)
 const formRef = ref<FormInstance>()
@@ -335,7 +338,8 @@ const rules: FormRules = {
   ],
   password: [
     { min: 8, message: '密码长度至少 8 位', trigger: 'blur' }
-  ]
+  ],
+  domain_id: [{ required: true, message: '请选择所属域', trigger: 'change' }]
 }
 
 const loadUsers = async () => {
@@ -401,6 +405,15 @@ const loadAllGroups = async () => {
   }
 }
 
+const loadAllDomains = async () => {
+  try {
+    const res = await getDomains({ limit: 100 })
+    allDomains.value = res.items || []
+  } catch (e: any) {
+    console.error(e)
+  }
+}
+
 const resetFilter = () => {
   filterForm.name = ''
   filterForm.email = ''
@@ -409,7 +422,7 @@ const resetFilter = () => {
   loadUsers()
 }
 
-const handleCreate = () => {
+const handleCreate = async () => {
   isEdit.value = false
   form.name = ''
   form.display_name = ''
@@ -417,10 +430,11 @@ const handleCreate = () => {
   form.phone = ''
   form.password = ''
   form.domain_id = 1
+  await loadAllDomains()
   dialogVisible.value = true
 }
 
-const handleEdit = (row: any) => {
+const handleEdit = (row: User) => {
   isEdit.value = true
   currentUserId.value = row.id
   form.name = row.name
@@ -432,7 +446,7 @@ const handleEdit = (row: any) => {
   dialogVisible.value = true
 }
 
-const handleView = async (row: any) => {
+const handleView = async (row: User) => {
   currentUser.value = row
   detailTab.value = 'roles'
   await loadUserRoles(row.id)
@@ -440,23 +454,23 @@ const handleView = async (row: any) => {
   detailDialogVisible.value = true
 }
 
-const handleResetPassword = (row: any) => {
+const handleResetPassword = (row: User) => {
   currentUserId.value = row.id
   resetPwdForm.password = ''
   resetPwdDialogVisible.value = true
 }
 
-const handleToggleEnable = async (row: any) => {
+const handleToggleEnable = async (row: User) => {
   try {
     const action = row.enabled ? '禁用' : '启用'
     await ElMessageBox.confirm(`确定要${action}该用户吗？`, '提示', { type: 'warning' })
-    
+
     if (row.enabled) {
       await disableUser(row.id)
     } else {
       await enableUser(row.id)
     }
-    
+
     ElMessage.success(`${action}成功`)
     loadUsers()
   } catch (e: any) {
@@ -466,7 +480,7 @@ const handleToggleEnable = async (row: any) => {
   }
 }
 
-const handleDelete = async (row: any) => {
+const handleDelete = async (row: User) => {
   try {
     await ElMessageBox.confirm('确定要删除该用户吗？', '提示', { type: 'warning' })
     await deleteUser(row.id)
@@ -481,7 +495,7 @@ const handleDelete = async (row: any) => {
 
 const handleSubmit = async () => {
   if (!formRef.value) return
-  
+
   await formRef.value.validate(async (valid) => {
     if (!valid) return
 
@@ -548,7 +562,7 @@ const handleAssignRoleSubmit = async () => {
   }
 }
 
-const handleRevokeRole = async (row: any) => {
+const handleRevokeRole = async (row: Role) => {
   try {
     await ElMessageBox.confirm('确定要撤销该角色吗？', '提示', { type: 'warning' })
     await revokeRoleFromUser(currentUserId.value, row.id, 1)
@@ -586,7 +600,7 @@ const handleJoinGroupSubmit = async () => {
   }
 }
 
-const handleLeaveGroup = async (row: any) => {
+const handleLeaveGroup = async (row: Group) => {
   try {
     await ElMessageBox.confirm('确定要离开该用户组吗？', '提示', { type: 'warning' })
     await leaveGroup(currentUserId.value, row.id)
