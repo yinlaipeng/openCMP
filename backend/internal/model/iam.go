@@ -50,6 +50,23 @@ func (RolePolicy) TableName() string {
 	return "role_policies"
 }
 
+// PolicyStatement 策略语句
+type PolicyStatement struct {
+	ID          uint           `gorm:"primaryKey" json:"id"`
+	PolicyID    string         `gorm:"index;size:64" json:"policy_id"`
+	Effect      string         `gorm:"type:varchar(20);not null" json:"effect"` // Allow/Deny
+	Resource    string         `gorm:"size:255" json:"resource"`                // 资源标识，支持通配符
+	Actions     datatypes.JSON `gorm:"type:json" json:"actions"`                // 操作列表，JSON数组
+	Conditions  datatypes.JSON `gorm:"type:json" json:"conditions"`             // 条件，JSON对象
+	CreatedAt   time.Time      `json:"created_at"`
+	UpdatedAt   time.Time      `json:"updated_at"`
+	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+func (PolicyStatement) TableName() string {
+	return "policy_statements"
+}
+
 // ============= 域管理 =============
 
 // Domain 域（租户）

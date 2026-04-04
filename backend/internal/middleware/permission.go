@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -92,27 +93,30 @@ func hasDirectPermission(db *gorm.DB, userID uint, permissionName string) bool {
 
 // hasGroupPermission 检查用户所属组是否拥有权限
 func hasGroupPermission(db *gorm.DB, userID uint, permissionName string) bool {
-	// 获取用户信息以确定其组
-	var user model.User
-	if err := db.Select("id, group_id").First(&user, userID).Error; err != nil {
+	// 获取用户所属的组
+	var userGroups []model.UserGroup
+	if err := db.Where("user_id = ?", userID).Find(&userGroups).Error; err != nil {
 		return false
 	}
 
-	if user.GroupID == 0 {
+	if len(userGroups) == 0 {
 		// 用户不属于任何组
 		return false
 	}
 
-	// 获取组的角色
-	var groupRoles []model.GroupRole
-	if err := db.Where("group_id = ?", user.GroupID).Find(&groupRoles).Error; err != nil {
-		return false
-	}
+	// 检查每个组的角色权限
+	for _, userGroup := range userGroups {
+		// 获取组的角色
+		var groupRoles []model.GroupRole
+		if err := db.Where("group_id = ?", userGroup.GroupID).Find(&groupRoles).Error; err != nil {
+			continue
+		}
 
-	// 检查组角色是否拥有权限
-	for _, groupRole := range groupRoles {
-		if hasRolePermissionByID(db, groupRole.RoleID, permissionName) {
-			return true
+		// 检查组角色是否拥有权限
+		for _, groupRole := range groupRoles {
+			if hasRolePermissionByID(db, groupRole.RoleID, permissionName) {
+				return true
+			}
 		}
 	}
 
@@ -182,9 +186,9 @@ func hasRolePermissionViaPolicy(db *gorm.DB, roleID uint, permissionName string)
 }
 
 // hasPermissionViaPolicyID 检查通过指定策略ID是否拥有权限
-func hasPermissionViaPolicyID(db *gorm.DB, policyID uint, resource, action string) bool {
+func hasPermissionViaPolicyID(db *gorm.DB, policyID string, resource, action string) bool {
 	var policy model.Policy
-	if err := db.First(&policy, policyID).Error; err != nil {
+	if err := db.Where("id = ?", policyID).First(&policy).Error; err != nil {
 		return false
 	}
 
@@ -195,12 +199,20 @@ func hasPermissionViaPolicyID(db *gorm.DB, policyID uint, resource, action strin
 	}
 
 	for _, stmt := range statements {
+		// 解析 Actions JSON
+		var actions []string
+		if stmt.Actions != nil {
+			if err := json.Unmarshal(stmt.Actions, &actions); err != nil {
+				continue
+			}
+		}
+
 		// 检查资源匹配
-		resourceMatch := stmt.Resource == "*" || stmt.Resource == resource || 
+		resourceMatch := stmt.Resource == "*" || stmt.Resource == resource ||
 			(strings.HasSuffix(stmt.Resource, ":*") && strings.HasPrefix(resource, strings.TrimSuffix(stmt.Resource, ":*")))
-		
+
 		// 检查动作匹配
-		actionMatch := containsString(stmt.Actions, action) || containsString(stmt.Actions, "*")
+		actionMatch := containsString(actions, action) || containsString(actions, "*")
 
 		if resourceMatch && actionMatch && stmt.Effect == "Allow" {
 			return true

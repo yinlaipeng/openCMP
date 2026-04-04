@@ -6,7 +6,7 @@ server:
 # 数据库配置
 database:
   driver: mysql  # mysql, postgres, sqlite
-  dsn: "root:password@tcp(localhost:3306)/opencmp?charset=utf8mb4&parseTime=True&loc=Local"
+  dsn: "root:opencmp123@tcp(localhost:3306)/opencmp?charset=utf8mb4&parseTime=True&loc=Local"
   max_idle_conns: 10
   max_open_conns: 100
 

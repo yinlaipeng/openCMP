@@ -1,3 +1,5 @@
+//go:build ignore
+
 package main
 
 import (
@@ -42,32 +44,39 @@ func main() {
 	// 首先获取一个有效的令牌
 	token, err := login("admin", "admin123")
 	if err != nil {
-		fmt.Printf("❌ 无法登录以进行性能测试: %v\n", err)
+		fmt.Printf("❌ 无法登录以进行性能测试: %v
+", err)
 		return
 	}
-	fmt.Printf("✅ 成功获取令牌，开始性能测试\n")
+	fmt.Printf("✅ 成功获取令牌，开始性能测试
+")
 
 	// 1. 并发用户登录测试
-	fmt.Println("\n👥 测试并发用户登录...")
+	fmt.Println("
+👥 测试并发用户登录...")
 	loginResults := testConcurrentLogins()
 	printPerformanceResult(loginResults)
 
 	// 2. API响应时间测试
-	fmt.Println("\n⏱️  测试API响应时间...")
+	fmt.Println("
+⏱️  测试API响应时间...")
 	apiResults := testAPIResponseTime(token)
 	printPerformanceResult(apiResults)
 
 	// 3. 并发用户操作测试
-	fmt.Println("\n👥 测试并发用户操作...")
+	fmt.Println("
+👥 测试并发用户操作...")
 	concurrentResults := testConcurrentUserOperations(token)
 	printPerformanceResult(concurrentResults)
 
 	// 4. 持续负载测试
-	fmt.Println("\n持久负载测试...")
+	fmt.Println("
+持久负载测试...")
 	loadResults := testSustainedLoad(token)
 	printPerformanceResult(loadResults)
 
-	fmt.Println("\n📊 性能测试完成！")
+	fmt.Println("
+📊 性能测试完成！")
 }
 
 // testConcurrentLogins 测试并发登录
@@ -292,24 +301,35 @@ func testSustainedLoad(token string) PerformanceResult {
 
 // printPerformanceResult 打印性能测试结果
 func printPerformanceResult(result PerformanceResult) {
-	fmt.Printf("  测试名称: %s\n", result.TestName)
-	fmt.Printf("  平均响应时间: %v\n", result.AvgTime)
-	fmt.Printf("  最小响应时间: %v\n", result.MinTime)
-	fmt.Printf("  最大响应时间: %v\n", result.MaxTime)
-	fmt.Printf("  总请求数: %d\n", result.RequestCount)
-	fmt.Printf("  错误数: %d\n", result.ErrorCount)
-	fmt.Printf("  TPS (每秒事务数): %.2f\n", result.TPS)
+	fmt.Printf("  测试名称: %s
+", result.TestName)
+	fmt.Printf("  平均响应时间: %v
+", result.AvgTime)
+	fmt.Printf("  最小响应时间: %v
+", result.MinTime)
+	fmt.Printf("  最大响应时间: %v
+", result.MaxTime)
+	fmt.Printf("  总请求数: %d
+", result.RequestCount)
+	fmt.Printf("  错误数: %d
+", result.ErrorCount)
+	fmt.Printf("  TPS (每秒事务数): %.2f
+", result.TPS)
 	
 	if result.ErrorCount > 0 {
-		fmt.Printf("  ⚠️  发现 %d 个错误\n", result.ErrorCount)
+		fmt.Printf("  ⚠️  发现 %d 个错误
+", result.ErrorCount)
 	}
 	
 	if result.AvgTime > 2*time.Second {
-		fmt.Printf("  ⚠️  平均响应时间较长\n")
+		fmt.Printf("  ⚠️  平均响应时间较长
+")
 	} else if result.AvgTime > 1*time.Second {
-		fmt.Printf("  ⚠️  平均响应时间偏长\n")
+		fmt.Printf("  ⚠️  平均响应时间偏长
+")
 	} else {
-		fmt.Printf("  ✅ 响应时间良好\n")
+		fmt.Printf("  ✅ 响应时间良好
+")
 	}
 	
 	fmt.Println()
