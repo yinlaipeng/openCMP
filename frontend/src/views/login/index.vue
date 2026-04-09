@@ -72,13 +72,12 @@ const rules: FormRules = {
 
 const handleLogin = async () => {
   if (!formRef.value) return
-  
+
   await formRef.value.validate(async (valid) => {
     if (!valid) return
-    
+
     loading.value = true
     try {
-      // 调用登录 API
       const res = await request({
         url: '/auth/login',
         method: 'post',
@@ -87,33 +86,20 @@ const handleLogin = async () => {
           password: form.password
         }
       })
-      
-      // 保存 token
-      localStorage.setItem('token', res.token || 'demo-token')
-      localStorage.setItem('user', JSON.stringify(res.user || {
-        id: 1,
-        name: form.username,
-        display_name: '管理员'
-      }))
-      
+
+      // 保存 token 和用户信息到 localStorage
+      localStorage.setItem('token', res.token)
+      localStorage.setItem('user', JSON.stringify(res.user))
+
       ElMessage.success('登录成功')
       router.push('/')
     } catch (e: any) {
-      console.error(e)
-      // 演示模式：允许任意 admin 用户登录
-      if (form.username === 'admin') {
-        localStorage.setItem('token', 'demo-token')
-        localStorage.setItem('user', JSON.stringify({
-          id: 1,
-          name: 'admin',
-          display_name: '超级管理员',
-          email: 'admin@example.com'
-        }))
-        ElMessage.success('登录成功（演示模式）')
-        router.push('/')
-      } else {
+      // axios 拦截器已处理了通用错误提示，登录失败单独处理
+      const status = e.response?.status
+      if (status === 401 || status === 403) {
         ElMessage.error('用户名或密码错误')
       }
+      // 其他错误由拦截器统一提示，无需重复
     } finally {
       loading.value = false
     }

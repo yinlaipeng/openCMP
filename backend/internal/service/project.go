@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"gorm.io/gorm"
 
@@ -156,6 +157,29 @@ func (s *ProjectService) AddUserToProject(ctx context.Context, projectID, userID
 		RoleID:    roleID,
 	}
 	return s.db.WithContext(ctx).Create(pur).Error
+}
+
+// SetProjectManager 设置项目管理员
+func (s *ProjectService) SetProjectManager(ctx context.Context, projectID, userID uint) error {
+	// 验证项目是否存在
+	var project model.Project
+	if err := s.db.WithContext(ctx).First(&project, projectID).Error; err != nil {
+		return err
+	}
+
+	// 验证用户是否存在
+	var user model.User
+	if err := s.db.WithContext(ctx).First(&user, userID).Error; err != nil {
+		return err
+	}
+
+	// 检查用户是否属于项目所在的域
+	if user.DomainID != project.DomainID {
+		return fmt.Errorf("user does not belong to the project's domain")
+	}
+
+	// 更新项目管理员
+	return s.db.WithContext(ctx).Model(&project).Update("manager_id", &userID).Error
 }
 
 // RemoveUserFromProject 从项目移除用户

@@ -120,7 +120,7 @@ func TestUserService_ListUsers(t *testing.T) {
 		WillReturnRows(rows)
 
 	var domainID uint = 1
-	users, total, err := service.ListUsers(context.Background(), &domainID, 10, 0)
+	users, total, err := service.ListUsers(context.Background(), &domainID, "", "", nil, 10, 0)
 
 	assert.NoError(t, err)
 	assert.Equal(t, int64(2), total)

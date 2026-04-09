@@ -14,12 +14,12 @@
       <!-- 筛选条件 -->
       <el-form :inline="true" :model="filterForm" class="filter-form">
         <el-form-item label="名称">
-          <el-input 
-            v-model="filterForm.name" 
-            placeholder="请输入名称" 
-            clearable 
+          <el-input
+            v-model="filterForm.name"
+            placeholder="请输入名称"
+            clearable
             style="width: 200px"
-            @keyup.enter="loadSources" 
+            @keyup.enter="loadSources"
           />
         </el-form-item>
         <el-form-item label="类型">
@@ -45,10 +45,10 @@
           </el-select>
         </el-form-item>
         <el-form-item label="状态">
-          <el-select 
-            v-model="filterForm.enabled" 
-            placeholder="全部" 
-            clearable 
+          <el-select
+            v-model="filterForm.enabled"
+            placeholder="全部"
+            clearable
             style="width: 100px"
           >
             <el-option label="启用" :value="true" />
@@ -75,6 +75,7 @@
               <el-icon v-if="row.type === 'local'" color="#409EFF"><User /></el-icon>
               <el-icon v-else-if="row.type === 'ldap'" color="#67C23A"><Connection /></el-icon>
               <span>{{ row.name }}</span>
+              <el-tag v-if="row.is_system" type="warning" size="small" style="margin-left: 8px;">系统</el-tag>
             </div>
           </template>
         </el-table-column>
@@ -118,54 +119,41 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="scope" label="认证源归属" width="100">
+        <el-table-column prop="scope" label="认证源归属" min-width="130">
           <template #default="{ row }">
-            <el-tag :type="row.scope === 'system' ? 'warning' : ''" size="small">
-              {{ row.scope === 'system' ? '系统' : '域' }}
+            <el-tag :type="row.scope === 'system' ? 'warning' : 'primary'" size="small">
+              {{ row.scope === 'system' ? '系统' : getDomainName(row.domain_id) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="400" fixed="right">
+        <el-table-column label="操作" width="100" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" link type="primary" @click="handleView(row)">详情</el-button>
-            <el-button size="small" link type="primary" @click="handleEdit(row)">编辑</el-button>
-            <el-button
-              size="small"
-              link
-              :type="row.running ? 'warning' : 'success'"
-              @click="handleToggleRunning(row)"
-            >
-              {{ row.running ? '停止' : '启动' }}
-            </el-button>
-            <el-button
-              size="small"
-              link
-              :type="row.enabled ? 'warning' : 'success'"
-              @click="handleToggleEnable(row)"
-            >
-              {{ row.enabled ? '禁用' : '启用' }}
-            </el-button>
-            <el-button
-              size="small"
-              link
-              type="primary"
-              @click="handleSync(row)"
-              :loading="row.syncing"
-            >
-              同步
-            </el-button>
-            <el-button
-              size="small"
-              link
-              type="danger"
-              @click="handleDelete(row)"
-              :disabled="row.is_default"
-            >
-              删除
-              <el-tooltip v-if="row.is_default" content="默认认证源不可删除" placement="top">
-                <el-icon style="margin-left: 2px"><QuestionFilled /></el-icon>
-              </el-tooltip>
-            </el-button>
+            <el-dropdown trigger="click" @command="(cmd) => handleCommand(cmd, row)">
+              <el-button size="small" type="primary" link>
+                更多 <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="view">详情</el-dropdown-item>
+                  <el-dropdown-item command="edit" :disabled="row.is_system">编辑</el-dropdown-item>
+                  <el-dropdown-item command="toggleRunning" :disabled="row.is_system">
+                    {{ row.running ? '停止' : '启动' }}
+                  </el-dropdown-item>
+                  <el-dropdown-item command="toggleEnable" :disabled="row.is_system">
+                    {{ row.enabled ? '禁用' : '启用' }}
+                  </el-dropdown-item>
+                  <el-dropdown-item command="sync" :disabled="row.syncing || row.is_system">
+                    {{ row.syncing ? '同步中...' : '同步' }}
+                  </el-dropdown-item>
+                  <el-dropdown-item command="test" :disabled="row.is_system">连接测试</el-dropdown-item>
+                  <el-dropdown-item command="delete" :disabled="row.is_default || row.is_system" divided>
+                    <span :style="(row.is_default || row.is_system) ? '' : 'color: #F56C6C'">
+                      {{ (row.is_default || row.is_system) ? '删除（系统认证源不可删）' : '删除' }}
+                    </span>
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </template>
         </el-table-column>
       </el-table>
@@ -334,7 +322,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
-import { User, Connection, Plus, QuestionFilled } from '@element-plus/icons-vue'
+import { User, Connection, Plus, QuestionFilled, ArrowDown } from '@element-plus/icons-vue'
 import { AuthSource, Domain } from '@/types/iam'
 import {
   getAuthSources,
@@ -459,6 +447,12 @@ const loadDomains = async () => {
   }
 }
 
+const getDomainName = (domainId?: number) => {
+  if (!domainId) return '域'
+  const d = domains.value.find((x: any) => x.id === domainId)
+  return d ? d.name : `域#${domainId}`
+}
+
 const loadSources = async () => {
   loading.value = true
   try {
@@ -466,8 +460,9 @@ const loadSources = async () => {
       limit: pagination.limit,
       offset: (pagination.page - 1) * pagination.limit
     }
-    if (filterForm.name) params.keyword = filterForm.name
+    if (filterForm.name) params.name = filterForm.name
     if (filterForm.type) params.type = filterForm.type
+    if (filterForm.scope) params.scope = filterForm.scope
     if (filterForm.enabled !== undefined) params.enabled = filterForm.enabled
 
     const res = await getAuthSources(params)
@@ -480,7 +475,9 @@ const loadSources = async () => {
       // 如果没有 protocol 字段，默认为 sql
       protocol: item.protocol || 'sql',
       // 如果没有 is_default 字段，根据 type 判断（sql 类型的系统认证源为默认）
-      is_default: item.is_default !== undefined ? item.is_default : (item.type === 'sql' && item.scope === 'system')
+      is_default: item.is_default !== undefined ? item.is_default : (item.type === 'sql' && item.scope === 'system'),
+      // 如果有 is_system 字段，使用它；否则根据类型判断是否为系统认证源
+      is_system: item.is_system !== undefined ? item.is_system : (item.type === 'sql' && item.scope === 'system')
     }))
     pagination.total = res.total || 0
   } catch (e: any) {
@@ -491,8 +488,10 @@ const loadSources = async () => {
 }
 
 const resetFilter = () => {
+  filterForm.keyword = ''
   filterForm.name = ''
   filterForm.type = ''
+  filterForm.scope = ''
   filterForm.enabled = undefined
   pagination.page = 1
   loadSources()
@@ -618,6 +617,33 @@ const handleToggleEnable = async (row: AuthSource) => {
   }
 }
 
+const handleCommand = (command: string, row: AuthSource) => {
+  switch (command) {
+    case 'view': handleView(row); break
+    case 'edit': handleEdit(row); break
+    case 'toggleRunning': handleToggleRunning(row); break
+    case 'toggleEnable': handleToggleEnable(row); break
+    case 'sync': handleSync(row); break
+    case 'test': handleTest(row); break
+    case 'delete': handleDelete(row); break
+  }
+}
+
+const handleTypeChange = (type: string) => {
+  // 切换类型时重置 config
+  if (type === 'ldap') {
+    form.config = {
+      ldap_url: '',
+      ldap_base_dn: '',
+      ldap_bind_dn: '',
+      ldap_bind_password: '',
+      ldap_user_filter: '(objectClass=person)',
+      ldap_user_id_attribute: 'uid',
+      ldap_user_name_attribute: 'cn'
+    }
+  }
+}
+
 const handleDelete = async (row: AuthSource) => {
   // 检查是否为默认认证源
   if (row.is_default) {
@@ -684,6 +710,7 @@ const formatDate = (date: string) => {
 
 onMounted(() => {
   loadSources()
+  loadDomains()  // Load domain list for both forms and filters
 })
 </script>
 

@@ -11,11 +11,38 @@ CREATE TABLE IF NOT EXISTS cloud_accounts (
     credentials JSON,
     status VARCHAR(20) DEFAULT 'active',
     description VARCHAR(500),
+    enabled BOOLEAN DEFAULT TRUE,
+    health_status VARCHAR(20) DEFAULT 'healthy',
+    balance DECIMAL(15,2) DEFAULT 0.00,
+    account_number VARCHAR(100),
+    last_sync DATETIME(3),
+    sync_time VARCHAR(50),
+    domain_id BIGINT UNSIGNED DEFAULT 1,
+    resource_assignment_method VARCHAR(50) DEFAULT 'tag_mapping',
     created_at DATETIME(3),
     updated_at DATETIME(3),
     deleted_at DATETIME(3),
     INDEX idx_provider_type (provider_type),
-    INDEX idx_status (status)
+    INDEX idx_status (status),
+    INDEX idx_domain_id (domain_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 定时任务表
+CREATE TABLE IF NOT EXISTS scheduled_tasks (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(200) NOT NULL,
+    type VARCHAR(50) NOT NULL,
+    frequency VARCHAR(20) DEFAULT 'daily',
+    trigger_time VARCHAR(10) DEFAULT '02:00',
+    valid_from DATETIME(3) NULL,
+    valid_until DATETIME(3) NULL,
+    status VARCHAR(20) DEFAULT 'active',
+    cloud_account_id BIGINT UNSIGNED,
+    created_at DATETIME(3),
+    updated_at DATETIME(3),
+    deleted_at DATETIME(3),
+    INDEX idx_status (status),
+    INDEX idx_cloud_account_id (cloud_account_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 域表
@@ -93,25 +120,8 @@ VALUES ('admin', '超级管理员', 'admin@example.com', 'admin123', 1, TRUE, NO
 ON DUPLICATE KEY UPDATE name=name;
 
 -- 系统角色
-INSERT INTO roles (name, display_name, description, domain_id, type, enabled, created_at, updated_at) 
-VALUES 
+INSERT INTO roles (name, display_name, description, domain_id, type, enabled, created_at, updated_at)
+VALUES
     ('admin', '系统管理员', '系统管理员角色', 1, 'system', TRUE, NOW(), NOW()),
     ('user', '普通用户', '普通用户角色', 1, 'system', TRUE, NOW(), NOW())
-ON DUPLICATE KEY UPDATE name=name;
-
--- 默认权限
-INSERT INTO permissions (name, display_name, resource, action, type, created_at, updated_at) 
-VALUES 
-    ('cloud_account:list', '查看云账户', 'cloud_account', 'list', 'system', NOW(), NOW()),
-    ('cloud_account:create', '创建云账户', 'cloud_account', 'create', 'system', NOW(), NOW()),
-    ('cloud_account:update', '更新云账户', 'cloud_account', 'update', 'system', NOW(), NOW()),
-    ('cloud_account:delete', '删除云账户', 'cloud_account', 'delete', 'system', NOW(), NOW()),
-    ('vm:list', '查看虚拟机', 'vm', 'list', 'system', NOW(), NOW()),
-    ('vm:create', '创建虚拟机', 'vm', 'create', 'system', NOW(), NOW()),
-    ('vm:delete', '删除虚拟机', 'vm', 'delete', 'system', NOW(), NOW()),
-    ('vm:action', '操作虚拟机', 'vm', 'action', 'system', NOW(), NOW()),
-    ('user:list', '查看用户', 'user', 'list', 'system', NOW(), NOW()),
-    ('user:create', '创建用户', 'user', 'create', 'system', NOW(), NOW()),
-    ('user:update', '更新用户', 'user', 'update', 'system', NOW(), NOW()),
-    ('user:delete', '删除用户', 'user', 'delete', 'system', NOW(), NOW())
 ON DUPLICATE KEY UPDATE name=name;

@@ -15,19 +15,21 @@ import (
 
 // AuthHandler 认证 Handler
 type AuthHandler struct {
-	userService *service.UserService
-	logger      *zap.Logger
-	jwtSecret   string
-	jwtExpire   int
+	userService       *service.UserService
+	authSourceService *service.AuthSourceService
+	logger            *zap.Logger
+	jwtSecret         string
+	jwtExpire         int
 }
 
 // NewAuthHandler 创建认证 Handler
 func NewAuthHandler(db *gorm.DB, logger *zap.Logger, jwtSecret string, jwtExpire int) *AuthHandler {
 	return &AuthHandler{
-		userService: service.NewUserService(db),
-		logger:      logger,
-		jwtSecret:   jwtSecret,
-		jwtExpire:   jwtExpire,
+		userService:       service.NewUserService(db),
+		authSourceService: service.NewAuthSourceService(db),
+		logger:            logger,
+		jwtSecret:         jwtSecret,
+		jwtExpire:         jwtExpire,
 	}
 }
 
@@ -51,33 +53,26 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	// 查找用户
-	user, err := h.userService.GetUserByName(c.Request.Context(), req.Username)
+	ctx := c.Request.Context()
+
+	// 统一认证入口：先本地，后 LDAP
+	user, authSource, err := h.authSourceService.AuthenticateUser(ctx, req.Username, req.Password, nil)
 	if err != nil {
-		h.logger.Error("failed to get user", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "login failed"})
+		// 区分用户禁用和密码错误
+		if err.Error() == "user is disabled" {
+			c.JSON(http.StatusForbidden, gin.H{"error": "user is disabled"})
+			return
+		}
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid username or password"})
 		return
 	}
-
 	if user == nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid username or password"})
 		return
 	}
 
-	// 检查用户是否启用
-	if !user.Enabled {
-		c.JSON(http.StatusForbidden, gin.H{"error": "user is disabled"})
-		return
-	}
-
-	// 验证密码
-	if !checkPassword(user.Password, req.Password) {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid username or password"})
-		return
-	}
-
 	// 获取用户的角色
-	roleIDs, err := h.userService.GetUserRoleIDs(c.Request.Context(), user.ID)
+	roleIDs, err := h.userService.GetUserRoleIDs(ctx, user.ID)
 	if err != nil {
 		h.logger.Error("failed to get user roles", zap.Error(err))
 		// 如果无法获取角色，继续登录但不包含角色信息
@@ -85,10 +80,16 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 
 	// 更新最后登录信息
-	h.userService.UpdateLastLogin(c.Request.Context(), user.ID, c.ClientIP())
+	h.userService.UpdateLastLogin(ctx, user.ID, c.ClientIP())
 
 	// 生成 JWT token
-	token, err := utils.GenerateToken(user.ID, user.Name, roleIDs, h.jwtSecret, h.jwtExpire)
+	// 如果是通过认证源（LDAP 等）登录，在 token 中携带 auth_source_id 和 domain_id
+	var token string
+	if authSource != nil {
+		token, err = utils.GenerateTokenWithExtra(user.ID, user.Name, roleIDs, user.DomainID, authSource.ID, h.jwtSecret, h.jwtExpire)
+	} else {
+		token, err = utils.GenerateToken(user.ID, user.Name, roleIDs, h.jwtSecret, h.jwtExpire)
+	}
 	if err != nil {
 		h.logger.Error("failed to generate token", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})

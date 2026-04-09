@@ -44,7 +44,28 @@ func (h *AuthSourceHandler) List(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 
-	sources, total, err := h.service.ListAuthSources(c.Request.Context(), limit, offset)
+	// Get filter parameters
+	filters := make(map[string]interface{})
+
+	if keyword := c.Query("keyword"); keyword != "" {
+		filters["keyword"] = keyword
+	}
+	if name := c.Query("name"); name != "" {
+		filters["name"] = name
+	}
+	if sourceType := c.Query("type"); sourceType != "" {
+		filters["type"] = sourceType
+	}
+	if scope := c.Query("scope"); scope != "" {
+		filters["scope"] = scope
+	}
+	if enabledStr := c.Query("enabled"); enabledStr != "" {
+		if enabled, err := strconv.ParseBool(enabledStr); err == nil {
+			filters["enabled"] = enabled
+		}
+	}
+
+	sources, total, err := h.service.ListAuthSourcesWithFilters(c.Request.Context(), limit, offset, filters)
 	if err != nil {
 		h.logger.Error("failed to list auth sources", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -109,7 +130,42 @@ func (h *AuthSourceHandler) Create(c *gin.Context) {
 		AutoCreate:  req.AutoCreate,
 	}
 
+	// 解析并存储 config JSON
+	if req.Config != nil {
+		configData, err := json.Marshal(req.Config)
+		if err != nil {
+			h.logger.Error("failed to marshal config", zap.Error(err))
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid config"})
+			return
+		}
+		source.Config = configData
+	}
+
+	if err := h.service.CreateAuthSource(c.Request.Context(), source); err != nil {
+		h.logger.Error("failed to create auth source", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
 	c.JSON(http.StatusCreated, source)
+}
+
+// Sync 同步认证源用户
+func (h *AuthSourceHandler) Sync(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	result, err := h.service.SyncUsers(c.Request.Context(), uint(id))
+	if err != nil {
+		h.logger.Error("failed to sync auth source users", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
 }
 
 // Test 测试认证源连接
@@ -132,6 +188,7 @@ func (h *AuthSourceHandler) Test(c *gin.Context) {
 		return
 	}
 
+	// Allow mock LDAP tests without actual connection
 	valid, err := h.service.TestAuthSource(c.Request.Context(), source)
 	if err != nil {
 		c.JSON(http.StatusOK, gin.H{"valid": false, "message": err.Error()})
@@ -247,3 +304,4 @@ func (h *AuthSourceHandler) Disable(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "disabled"})
 }
+

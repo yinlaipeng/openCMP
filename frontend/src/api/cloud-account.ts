@@ -1,8 +1,8 @@
 import request from '@/utils/request'
 import type { CloudAccount, CreateCloudAccountRequest } from '@/types'
 
-export function getCloudAccounts(params?: { limit?: number; offset?: number }) {
-  return request<CloudAccount[]>({
+export function getCloudAccounts(params?: { page?: number; page_size?: number }) {
+  return request<{ items: CloudAccount[], total: number }>({
     url: '/cloud-accounts',
     method: 'get',
     params

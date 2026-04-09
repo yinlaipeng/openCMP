@@ -59,13 +59,31 @@ func (s *UserService) GetUserByName(ctx context.Context, name string) (*model.Us
 }
 
 // ListUsers 列出用户
-func (s *UserService) ListUsers(ctx context.Context, domainID *uint, limit, offset int) ([]*model.User, int64, error) {
+func (s *UserService) ListUsers(ctx context.Context, domainID *uint, keyword, email string, enabled *bool, limit, offset int) ([]*model.User, int64, error) {
 	var users []*model.User
 	var total int64
 
 	query := s.db.Model(&model.User{})
+
+	// 按域筛选
 	if domainID != nil {
 		query = query.Where("domain_id = ?", *domainID)
+	}
+
+	// 按用户名关键词筛选
+	if keyword != "" {
+		keyword = "%" + keyword + "%"
+		query = query.Where("name LIKE ? OR display_name LIKE ?", keyword, keyword)
+	}
+
+	// 按邮箱筛选
+	if email != "" {
+		query = query.Where("email = ?", email)
+	}
+
+	// 按状态筛选
+	if enabled != nil {
+		query = query.Where("enabled = ?", *enabled)
 	}
 
 	if err := query.Count(&total).Error; err != nil {
@@ -217,7 +235,7 @@ func (s *UserService) GetUserRoleIDs(ctx context.Context, userID uint) ([]uint, 
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// 也获取项目级别的角色
 	var projectRoleIDs []uint
 	err = s.db.WithContext(ctx).
@@ -227,9 +245,44 @@ func (s *UserService) GetUserRoleIDs(ctx context.Context, userID uint) ([]uint, 
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// 合并两个切片
 	roleIDs = append(roleIDs, projectRoleIDs...)
-	
+
 	return roleIDs, nil
+}
+
+// AssignUserToProject 将用户分配到项目
+func (s *UserService) AssignUserToProject(ctx context.Context, userID, projectID, roleID uint) error {
+	// 检查是否已存在
+	var count int64
+	if err := s.db.Model(&model.ProjectUserRole{}).Where("user_id = ? AND project_id = ? AND role_id = ?", userID, projectID, roleID).Count(&count).Error; err != nil {
+		return err
+	}
+	if count > 0 {
+		return gorm.ErrDuplicatedKey
+	}
+
+	pur := &model.ProjectUserRole{
+		UserID:    userID,
+		ProjectID: projectID,
+		RoleID:    roleID,
+	}
+	return s.db.WithContext(ctx).Create(pur).Error
+}
+
+// RemoveUserFromProject 将用户从项目中移除
+func (s *UserService) RemoveUserFromProject(ctx context.Context, userID, projectID uint) error {
+	return s.db.WithContext(ctx).Where("user_id = ? AND project_id = ?", userID, projectID).Delete(&model.ProjectUserRole{}).Error
+}
+
+// GetUserProjects 获取用户所属的项目列表
+func (s *UserService) GetUserProjects(ctx context.Context, userID uint) ([]*model.Project, error) {
+	var projects []*model.Project
+	err := s.db.WithContext(ctx).
+		Table("projects").
+		Joins("JOIN project_user_roles ON project_user_roles.project_id = projects.id").
+		Where("project_user_roles.user_id = ?", userID).
+		Find(&projects).Error
+	return projects, err
 }

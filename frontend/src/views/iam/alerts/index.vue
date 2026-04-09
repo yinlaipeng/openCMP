@@ -113,8 +113,7 @@ const getTypeName = (type: string) => {
     login_failed: '登录失败',
     password_expired: '密码过期',
     mfa_disabled: 'MFA 禁用',
-    abnormal_login: '异常登录',
-    permission_change: '权限变更'
+    abnormal_login: '异常登录'
   }
   return map[type] || type
 }
@@ -124,8 +123,7 @@ const getTypeTag = (type: string) => {
     login_failed: 'info',
     password_expired: 'warning',
     mfa_disabled: 'danger',
-    abnormal_login: 'danger',
-    permission_change: 'warning'
+    abnormal_login: 'danger'
   }
   return map[type] || ''
 }

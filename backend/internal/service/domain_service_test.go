@@ -3,7 +3,7 @@ package service
 import (
 	"testing"
 
-	"github.com/yourorg/openCMP/internal/model"
+	"github.com/opencmp/opencmp/internal/model"
 	"github.com/stretchr/testify/assert"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"

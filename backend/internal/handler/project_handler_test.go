@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/yourorg/openCMP/internal/model"
-	"github.com/yourorg/openCMP/internal/service"
+	"github.com/opencmp/opencmp/internal/model"
+	"github.com/opencmp/opencmp/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 )

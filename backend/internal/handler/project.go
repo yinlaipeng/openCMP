@@ -31,6 +31,7 @@ type CreateProjectRequest struct {
 	Name        string `json:"name" binding:"required"`
 	Description string `json:"description"`
 	DomainID    uint   `json:"domain_id" binding:"required"`
+	ManagerID   *uint  `json:"manager_id"` // 项目管理员ID
 	ParentID    *uint  `json:"parent_id"`
 }
 
@@ -113,6 +114,7 @@ func (h *ProjectHandler) Create(c *gin.Context) {
 		Name:        req.Name,
 		Description: req.Description,
 		DomainID:    req.DomainID,
+		ManagerID:   req.ManagerID,
 		ParentID:    req.ParentID,
 		Enabled:     true,
 	}
@@ -155,6 +157,7 @@ func (h *ProjectHandler) Update(c *gin.Context) {
 	project.Name = req.Name
 	project.Description = req.Description
 	project.DomainID = req.DomainID
+	project.ManagerID = req.ManagerID
 	project.ParentID = req.ParentID
 
 	if err := h.service.UpdateProject(c.Request.Context(), project); err != nil {
@@ -324,4 +327,32 @@ func (h *ProjectHandler) RemoveUser(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "removed"})
+}
+
+// SetManagerRequest 设置项目管理员请求
+type SetManagerRequest struct {
+	UserID uint `json:"user_id" binding:"required"`
+}
+
+// SetManager 设置项目管理员
+func (h *ProjectHandler) SetManager(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	var req SetManagerRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.service.SetProjectManager(c.Request.Context(), uint(id), req.UserID); err != nil {
+		h.logger.Error("failed to set project manager", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "project manager set successfully"})
 }

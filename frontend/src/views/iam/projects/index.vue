@@ -31,32 +31,39 @@
       <!-- 项目列表 -->
       <el-table :data="projects" v-loading="loading" border stripe>
         <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="name" label="项目名称" min-width="180" show-overflow-tooltip />
-        <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="name" label="名称" min-width="180" show-overflow-tooltip>
+          <template #default="{ row }">
+            <el-button link @click="handleView(row)" class="name-link">
+              {{ row.name }}
+            </el-button>
+          </template>
+        </el-table-column>
+        <el-table-column prop="manager" label="项目管理员" width="120">
+          <template #default="{ row }">
+            <span>{{ getProjectManagerName(row) || '-' }}</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="domain_id" label="所属域" width="120">
           <template #default="{ row }">
-            <span>{{ row.domain_id === 1 ? 'Default' : row.domain_id }}</span>
+            <span>{{ getDomainName(row.domain_id) }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="enabled" label="状态" width="80">
+        <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
-            <el-tag :type="row.enabled ? 'success' : 'info'">
-              {{ row.enabled ? '启用' : '禁用' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="320" fixed="right">
-          <template #default="{ row }">
-            <el-button size="small" @click="handleView(row)">详情</el-button>
-            <el-button size="small" @click="handleEdit(row)">编辑</el-button>
-            <el-button 
-              size="small" 
-              :type="row.enabled ? 'warning' : 'success'" 
-              @click="handleToggleEnable(row)"
-            >
-              {{ row.enabled ? '禁用' : '启用' }}
-            </el-button>
-            <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+            <el-button size="small" @click="handleManageUsers(row)">管理用户/组</el-button>
+            <el-dropdown trigger="click" @command="(cmd) => handleCommand(cmd, row)">
+              <el-button size="small" type="primary" link>
+                更多 <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="setManager">设置项目管理员</el-dropdown-item>
+                  <el-dropdown-item command="delete" divided>
+                    <span style="color: #F56C6C">删除</span>
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </template>
         </el-table-column>
       </el-table>
@@ -103,7 +110,7 @@
             />
           </el-select>
         </el-form-item>
-        
+
         <!-- 折叠面板：向该项目添加用户（可选） -->
         <el-collapse v-model="activeCollapse" v-if="!isEdit">
           <el-collapse-item title="向该项目添加用户（可选）" name="addUser">
@@ -175,10 +182,9 @@
       <el-descriptions :column="2" border v-if="currentProject">
         <el-descriptions-item label="ID">{{ currentProject.id }}</el-descriptions-item>
         <el-descriptions-item label="项目名称">{{ currentProject.name }}</el-descriptions-item>
+        <el-descriptions-item label="项目管理员">{{ getProjectManagerName(currentProject) || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="所属域">{{ getDomainName(currentProject.domain_id) }}</el-descriptions-item>
         <el-descriptions-item label="描述" :span="2">{{ currentProject.description || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="所属域">
-          <span>{{ currentProject.domain_id === 1 ? 'Default' : currentProject.domain_id }}</span>
-        </el-descriptions-item>
         <el-descriptions-item label="状态">
           <el-tag :type="currentProject.enabled ? 'success' : 'info'" size="small">
             {{ currentProject.enabled ? '启用' : '禁用' }}
@@ -189,7 +195,7 @@
       </el-descriptions>
 
       <el-tabs v-model="detailTab" style="margin-top: 20px">
-        <el-tab-pane label="用户" name="users">
+        <el-tab-pane label="已加入用户/组" name="users">
           <div class="tab-toolbar">
             <span>项目成员列表</span>
             <el-button size="small" type="primary" @click="handleAddUser">添加用户</el-button>
@@ -218,6 +224,14 @@
                 </el-tag>
               </template>
             </el-table-column>
+          </el-table>
+        </el-tab-pane>
+        <el-tab-pane label="操作日志" name="operation_logs">
+          <el-table :data="projectOperationLogs" v-loading="logsLoading">
+            <el-table-column prop="id" label="ID" width="80" />
+            <el-table-column prop="operation" label="操作" />
+            <el-table-column prop="user" label="操作人" />
+            <el-table-column prop="timestamp" label="时间" />
           </el-table>
         </el-tab-pane>
       </el-tabs>
@@ -266,6 +280,31 @@
         <el-button type="primary" @click="handleAddUserSubmit" :loading="addUserSubmitting">确定</el-button>
       </template>
     </el-dialog>
+
+    <!-- 设置项目管理员对话框 -->
+    <el-dialog v-model="setManagerDialogVisible" title="设置项目管理员" width="600px">
+      <el-form :model="setManagerForm" label-width="100px">
+        <el-form-item label="选择管理员" required>
+          <el-select
+            v-model="setManagerForm.user_id"
+            placeholder="请选择项目管理员"
+            style="width: 100%"
+            filterable
+          >
+            <el-option
+              v-for="item in allUsers"
+              :key="item.id"
+              :label="`${item.name} (${item.display_name})`"
+              :value="item.id"
+            />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="setManagerDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="handleSetManagerSubmit" :loading="setManagerSubmitting">确定</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -273,6 +312,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
+import { Plus, ArrowDown } from '@element-plus/icons-vue'
 import { Project, Domain, User, Role } from '@/types/iam'
 import {
   getProjects,
@@ -287,7 +327,8 @@ import {
   removeUserFromProject,
   getDomains,
   getUsers,
-  getRoles
+  getRoles,
+  setProjectManager
 } from '@/api/iam'
 
 const projects = ref<Project[]>([])
@@ -301,12 +342,17 @@ const activeCollapse = ref<string[]>([])
 const currentProject = ref<Project | null>(null)
 const projectUsers = ref<User[]>([])
 const projectRoles = ref<Role[]>([])
+const projectOperationLogs = ref<any[]>([])
 const domains = ref<Domain[]>([])
 const domainUsers = ref<User[]>([])
 const domainRoles = ref<Role[]>([])
 const usersLoading = ref(false)
 const rolesLoading = ref(false)
+const logsLoading = ref(false)
 const formRef = ref<FormInstance>()
+
+// Additional variables for project managers
+const projectManagers = ref<{[key: number]: User | null}>({})
 
 const filterForm = reactive({
   name: '',
@@ -328,8 +374,22 @@ const form = reactive({
 const addUserForm = reactive({
   domain_id: 1,
   user_ids: [] as number[],
-  role_ids: [] as number[]
+  role_ids: [] as number[],
+  user_id: 0,
+  role_id: 0
 })
+
+const setManagerForm = reactive({
+  user_id: 0
+})
+
+const addUserDialogVisible = ref(false)
+const addUserSubmitting = ref(false)
+const setManagerDialogVisible = ref(false)
+const setManagerSubmitting = ref(false)
+
+const allUsers = ref<User[]>([])
+const allRoles = ref<Role[]>([])
 
 const rules: FormRules = {
   name: [{ required: true, message: '请输入项目名称', trigger: 'blur' }],
@@ -482,12 +542,97 @@ const handleEdit = async (row: Project) => {
   dialogVisible.value = true
 }
 
+const getDomainName = (domainId: number) => {
+  const domain = domains.value.find(d => d.id === domainId);
+  return domain ? domain.name : `域#${domainId}`;
+}
+
+const handleManageUsers = (row: Project) => {
+  // Open the detail view with users tab active
+  currentProject.value = row
+  detailTab.value = 'users'
+  loadProjectUsers(row.id)
+  loadProjectRoles(row.id)
+  detailDialogVisible.value = true
+}
+
+const handleSetManager = async (row: Project) => {
+  currentProject.value = row
+  await loadAllUsers(row.domain_id)
+  setManagerForm.user_id = row.manager_id || 0
+  setManagerDialogVisible.value = true
+}
+
+const loadAllUsers = async (domainId: number) => {
+  try {
+    const [usersRes, rolesRes] = await Promise.all([
+      getUsers({ domain_id: domainId, limit: 100 }),
+      getRoles({ domain_id: domainId, limit: 100 })
+    ])
+    allUsers.value = usersRes.items || []
+    allRoles.value = rolesRes.items || []
+  } catch (e: any) {
+    console.error(e)
+    ElMessage.error(e.message || '加载用户/角色列表失败')
+  }
+}
+
+const handleSetManagerSubmit = async () => {
+  if (!currentProject.value) return
+
+  if (!setManagerForm.user_id) {
+    ElMessage.warning('请选择项目管理员')
+    return
+  }
+
+  setManagerSubmitting.value = true
+  try {
+    await setProjectManager(currentProject.value.id, setManagerForm.user_id)
+    ElMessage.success('设置项目管理员成功')
+    setManagerDialogVisible.value = false
+    loadProjects() // Refresh the project list to show updated manager
+  } catch (e: any) {
+    ElMessage.error(e.message || '设置项目管理员失败')
+  } finally {
+    setManagerSubmitting.value = false
+  }
+}
+
+const getProjectManagerName = (project: Project) => {
+  if (!project.manager_id) return '-'
+  const manager = allUsers.value.find(user => user.id === project.manager_id)
+  return manager ? `${manager.name} (${manager.display_name})` : `ID: ${project.manager_id}`
+}
+
+const handleCommand = (command: string, row: Project) => {
+  switch (command) {
+    case 'setManager': handleSetManager(row); break
+    case 'delete': handleDelete(row); break
+  }
+}
+
 const handleView = async (row: Project) => {
   currentProject.value = row
   detailTab.value = 'users'
-  await loadProjectUsers(row.id)
-  await loadProjectRoles(row.id)
+  await Promise.all([
+    loadProjectUsers(row.id),
+    loadProjectRoles(row.id),
+    loadProjectOperationLogs(row.id)
+  ])
   detailDialogVisible.value = true
+}
+
+const loadProjectOperationLogs = async (projectId: number) => {
+  logsLoading.value = true
+  try {
+    // For now, returning empty array as placeholder - implement later if needed
+    projectOperationLogs.value = []
+  } catch (e: any) {
+    console.error(e)
+    projectOperationLogs.value = []
+  } finally {
+    logsLoading.value = false
+  }
 }
 
 const handleAddUser = async () => {
@@ -550,6 +695,27 @@ const formatDate = (date: string) => {
   return new Date(date).toLocaleString('zh-CN')
 }
 
+const handleAddUserSubmit = async () => {
+  if (!currentProject.value) return
+
+  if (!addUserForm.user_id || !addUserForm.role_id) {
+    ElMessage.warning('请选择用户和角色')
+    return
+  }
+
+  addUserSubmitting.value = true
+  try {
+    await joinProject(currentProject.value.id, [addUserForm.user_id], [addUserForm.role_id])
+    ElMessage.success('添加用户成功')
+    addUserDialogVisible.value = false
+    await loadProjectUsers(currentProject.value.id)
+  } catch (e: any) {
+    ElMessage.error(e.message || '添加用户失败')
+  } finally {
+    addUserSubmitting.value = false
+  }
+}
+
 onMounted(() => {
   loadProjects()
 })
@@ -591,5 +757,11 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
+}
+
+.name-link {
+  color: #409eff;
+  text-decoration: underline;
+  cursor: pointer;
 }
 </style>

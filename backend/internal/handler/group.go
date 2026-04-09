@@ -232,3 +232,77 @@ func (h *GroupHandler) RemoveUser(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "removed"})
 }
+
+// AddProject 添加项目到用户组
+func (h *GroupHandler) AddProject(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	var req struct {
+		ProjectID uint `json:"project_id" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.service.AddGroupToProject(c.Request.Context(), uint(id), req.ProjectID); err != nil {
+		h.logger.Error("failed to add group to project", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "added"})
+}
+
+// RemoveProject 从项目移除用户组
+func (h *GroupHandler) RemoveProject(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	projectID := c.Query("project_id")
+	if projectID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "project_id is required"})
+		return
+	}
+
+	pid, _ := strconv.ParseUint(projectID, 10, 32)
+
+	if err := h.service.RemoveGroupFromProject(c.Request.Context(), uint(id), uint(pid)); err != nil {
+		h.logger.Error("failed to remove group from project", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "removed"})
+}
+
+// GetProjects 获取用户组的项目列表
+func (h *GroupHandler) GetProjects(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+
+	projects, total, err := h.service.GetGroupProjects(c.Request.Context(), uint(id), limit, offset)
+	if err != nil {
+		h.logger.Error("failed to get group projects", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"items": projects,
+		"total": total,
+	})
+}

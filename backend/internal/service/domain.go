@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"gorm.io/gorm"
 
@@ -16,6 +17,11 @@ type DomainService struct {
 // NewDomainService 创建域服务
 func NewDomainService(db *gorm.DB) *DomainService {
 	return &DomainService{db: db}
+}
+
+// isDefaultDomain 检查是否为默认域
+func (s *DomainService) isDefaultDomain(domain *model.Domain) bool {
+	return domain.Name == "Default" || domain.Name == "System" || domain.Name == "default" || domain.Name == "system"
 }
 
 // CreateDomain 创建域
@@ -36,8 +42,14 @@ func (s *DomainService) GetDomain(ctx context.Context, id uint) (*model.Domain, 
 	return &domain, nil
 }
 
+// DomainWithAuthSourceCount 带认证源数量的域信息
+type DomainWithAuthSourceCount struct {
+	model.Domain
+	AuthSourceCount int `json:"auth_source_count"`
+}
+
 // ListDomains 列出域
-func (s *DomainService) ListDomains(ctx context.Context, keyword string, enabled *bool, limit, offset int) ([]*model.Domain, int64, error) {
+func (s *DomainService) ListDomains(ctx context.Context, keyword string, enabled *bool, limit, offset int) ([]*DomainWithAuthSourceCount, int64, error) {
 	var domains []*model.Domain
 	var total int64
 
@@ -64,16 +76,54 @@ func (s *DomainService) ListDomains(ctx context.Context, keyword string, enabled
 		Order("created_at DESC").
 		Find(&domains).Error
 
-	return domains, total, err
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Convert to enhanced format with auth source count
+	var enhancedDomains []*DomainWithAuthSourceCount
+	for _, domain := range domains {
+		count, _ := s.getAuthSourceCountForDomain(ctx, domain.ID)
+		enhancedDomain := &DomainWithAuthSourceCount{
+			Domain:          *domain,
+			AuthSourceCount: count,
+		}
+		enhancedDomains = append(enhancedDomains, enhancedDomain)
+	}
+
+	return enhancedDomains, total, nil
+}
+
+// getAuthSourceCountForDomain 获取指定域的认证源数量
+func (s *DomainService) getAuthSourceCountForDomain(ctx context.Context, domainID uint) (int, error) {
+	var count int64
+	err := s.db.Model(&model.AuthSource{}).
+		Where("domain_id = ?", domainID).
+		Count(&count).Error
+
+	return int(count), err
 }
 
 // UpdateDomain 更新域
 func (s *DomainService) UpdateDomain(ctx context.Context, domain *model.Domain) error {
+	if s.isDefaultDomain(domain) {
+		return fmt.Errorf("default domain cannot be updated")
+	}
 	return s.db.WithContext(ctx).Save(domain).Error
 }
 
 // DeleteDomain 删除域
 func (s *DomainService) DeleteDomain(ctx context.Context, id uint) error {
+	domain, err := s.GetDomain(ctx, id)
+	if err != nil {
+		return err
+	}
+	if domain == nil {
+		return gorm.ErrRecordNotFound
+	}
+	if s.isDefaultDomain(domain) {
+		return fmt.Errorf("default domain cannot be deleted")
+	}
 	return s.db.WithContext(ctx).Delete(&model.Domain{}, id).Error
 }
 

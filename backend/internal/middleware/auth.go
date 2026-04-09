@@ -4,17 +4,18 @@ import (
 	"errors"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"go.uber.org/zap"
+	// jwt/v5 used for ErrTokenExpired check
 	"gorm.io/gorm"
 
 	"github.com/opencmp/opencmp/internal/model"
+	"github.com/opencmp/opencmp/pkg/utils"
 )
 
-// AuthMiddleware 认证中间件
+// AuthMiddleware 认证中间件（使用 typed JWTClaims，支持 domain_id 注入）
 func AuthMiddleware(logger *zap.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 获取JWT密钥
@@ -28,58 +29,44 @@ func AuthMiddleware(logger *zap.Logger) gin.HandlerFunc {
 
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization header required"})
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization header required", "code": "TOKEN_MISSING"})
 			c.Abort()
 			return
 		}
 
-		// 解析Bearer token
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 		if tokenString == authHeader {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid authorization header format"})
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid authorization header format", "code": "TOKEN_INVALID"})
 			c.Abort()
 			return
 		}
 
-		// 解析JWT token
-		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-			// 验证签名算法
-			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, errors.New("unexpected signing method")
+		// 使用 typed claims 解析，同时验证签名和过期
+		claims, err := utils.ParseJWTToken(tokenString, jwtSecret.(string))
+		if err != nil {
+			if errors.Is(err, jwt.ErrTokenExpired) {
+				logger.Info("Token expired", zap.Error(err))
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "token expired", "code": "TOKEN_EXPIRED"})
+			} else {
+				logger.Info("Invalid token", zap.Error(err))
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token", "code": "TOKEN_INVALID"})
 			}
-			return []byte(jwtSecret.(string)), nil
-		})
-
-		if err != nil || !token.Valid {
-			logger.Info("Invalid token", zap.Error(err))
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
 			c.Abort()
 			return
 		}
 
-		// 获取声明
-		claims, ok := token.Claims.(jwt.MapClaims)
-		if !ok {
-			logger.Error("Invalid token claims")
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
-			c.Abort()
-			return
-		}
+		// 注入用户基础信息
+		c.Set("user_id", claims.UserID)
+		c.Set("user_name", claims.UserName)
+		c.Set("user_email", claims.UserEmail)
 
-		// 检查用户ID是否存在
-		userIDFloat, ok := claims["user_id"].(float64)
-		if !ok {
-			logger.Error("User ID not found in token")
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
-			c.Abort()
-			return
+		// 注入域信息（LDAP/域级认证源登录时存在）
+		if claims.DomainID > 0 {
+			c.Set("domain_id", claims.DomainID)
 		}
-		userID := uint(userIDFloat)
-
-		// 将用户信息存储到上下文中
-		c.Set("user_id", userID)
-		c.Set("user_name", claims["user_name"])
-		c.Set("user_email", claims["user_email"])
+		if claims.AuthSourceID > 0 {
+			c.Set("auth_source_id", claims.AuthSourceID)
+		}
 
 		c.Next()
 	}
@@ -135,15 +122,3 @@ func AdminOnlyMiddleware(logger *zap.Logger, db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
-// GenerateToken 生成JWT token
-func GenerateToken(userID uint, userName, userEmail string, jwtSecret string, expireHours int) (string, error) {
-	claims := jwt.MapClaims{
-		"user_id":   float64(userID),
-		"user_name": userName,
-		"user_email": userEmail,
-		"exp":       time.Now().Add(time.Hour * time.Duration(expireHours)).Unix(),
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(jwtSecret))
-}

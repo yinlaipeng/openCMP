@@ -31,27 +31,46 @@
       <!-- 域列表 -->
       <el-table :data="domains" v-loading="loading" border stripe>
         <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="name" label="域名称" min-width="180" show-overflow-tooltip />
-        <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
-        <el-table-column prop="enabled" label="状态" width="80">
+        <el-table-column prop="name" label="名称" min-width="180" show-overflow-tooltip>
+          <template #default="{ row }">
+            <el-button link @click="handleView(row)" class="name-link">
+              {{ row.name }}
+            </el-button>
+          </template>
+        </el-table-column>
+        <el-table-column prop="enabled" label="启用状态" width="100">
           <template #default="{ row }">
             <el-tag :type="row.enabled ? 'success' : 'info'">
               {{ row.enabled ? '启用' : '禁用' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="320" fixed="right">
+        <el-table-column prop="auth_source_count" label="认证源" width="100">
           <template #default="{ row }">
-            <el-button size="small" @click="handleView(row)">详情</el-button>
-            <el-button size="small" @click="handleEdit(row)">编辑</el-button>
-            <el-button 
-              size="small" 
-              :type="row.enabled ? 'warning' : 'success'" 
-              @click="handleToggleEnable(row)"
-            >
-              {{ row.enabled ? '禁用' : '启用' }}
-            </el-button>
-            <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+            {{ row.auth_source_count || 0 }}
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="100" fixed="right">
+          <template #default="{ row }">
+            <el-dropdown trigger="click" @command="(cmd) => handleCommand(cmd, row)">
+              <el-button size="small" type="primary" link>
+                更多 <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="view">详情</el-dropdown-item>
+                  <el-dropdown-item command="edit">编辑</el-dropdown-item>
+                  <el-dropdown-item command="toggleEnable" :disabled="isDefaultDomain(row)">
+                    {{ row.enabled ? '禁用' : '启用' }}
+                  </el-dropdown-item>
+                  <el-dropdown-item command="delete" :disabled="isDefaultDomain(row)" divided>
+                    <span :style="isDefaultDomain(row) ? '' : 'color: #F56C6C'">
+                      {{ isDefaultDomain(row) ? '删除（默认域不可删）' : '删除' }}
+                    </span>
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </template>
         </el-table-column>
       </el-table>
@@ -140,6 +159,22 @@
             </el-table-column>
           </el-table>
         </el-tab-pane>
+        <el-tab-pane label="云账号" name="cloud_accounts">
+          <el-table :data="domainCloudAccounts" v-loading="cloudAccountsLoading">
+            <el-table-column prop="id" label="ID" width="80" />
+            <el-table-column prop="name" label="云账号名" />
+            <el-table-column prop="provider" label="提供商" />
+            <el-table-column prop="status" label="状态" />
+          </el-table>
+        </el-tab-pane>
+        <el-tab-pane label="操作日志" name="operation_logs">
+          <el-table :data="domainOperationLogs" v-loading="logsLoading">
+            <el-table-column prop="id" label="ID" width="80" />
+            <el-table-column prop="operation" label="操作" />
+            <el-table-column prop="user" label="操作人" />
+            <el-table-column prop="timestamp" label="时间" />
+          </el-table>
+        </el-tab-pane>
       </el-tabs>
 
       <template #footer>
@@ -153,6 +188,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
+import { Plus, ArrowDown } from '@element-plus/icons-vue'
 import { Domain } from '@/types/iam'
 import {
   getDomains,
@@ -179,10 +215,14 @@ const domainUsers = ref<Domain[]>([])
 const domainGroups = ref<Domain[]>([])
 const domainProjects = ref<Domain[]>([])
 const domainRoles = ref<Domain[]>([])
+const domainCloudAccounts = ref<Domain[]>([])
+const domainOperationLogs = ref<Domain[]>([])
 const usersLoading = ref(false)
 const groupsLoading = ref(false)
 const projectsLoading = ref(false)
 const rolesLoading = ref(false)
+const cloudAccountsLoading = ref(false)
+const logsLoading = ref(false)
 const formRef = ref<FormInstance>()
 
 const filterForm = reactive({
@@ -206,6 +246,19 @@ const rules: FormRules = {
   name: [{ required: true, message: '请输入域名称', trigger: 'blur' }]
 }
 
+const isDefaultDomain = (domain: Domain) => {
+  return domain.name.toLowerCase() === 'default' || domain.name.toLowerCase() === 'system';
+};
+
+const handleCommand = (command: string, row: Domain) => {
+  switch (command) {
+    case 'view': handleView(row); break
+    case 'edit': handleEdit(row); break
+    case 'toggleEnable': handleToggleEnable(row); break
+    case 'delete': handleDelete(row); break
+  }
+};
+
 const loadDomains = async () => {
   loading.value = true
   try {
@@ -217,7 +270,11 @@ const loadDomains = async () => {
     if (filterForm.enabled !== undefined) params.enabled = filterForm.enabled
 
     const res = await getDomains(params)
-    domains.value = res.items || []
+    // Map response to add auth_source_count property
+    domains.value = (res.items || []).map(item => ({
+      ...item,
+      auth_source_count: item.auth_source_count || 0
+    }))
     pagination.total = res.total || 0
   } catch (e: any) {
     ElMessage.error(e.message || '加载域列表失败')
@@ -274,6 +331,36 @@ const loadDomainRoles = async (domainId: number) => {
   }
 }
 
+const loadDomainCloudAccounts = async (domainId: number) => {
+  cloudAccountsLoading.value = true
+  try {
+    // Note: This assumes there's a function to get domain cloud accounts
+    const res = await getDomainCloudAccounts(domainId)
+    domainCloudAccounts.value = res.items || []
+  } catch (e: any) {
+    // If the endpoint doesn't exist or fails, just return an empty array
+    console.warn("Could not load domain cloud accounts:", e.message)
+    domainCloudAccounts.value = []
+  } finally {
+    cloudAccountsLoading.value = false
+  }
+}
+
+const loadDomainOperationLogs = async (domainId: number) => {
+  logsLoading.value = true
+  try {
+    // Note: This assumes there's a function to get domain operation logs
+    const res = await getDomainOperationLogs(domainId)
+    domainOperationLogs.value = res.items || []
+  } catch (e: any) {
+    // If the endpoint doesn't exist or fails, just return an empty array
+    console.warn("Could not load domain operation logs:", e.message)
+    domainOperationLogs.value = []
+  } finally {
+    logsLoading.value = false
+  }
+}
+
 const resetFilter = () => {
   filterForm.name = ''
   filterForm.enabled = undefined
@@ -301,10 +388,14 @@ const handleEdit = (row: Domain) => {
 const handleView = async (row: Domain) => {
   currentDomain.value = row
   detailTab.value = 'users'
-  await loadDomainUsers(row.id)
-  await loadDomainGroups(row.id)
-  await loadDomainProjects(row.id)
-  await loadDomainRoles(row.id)
+  await Promise.all([
+    loadDomainUsers(row.id),
+    loadDomainGroups(row.id),
+    loadDomainProjects(row.id),
+    loadDomainRoles(row.id),
+    loadDomainCloudAccounts(row.id),
+    loadDomainOperationLogs(row.id)
+  ])
   detailDialogVisible.value = true
 }
 
@@ -405,5 +496,11 @@ onMounted(() => {
   margin-top: 20px;
   display: flex;
   justify-content: flex-end;
+}
+
+.name-link {
+  color: #409eff;
+  text-decoration: underline;
+  cursor: pointer;
 }
 </style>

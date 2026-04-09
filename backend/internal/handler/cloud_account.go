@@ -78,10 +78,49 @@ func (h *CloudAccountHandler) Create(c *gin.Context) {
 
 // List 列出云账户
 func (h *CloudAccountHandler) List(c *gin.Context) {
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	// 支持 page/page_size 和 limit/offset 两种分页参数格式
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 
-	accounts, total, err := h.service.ListCloudAccounts(c.Request.Context(), limit, offset)
+	// 如果使用传统的 limit/offset 格式，则使用它们
+	if c.Query("limit") != "" && c.Query("offset") != "" {
+		limit, err1 := strconv.Atoi(c.Query("limit"))
+		offset, err2 := strconv.Atoi(c.Query("offset"))
+		if err1 == nil && err2 == nil {
+			accounts, total, err := h.service.ListCloudAccounts(c.Request.Context(), limit, offset)
+			if err != nil {
+				h.logger.Error("failed to list cloud accounts", zap.Error(err))
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+
+			calculatedPage := offset/pageSize + 1
+			if offset%pageSize != 0 {
+				calculatedPage = offset/pageSize + 1
+			}
+
+			c.JSON(http.StatusOK, gin.H{
+				"items": accounts,
+				"total": total,
+				"page":  calculatedPage,
+				"page_size": pageSize,
+			})
+			return
+		}
+	}
+
+	// 使用 page/page_size 格式（默认格式）
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 20
+	}
+
+	// 转换为 offset
+	offset := (page - 1) * pageSize
+
+	accounts, total, err := h.service.ListCloudAccounts(c.Request.Context(), pageSize, offset)  // pageSize作为limit，offset作为offset
 	if err != nil {
 		h.logger.Error("failed to list cloud accounts", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -91,6 +130,8 @@ func (h *CloudAccountHandler) List(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"items": accounts,
 		"total": total,
+		"page":  page,
+		"page_size": pageSize,
 	})
 }
 

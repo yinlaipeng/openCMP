@@ -17,7 +17,26 @@ const routes = [
         path: '/cloud-accounts',
         name: 'CloudAccounts',
         component: () => import('@/views/cloud-accounts/index.vue'),
-        meta: { title: '云账户管理', icon: 'Cloudy' }
+        meta: { title: '多云管理', icon: 'Cloudy' }
+      },
+      {
+        path: '/cloud-management',
+        name: 'CloudManagement',
+        meta: { title: '多云管理', icon: 'Cloudy' },
+        children: [
+          {
+            path: 'sync-policies',
+            name: 'SyncPolicies',
+            component: () => import('@/views/cloud-management/sync-policies/index.vue'),
+            meta: { title: '同步策略' }
+          }
+        ]
+      },
+      {
+        path: '/scheduled-tasks',
+        name: 'ScheduledTasks',
+        component: () => import('@/views/cloud-accounts/scheduled-tasks.vue'),
+        meta: { title: '定时同步任务', icon: 'Timer' }
       },
       {
         path: '/compute',
@@ -111,18 +130,6 @@ const routes = [
             meta: { title: '角色' }
           },
           {
-            path: 'permissions',
-            name: 'Permissions',
-            component: () => import('@/views/iam/permissions/index.vue'),
-            meta: { title: '权限管理' }
-          },
-          {
-            path: 'policies',
-            name: 'Policies',
-            component: () => import('@/views/iam/policies/index.vue'),
-            meta: { title: '策略管理' }
-          },
-          {
             path: 'messages',
             name: 'Messages',
             component: () => import('@/views/iam/messages/index.vue'),
@@ -133,6 +140,85 @@ const routes = [
             name: 'Alerts',
             component: () => import('@/views/iam/alerts/index.vue'),
             meta: { title: '安全告警' }
+          },
+          {
+            path: 'project-alerts',
+            name: 'ProjectAlerts',
+            component: () => import('@/views/iam/project-alerts/index.vue'),
+            meta: { title: '项目安全告警' }
+          },
+          {
+            path: 'permissions',
+            name: 'Permissions',
+            component: () => import('@/views/iam/permissions/index.vue'),
+            meta: { title: '权限' }
+          }
+        ]
+      },
+      {
+        path: '/message-center',
+        name: 'MessageCenter',
+        meta: { title: '消息中心', icon: 'Bell' },
+        children: [
+          {
+            path: 'inbox',
+            name: 'Inbox',
+            component: () => import('@/views/message-center/inbox/index.vue'),
+            meta: { title: '站内信' }
+          },
+          {
+            path: 'project-inbox',
+            name: 'ProjectInbox',
+            component: () => import('@/views/message-center/project-inbox/index.vue'),
+            meta: { title: '项目站内信' }
+          },
+          {
+            path: 'channels',
+            name: 'NotificationChannels',
+            component: () => import('@/views/message-center/channels/index.vue'),
+            meta: { title: '通知渠道' }
+          },
+          {
+            path: 'project-channels',
+            name: 'ProjectNotificationChannels',
+            component: () => import('@/views/message-center/channels/index.vue'), // 暂时使用相同组件
+            meta: { title: '项目通知渠道' }
+          },
+          {
+            path: 'robots',
+            name: 'Robots',
+            component: () => import('@/views/message-center/robots/index.vue'),
+            meta: { title: '机器人管理' }
+          },
+          {
+            path: 'project-robots',
+            name: 'ProjectRobots',
+            component: () => import('@/views/message-center/project-robots/index.vue'),
+            meta: { title: '项目机器人管理' }
+          },
+          {
+            path: 'receivers',
+            name: 'Receivers',
+            component: () => import('@/views/message-center/receivers/index.vue'),
+            meta: { title: '接收人管理' }
+          },
+          {
+            path: 'project-receivers',
+            name: 'ProjectReceivers',
+            component: () => import('@/views/message-center/receivers/index.vue'), // 暂时使用相同组件
+            meta: { title: '项目接收人管理' }
+          },
+          {
+            path: 'subscriptions',
+            name: 'Subscriptions',
+            component: () => import('@/views/message-center/subscriptions/index.vue'),
+            meta: { title: '消息订阅' }
+          },
+          {
+            path: 'project-subscriptions',
+            name: 'ProjectSubscriptions',
+            component: () => import('@/views/message-center/subscriptions/index.vue'), // 暂时使用相同组件
+            meta: { title: '项目消息订阅' }
           }
         ]
       }

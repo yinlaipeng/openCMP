@@ -1,0 +1,42 @@
+# 服务器配置
+server:
+  port: 8081
+  mode: debug  # debug, release, test
+
+# 数据库配置
+database:
+  driver: mysql  # mysql, postgres, sqlite
+  dsn: "root:opencmp123@tcp(localhost:3306)/opencmp?charset=utf8mb4&parseTime=True&loc=Local"
+  max_idle_conns: 10
+  max_open_conns: 100
+
+# 认证配置
+auth:
+  jwt_secret: "your-secret-key-change-this-in-production"  # JWT密钥
+  token_expire_hours: 24  # Token过期时间（小时）
+
+# 日志配置
+log:
+  level: info    # debug, info, warn, error
+  format: json   # json, console
+
+# 云提供商配置
+providers:
+  alibaba:
+    enabled: true
+  tencent:
+    enabled: true
+  aws:
+    enabled: true
+  azure:
+    enabled: true
+
+# 消息中心配置
+message_center:
+  enabled: true
+  default_channels: ["site", "email"]  # 默认通知渠道
+
+# 多云同步配置
+multicloud_sync:
+  default_interval_minutes: 60  # 默认同步间隔（分钟）
+  concurrent_workers: 5         # 并发同步任务数

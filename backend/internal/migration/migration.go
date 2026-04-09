@@ -14,24 +14,17 @@ func Migrate(db *gorm.DB) error {
 		&model.CloudAccount{},
 		&model.Domain{},
 		&model.Project{},
-		
+
 		// IAM 模型
 		&model.User{},
 		&model.Group{},
 		&model.UserGroup{},
 		&model.Role{},
-		&model.Permission{},
-		&model.RolePermission{},
 		&model.UserRole{},
 		&model.ProjectUserRole{},
 		&model.GroupRole{},
 		&model.AuthSource{},
-		
-		// 策略模型
-		&model.Policy{},
-		&model.PolicyStatement{},
-		&model.RolePolicy{},
-		
+
 		// 安全和通知模型
 		&model.SecurityAlert{},
 		&model.MessageType{},
@@ -40,5 +33,9 @@ func Migrate(db *gorm.DB) error {
 		&model.MessageSubscription{},
 		&model.Robot{},
 		&model.Receiver{},
+
+		// 多云管理模型
+		&model.SyncPolicy{},
+		&model.ScheduledTask{},
 	)
 }

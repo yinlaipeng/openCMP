@@ -28,12 +28,25 @@ func NewUserHandler(db *gorm.DB, logger *zap.Logger) *UserHandler {
 
 // CreateUserRequest 创建用户请求
 type CreateUserRequest struct {
-	Name        string `json:"name" binding:"required"`
-	DisplayName string `json:"display_name"`
-	Email       string `json:"email"`
-	Phone       string `json:"phone"`
-	Password    string `json:"password" binding:"required,min=8"`
-	DomainID    uint   `json:"domain_id" binding:"required"`
+	Name         string `json:"name" binding:"required"`
+	DisplayName  string `json:"display_name"`
+	Remark       string `json:"remark"`
+	Email        string `json:"email"`
+	Phone        string `json:"phone"`
+	Password     string `json:"password" binding:"required,min=8"`
+	DomainID     uint   `json:"domain_id" binding:"required"`
+	ConsoleLogin *bool  `json:"console_login,omitempty"`
+	MFAEnabled   *bool  `json:"mfa_enabled,omitempty"`
+}
+
+// UpdateUserRequest 更新用户请求
+type UpdateUserRequest struct {
+	DisplayName  string `json:"display_name"`
+	Remark       string `json:"remark"`
+	Email        string `json:"email"`
+	Phone        string `json:"phone"`
+	ConsoleLogin *bool  `json:"console_login,omitempty"`
+	MFAEnabled   *bool  `json:"mfa_enabled,omitempty"`
 }
 
 // List 列出用户
@@ -48,7 +61,20 @@ func (h *UserHandler) List(c *gin.Context) {
 		domainID = &uid
 	}
 
-	users, total, err := h.service.ListUsers(c.Request.Context(), domainID, limit, offset)
+	keyword := c.Query("keyword")
+	email := c.Query("email")
+	enabledStr := c.Query("enabled")
+
+	var enabled *bool
+	if enabledStr != "" {
+		if enabledStr == "true" {
+			enabled = func() *bool { b := true; return &b }()
+		} else if enabledStr == "false" {
+			enabled = func() *bool { b := false; return &b }()
+		}
+	}
+
+	users, total, err := h.service.ListUsers(c.Request.Context(), domainID, keyword, email, enabled, limit, offset)
 	if err != nil {
 		h.logger.Error("failed to list users", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -95,11 +121,23 @@ func (h *UserHandler) Create(c *gin.Context) {
 	user := &model.User{
 		Name:        req.Name,
 		DisplayName: req.DisplayName,
+		Remark:      req.Remark,
 		Email:       req.Email,
 		Phone:       req.Phone,
 		Password:    req.Password, // TODO: 加密
 		DomainID:    req.DomainID,
 		Enabled:     true,
+		ConsoleLogin: true, // Default to allowing console login
+	}
+
+	// Set console login if provided in request
+	if req.ConsoleLogin != nil {
+		user.ConsoleLogin = *req.ConsoleLogin
+	}
+
+	// Set MFA enabled if provided in request
+	if req.MFAEnabled != nil {
+		user.MFAEnabled = *req.MFAEnabled
 	}
 
 	if err := h.service.CreateUser(c.Request.Context(), user); err != nil {
@@ -182,15 +220,26 @@ func (h *UserHandler) Update(c *gin.Context) {
 		return
 	}
 
-	var req CreateUserRequest
+	var req UpdateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	user.DisplayName = req.DisplayName
+	user.Remark = req.Remark
 	user.Email = req.Email
 	user.Phone = req.Phone
+
+	// Update console login if provided
+	if req.ConsoleLogin != nil {
+		user.ConsoleLogin = *req.ConsoleLogin
+	}
+
+	// Update MFA enabled if provided
+	if req.MFAEnabled != nil {
+		user.MFAEnabled = *req.MFAEnabled
+	}
 
 	if err := h.service.UpdateUser(c.Request.Context(), user); err != nil {
 		h.logger.Error("failed to update user", zap.Error(err))
@@ -376,4 +425,79 @@ func (h *UserHandler) LeaveGroup(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "left"})
+}
+
+// AssignUserToProjectRequest 将用户分配到项目请求
+type AssignUserToProjectRequest struct {
+	ProjectID uint `json:"project_id" binding:"required"`
+	RoleID    uint `json:"role_id" binding:"required"`
+}
+
+// AssignUserToProject 将用户分配到项目
+func (h *UserHandler) AssignUserToProject(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	var req AssignUserToProjectRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.service.AssignUserToProject(c.Request.Context(), uint(id), req.ProjectID, req.RoleID); err != nil {
+		h.logger.Error("failed to assign user to project", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "assigned to project"})
+}
+
+// RemoveUserFromProject 从项目移除用户
+func (h *UserHandler) RemoveUserFromProject(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	projectID := c.Query("project_id")
+	if projectID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "project_id is required"})
+		return
+	}
+
+	pid, _ := strconv.ParseUint(projectID, 10, 32)
+
+	if err := h.service.RemoveUserFromProject(c.Request.Context(), uint(id), uint(pid)); err != nil {
+		h.logger.Error("failed to remove user from project", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "removed from project"})
+}
+
+// GetUserProjects 获取用户所属的项目
+func (h *UserHandler) GetUserProjects(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	projects, err := h.service.GetUserProjects(c.Request.Context(), uint(id))
+	if err != nil {
+		h.logger.Error("failed to get user projects", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"items": projects,
+		"total": len(projects),
+	})
 }

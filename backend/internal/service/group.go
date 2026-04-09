@@ -115,3 +115,50 @@ func (s *GroupService) AddUserToGroup(ctx context.Context, userID, groupID uint)
 func (s *GroupService) RemoveUserFromGroup(ctx context.Context, userID, groupID uint) error {
 	return s.db.WithContext(ctx).Where("user_id = ? AND group_id = ?", userID, groupID).Delete(&model.UserGroup{}).Error
 }
+
+// AddGroupToProject 添加用户组到项目
+func (s *GroupService) AddGroupToProject(ctx context.Context, groupID, projectID uint) error {
+	// 检查是否已存在
+	var count int64
+	if err := s.db.Model(&model.GroupProject{}).Where("group_id = ? AND project_id = ?", groupID, projectID).Count(&count).Error; err != nil {
+		return err
+	}
+	if count > 0 {
+		return gorm.ErrDuplicatedKey
+	}
+
+	groupProject := &model.GroupProject{
+		GroupID:   groupID,
+		ProjectID: projectID,
+	}
+	return s.db.WithContext(ctx).Create(groupProject).Error
+}
+
+// RemoveGroupFromProject 从项目移除用户组
+func (s *GroupService) RemoveGroupFromProject(ctx context.Context, groupID, projectID uint) error {
+	return s.db.WithContext(ctx).Where("group_id = ? AND project_id = ?", groupID, projectID).Delete(&model.GroupProject{}).Error
+}
+
+// GetGroupProjects 获取用户组的项目列表
+func (s *GroupService) GetGroupProjects(ctx context.Context, groupID uint, limit, offset int) ([]*model.Project, int64, error) {
+	var projects []*model.Project
+	var total int64
+
+	if err := s.db.WithContext(ctx).
+		Model(&model.Project{}).
+		Joins("JOIN group_projects ON group_projects.project_id = projects.id").
+		Where("group_projects.group_id = ?", groupID).
+		Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	err := s.db.WithContext(ctx).
+		Model(&model.Project{}).
+		Joins("JOIN group_projects ON group_projects.project_id = projects.id").
+		Where("group_projects.group_id = ?", groupID).
+		Limit(limit).
+		Offset(offset).
+		Find(&projects).Error
+
+	return projects, total, err
+}

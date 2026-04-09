@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"flag"
 	"fmt"
 	"log"
@@ -9,6 +10,7 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
+	_ "github.com/go-sql-driver/mysql"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 	"gorm.io/driver/mysql"
@@ -18,7 +20,8 @@ import (
 	"github.com/opencmp/opencmp/internal/middleware"
 	"github.com/opencmp/opencmp/internal/model"
 	"github.com/opencmp/opencmp/internal/service"
-	"github.com/opencmp/opencmp/pkg/utils"
+	initutils "github.com/opencmp/opencmp/internal/utils"
+	pkgutils "github.com/opencmp/opencmp/pkg/utils"
 )
 
 type Config struct {
@@ -68,7 +71,7 @@ func main() {
 	defer logger.Sync()
 
 	// 初始化数据库
-	db, err := initDatabase(cfg.Database)
+	db, sqlDB, err := initDatabase(cfg.Database)
 	if err != nil {
 		log.Fatalf("failed to init database: %v", err)
 	}
@@ -82,11 +85,12 @@ func main() {
 		&model.Group{},
 		&model.UserGroup{},
 		&model.Role{},
-		&model.Permission{},
+		&model.Permission{}, // 新增权限模型
 		&model.RolePermission{},
 		&model.UserRole{},
 		&model.ProjectUserRole{},
 		&model.GroupRole{},
+		&model.GroupProject{},
 		&model.AuthSource{},
 		&model.SecurityAlert{},
 		&model.MessageType{},
@@ -95,10 +99,16 @@ func main() {
 		&model.MessageSubscription{},
 		&model.Robot{},
 		&model.Receiver{},
-		&model.Policy{},
-		&model.RolePolicy{},
+		&model.ReceiverChannel{},
+		&model.SyncPolicy{}, // 添加同步策略模型
+		&model.ScheduledTask{}, // 添加定时任务模型
 	); err != nil {
 		log.Fatalf("failed to migrate database: %v", err)
+	}
+
+	// 执行默认数据初始化SQL脚本
+	if err := initutils.ExecuteInitDataScript(sqlDB); err != nil {
+		logger.Warn("failed to execute initialization script", zap.Error(err))
 	}
 
 	// 初始化内置认证源
@@ -181,6 +191,7 @@ func main() {
 			authSourceGroup.POST("/:id/test", authSourceHandler.Test)
 			authSourceGroup.POST("/:id/enable", authSourceHandler.Enable)
 			authSourceGroup.POST("/:id/disable", authSourceHandler.Disable)
+			authSourceGroup.POST("/:id/sync", authSourceHandler.Sync)
 		}
 
 		// 域管理路由
@@ -215,6 +226,7 @@ func main() {
 			projectGroup.GET("/:id/users", projectHandler.GetUsers)
 			projectGroup.GET("/:id/roles", projectHandler.GetRoles)
 			projectGroup.DELETE("/:id/users", projectHandler.RemoveUser)
+			projectGroup.PUT("/:id/manager", projectHandler.SetManager)
 		}
 
 		userHandler := handler.NewUserHandler(db, logger)
@@ -234,6 +246,9 @@ func main() {
 			userGroup.GET("/:id/groups", userHandler.GetGroups)
 			userGroup.POST("/:id/groups", userHandler.JoinGroup)
 			userGroup.DELETE("/:id/groups", userHandler.LeaveGroup)
+			userGroup.POST("/:id/projects", userHandler.AssignUserToProject)
+			userGroup.DELETE("/:id/projects", userHandler.RemoveUserFromProject)
+			userGroup.GET("/:id/projects", userHandler.GetUserProjects)
 		}
 
 		// 用户组路由
@@ -248,10 +263,13 @@ func main() {
 			groupGroup.GET("/:id/users", groupHandler.GetUsers)
 			groupGroup.POST("/:id/users", groupHandler.AddUser)
 			groupGroup.DELETE("/:id/users", groupHandler.RemoveUser)
+			groupGroup.GET("/:id/projects", groupHandler.GetProjects)
+			groupGroup.POST("/:id/projects", groupHandler.AddProject)
+			groupGroup.DELETE("/:id/projects", groupHandler.RemoveProject)
 		}
 
+		// 角色路由
 		roleHandler := handler.NewRoleHandler(db, logger)
-		policyHandler := handler.NewPolicyHandler(db, logger)
 		roleGroup := v1.Group("/roles")
 		{
 			roleGroup.GET("", roleHandler.List)
@@ -266,37 +284,21 @@ func main() {
 			roleGroup.GET("/:id/groups", roleHandler.GetRoleGroups)
 		}
 
-		// 权限管理路由
+		// 权限路由
+		permissionHandler := handler.NewPermissionHandler(db, logger)
 		permissionGroup := v1.Group("/permissions")
 		{
-			permissionGroup.GET("", roleHandler.ListPermissions)
-			permissionGroup.GET("/:id", roleHandler.GetPermission)
-			permissionGroup.POST("", roleHandler.CreatePermission)
-			permissionGroup.PUT("/:id", roleHandler.UpdatePermission)
-			permissionGroup.DELETE("/:id", roleHandler.DeletePermission)
-			permissionGroup.GET("/resources", roleHandler.ListResources)
-			permissionGroup.GET("/actions", roleHandler.ListActions)
-		}
-
-		// 角色权限关联路由
-		rolePermissionGroup := v1.Group("/roles")
-		{
-			rolePermissionGroup.GET("/:id/permissions", roleHandler.GetPermissions)
-			rolePermissionGroup.POST("/:id/permissions", roleHandler.AssignPermission)
-			rolePermissionGroup.DELETE("/:id/permissions", roleHandler.RevokePermission)
-			rolePermissionGroup.GET("/:id/policies", roleHandler.GetRolePolicies)
-			rolePermissionGroup.POST("/:id/policies", roleHandler.AssignPolicyToRole)
-			rolePermissionGroup.DELETE("/:id/policies", roleHandler.RevokePolicyFromRole)
-		}
-
-		// 策略管理路由
-		policyGroup := v1.Group("/policies")
-		{
-			policyGroup.GET("", policyHandler.List)
-			policyGroup.GET("/:id", policyHandler.GetPolicy)
-			policyGroup.POST("", policyHandler.CreatePolicy)
-			policyGroup.PUT("/:id", policyHandler.UpdatePolicy)
-			policyGroup.DELETE("/:id", policyHandler.DeletePolicy)
+			permissionGroup.GET("", permissionHandler.List)
+			permissionGroup.GET("/:id", permissionHandler.Get)
+			permissionGroup.POST("", permissionHandler.Create)
+			permissionGroup.PUT("/:id", permissionHandler.Update)
+			permissionGroup.DELETE("/:id", permissionHandler.Delete)
+			permissionGroup.POST("/:id/enable", permissionHandler.Enable)
+			permissionGroup.POST("/:id/disable", permissionHandler.Disable)
+			permissionGroup.GET("/:id/roles", permissionHandler.GetRolePermissions)
+			permissionGroup.POST("/role/:role_id/assign/:permission_id", permissionHandler.AssignToRole)
+			permissionGroup.DELETE("/role/:role_id/remove/:permission_id", permissionHandler.RemoveFromRole)
+			permissionGroup.GET("/resource-action", permissionHandler.GetPermissionsForResourceAction)
 		}
 
 		// IAM 综合管理路由
@@ -304,8 +306,98 @@ func main() {
 		iamGroup := v1.Group("/iam")
 		{
 			iamGroup.GET("/users-with-roles", iamHandler.ListUsersWithRoles)
-			iamGroup.GET("/users/:id/permissions", iamHandler.GetUserPermissions)
-			iamGroup.POST("/check-permission", iamHandler.CheckPermission)
+		}
+
+		// 消息中心路由
+		messageHandler := handler.NewMessageHandler(db, logger)
+		messageGroup := v1.Group("/messages")
+		{
+			messageGroup.GET("", messageHandler.List)
+			messageGroup.GET("/unread-count", messageHandler.GetUnreadCount)
+			messageGroup.GET("/:id", messageHandler.Get)
+			messageGroup.PUT("/:id/read", messageHandler.MarkRead)
+			messageGroup.POST("/mark-all-read", messageHandler.MarkAllRead)
+			messageGroup.DELETE("/:id", messageHandler.Delete)
+		}
+
+		// 通知渠道路由
+		notifChannelHandler := handler.NewNotificationChannelHandler(db, logger)
+		notifChannelGroup := v1.Group("/notification-channels")
+		{
+			notifChannelGroup.GET("", notifChannelHandler.List)
+			notifChannelGroup.GET("/:id", notifChannelHandler.Get)
+			notifChannelGroup.POST("", notifChannelHandler.Create)
+			notifChannelGroup.PUT("/:id", notifChannelHandler.Update)
+			notifChannelGroup.DELETE("/:id", notifChannelHandler.Delete)
+			notifChannelGroup.POST("/:id/enable", notifChannelHandler.Enable)
+			notifChannelGroup.POST("/:id/disable", notifChannelHandler.Disable)
+			notifChannelGroup.POST("/:id/test", notifChannelHandler.Test)
+		}
+
+		// 机器人路由
+		robotHandler := handler.NewRobotHandler(db, logger)
+		robotGroup := v1.Group("/robots")
+		{
+			robotGroup.GET("", robotHandler.List)
+			robotGroup.GET("/:id", robotHandler.Get)
+			robotGroup.POST("", robotHandler.Create)
+			robotGroup.PUT("/:id", robotHandler.Update)
+			robotGroup.DELETE("/:id", robotHandler.Delete)
+			robotGroup.POST("/:id/enable", robotHandler.Enable)
+			robotGroup.POST("/:id/disable", robotHandler.Disable)
+			robotGroup.POST("/:id/test", robotHandler.Test)
+		}
+
+		// 接收人路由
+		receiverHandler := handler.NewReceiverHandler(db, logger)
+		receiverGroup := v1.Group("/receivers")
+		{
+			receiverGroup.GET("", receiverHandler.List)
+			receiverGroup.GET("/:id", receiverHandler.Get)
+			receiverGroup.POST("", receiverHandler.Create)
+			receiverGroup.PUT("/:id", receiverHandler.Update)
+			receiverGroup.DELETE("/:id", receiverHandler.Delete)
+			receiverGroup.POST("/:id/enable", receiverHandler.Enable)
+			receiverGroup.POST("/:id/disable", receiverHandler.Disable)
+			receiverGroup.GET("/:id/channels", receiverHandler.GetChannels)
+			receiverGroup.POST("/:id/channels", receiverHandler.SetChannels)
+			receiverGroup.GET("/:id/with-channels", receiverHandler.GetWithChannels) // Get receiver with notification channels
+		}
+
+		// 消息订阅路由
+		subscriptionHandler := handler.NewMessageSubscriptionHandler(db, logger)
+		subscriptionGroup := v1.Group("/subscriptions")
+		{
+			subscriptionGroup.GET("", subscriptionHandler.List)
+			subscriptionGroup.GET("/:id", subscriptionHandler.Get)
+			subscriptionGroup.POST("", subscriptionHandler.Create)
+			subscriptionGroup.PUT("/:id", subscriptionHandler.Update)
+			subscriptionGroup.DELETE("/:id", subscriptionHandler.Delete)
+		}
+		v1.GET("/message-types", subscriptionHandler.ListMessageTypes)
+
+		// 同步策略路由
+		syncPolicyHandler := handler.NewSyncPolicyHandler(db, logger)
+		syncPolicyGroup := v1.Group("/sync-policies")
+		{
+			syncPolicyGroup.GET("", syncPolicyHandler.List)
+			syncPolicyGroup.GET("/:id", syncPolicyHandler.Get)
+			syncPolicyGroup.POST("", syncPolicyHandler.Create)
+			syncPolicyGroup.PUT("/:id", syncPolicyHandler.Update)
+			syncPolicyGroup.DELETE("/:id", syncPolicyHandler.Delete)
+			syncPolicyGroup.POST("/:id/status", syncPolicyHandler.UpdateStatus)
+		}
+
+		// 定时任务路由
+		scheduledTaskHandler := handler.NewScheduledTaskHandler(db, logger)
+		scheduledTaskGroup := v1.Group("/scheduled-tasks")
+		{
+			scheduledTaskGroup.GET("", scheduledTaskHandler.List)
+			scheduledTaskGroup.GET("/:id", scheduledTaskHandler.Get)
+			scheduledTaskGroup.POST("", scheduledTaskHandler.Create)
+			scheduledTaskGroup.PUT("/:id", scheduledTaskHandler.Update)
+			scheduledTaskGroup.DELETE("/:id", scheduledTaskHandler.Delete)
+			scheduledTaskGroup.POST("/:id/status", scheduledTaskHandler.UpdateStatus)
 		}
 	}
 
@@ -449,16 +541,16 @@ func initDefaultData(db *gorm.DB) error {
 	if err := db.Where("name = ?", "admin").First(&existingUser).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			// 对密码进行哈希处理
-			hashedPassword, err := utils.HashPassword(adminUser.Password)
+			hashedPassword, err := pkgutils.HashPassword(adminUser.Password)
 			if err != nil {
 				return fmt.Errorf("failed to hash password: %v", err)
 			}
 			adminUser.Password = hashedPassword
-			
+
 			if err := db.Create(adminUser).Error; err != nil {
 				return fmt.Errorf("failed to create admin user: %v", err)
 			}
-			
+
 			// 为管理员用户分配管理员角色
 			userService := service.NewUserService(db)
 			if err := userService.AssignUserRole(ctx, adminUser.ID, adminRole.ID, defaultDomain.ID); err != nil {
@@ -467,76 +559,35 @@ func initDefaultData(db *gorm.DB) error {
 		} else {
 			return fmt.Errorf("failed to check admin user: %v", err)
 		}
-	}
-
-	// 创建一些基本权限
-	permissions := []model.Permission{
-		{Name: "user:list", DisplayName: "用户列表", Description: "查看用户列表", Resource: "user", Action: "list", Type: "system"},
-		{Name: "user:create", DisplayName: "创建用户", Description: "创建新用户", Resource: "user", Action: "create", Type: "system"},
-		{Name: "user:update", DisplayName: "更新用户", Description: "更新用户信息", Resource: "user", Action: "update", Type: "system"},
-		{Name: "user:delete", DisplayName: "删除用户", Description: "删除用户", Resource: "user", Action: "delete", Type: "system"},
-		{Name: "role:list", DisplayName: "角色列表", Description: "查看角色列表", Resource: "role", Action: "list", Type: "system"},
-		{Name: "role:create", DisplayName: "创建角色", Description: "创建新角色", Resource: "role", Action: "create", Type: "system"},
-		{Name: "role:update", DisplayName: "更新角色", Description: "更新角色信息", Resource: "role", Action: "update", Type: "system"},
-		{Name: "role:delete", DisplayName: "删除角色", Description: "删除角色", Resource: "role", Action: "delete", Type: "system"},
-		{Name: "domain:list", DisplayName: "域列表", Description: "查看域列表", Resource: "domain", Action: "list", Type: "system"},
-		{Name: "domain:create", DisplayName: "创建域", Description: "创建新域", Resource: "domain", Action: "create", Type: "system"},
-		{Name: "domain:update", DisplayName: "更新域", Description: "更新域信息", Resource: "domain", Action: "update", Type: "system"},
-		{Name: "domain:delete", DisplayName: "删除域", Description: "删除域", Resource: "domain", Action: "delete", Type: "system"},
-		{Name: "project:list", DisplayName: "项目列表", Description: "查看项目列表", Resource: "project", Action: "list", Type: "system"},
-		{Name: "project:create", DisplayName: "创建项目", Description: "创建新项目", Resource: "project", Action: "create", Type: "system"},
-		{Name: "project:update", DisplayName: "更新项目", Description: "更新项目信息", Resource: "project", Action: "update", Type: "system"},
-		{Name: "project:delete", DisplayName: "删除项目", Description: "删除项目", Resource: "project", Action: "delete", Type: "system"},
-		{Name: "cloud-account:list", DisplayName: "云账户列表", Description: "查看云账户列表", Resource: "cloud-account", Action: "list", Type: "system"},
-		{Name: "cloud-account:create", DisplayName: "创建云账户", Description: "创建新云账户", Resource: "cloud-account", Action: "create", Type: "system"},
-		{Name: "cloud-account:update", DisplayName: "更新云账户", Description: "更新云账户信息", Resource: "cloud-account", Action: "update", Type: "system"},
-		{Name: "cloud-account:delete", DisplayName: "删除云账户", Description: "删除云账户", Resource: "cloud-account", Action: "delete", Type: "system"},
-	}
-
-	roleService := service.NewRoleService(db)
-	for _, perm := range permissions {
-		var existingPerm model.Permission
-		if err := db.Where("name = ?", perm.Name).First(&existingPerm).Error; err != nil {
-			if err == gorm.ErrRecordNotFound {
-				if err := roleService.CreatePermission(ctx, &perm); err != nil {
-					// 可能已经存在，忽略错误
-					continue
-				}
-			} else {
-				return fmt.Errorf("failed to check permission %s: %v", perm.Name, err)
+	} else {
+		// 用户已存在：检查密码是否为有效 bcrypt 哈希，不是则修复（兼容旧数据）
+		if len(existingUser.Password) < 4 || existingUser.Password[:4] != "$2a$" && existingUser.Password[:4] != "$2b$" {
+			hashedPassword, err := pkgutils.HashPassword("admin123")
+			if err != nil {
+				return fmt.Errorf("failed to hash password: %v", err)
 			}
-		}
-	}
-
-	// 为管理员角色分配所有权限
-	for _, perm := range permissions {
-		var existingPerm model.Permission
-		if err := db.Where("name = ?", perm.Name).First(&existingPerm).Error; err != nil {
-			return fmt.Errorf("failed to get permission %s: %v", perm.Name, err)
-		}
-		
-		if err := roleService.AssignPermissionToRole(ctx, adminRole.ID, existingPerm.ID); err != nil {
-			// 可能已经分配了，忽略错误
-			continue
+			if err := db.Model(&existingUser).Update("password", hashedPassword).Error; err != nil {
+				return fmt.Errorf("failed to fix admin password: %v", err)
+			}
 		}
 	}
 
 	return nil
 }
 
-func initDatabase(cfg DatabaseConfig) (*gorm.DB, error) {
+func initDatabase(cfg DatabaseConfig) (*gorm.DB, *sql.DB, error) {
 	db, err := gorm.Open(mysql.Open(cfg.DSN), &gorm.Config{})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	sqlDB, err := db.DB()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	sqlDB.SetMaxIdleConns(cfg.MaxIdleConns)
 	sqlDB.SetMaxOpenConns(cfg.MaxOpenConns)
 
-	return db, nil
+	return db, sqlDB, nil
 }

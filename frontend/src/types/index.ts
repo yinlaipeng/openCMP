@@ -7,6 +7,15 @@ export interface CloudAccount {
   description: string
   created_at: string
   updated_at: string
+  remarks?: string
+  enabled: boolean
+  health_status?: string
+  balance?: number
+  account_number?: string
+  last_sync?: string
+  sync_time?: string
+  domain_id?: number
+  resource_assignment_method?: string
 }
 
 export interface CreateCloudAccountRequest {
@@ -14,6 +23,38 @@ export interface CreateCloudAccountRequest {
   provider_type: string
   credentials: Record<string, string>
   description?: string
+  remarks?: string
+  enabled?: boolean
+  health_status?: string
+  balance?: number
+  account_number?: string
+  last_sync?: string
+  sync_time?: string
+  domain_id?: number
+  resource_assignment_method?: string
+}
+
+export interface ScheduledTask {
+  id: number
+  name: string
+  type: string
+  frequency: 'once' | 'daily' | 'weekly' | 'monthly' | 'custom'
+  triggerTime: string
+  validFrom?: string
+  validUntil?: string
+  status: 'active' | 'inactive'
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateScheduledTaskRequest {
+  name: string
+  type: string
+  frequency: 'once' | 'daily' | 'weekly' | 'monthly' | 'custom'
+  triggerTime: string
+  validFrom?: string
+  validUntil?: string
+  status?: 'active' | 'inactive'
 }
 
 export interface VirtualMachine {

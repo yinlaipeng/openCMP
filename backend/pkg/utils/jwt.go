@@ -9,10 +9,12 @@ import (
 
 // JWTClaims JWT声明结构
 type JWTClaims struct {
-	UserID    uint   `json:"user_id"`
-	UserName  string `json:"user_name"`
-	UserEmail string `json:"user_email"`
-	RoleIDs   []uint `json:"role_ids"`
+	UserID       uint   `json:"user_id"`
+	UserName     string `json:"user_name"`
+	UserEmail    string `json:"user_email"`
+	RoleIDs      []uint `json:"role_ids"`
+	DomainID     uint   `json:"domain_id,omitempty"`
+	AuthSourceID uint   `json:"auth_source_id,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -69,6 +71,23 @@ func GenerateToken(userID uint, userName string, roleIDs []uint, secret string, 
 		UserID:   userID,
 		UserName: userName,
 		RoleIDs:  roleIDs,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(expirationTime),
+		},
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(secret))
+}
+
+// GenerateTokenWithExtra 生成带认证源和域信息的 JWT token
+func GenerateTokenWithExtra(userID uint, userName string, roleIDs []uint, domainID, authSourceID uint, secret string, expireHours int) (string, error) {
+	expirationTime := time.Now().Add(time.Hour * time.Duration(expireHours))
+	claims := &JWTClaims{
+		UserID:       userID,
+		UserName:     userName,
+		RoleIDs:      roleIDs,
+		DomainID:     domainID,
+		AuthSourceID: authSourceID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
 		},

@@ -150,3 +150,52 @@ func UnmarshalWebhookConfig(configJSON json.RawMessage) (*WebhookConfig, error) 
 	err := json.Unmarshal(configJSON, &cfg)
 	return &cfg, err
 }
+// SMSConfig 短信配置
+type SMSConfig struct {
+	Provider         string             `json:"provider"` // aliyun, huawei
+	AccessKeyID      string             `json:"access_key_id"`
+	AccessKeySecret  string             `json:"access_key_secret"`
+	Signature        string             `json:"signature"`
+	DomesticTemplates SMSTemplatesConfig `json:"domestic_templates"`
+	IntlTemplates    SMSTemplatesConfig `json:"intl_templates"`
+}
+
+// SMSTemplatesConfig 短信模板配置
+type SMSTemplatesConfig struct {
+	VerifyCode   string `json:"verify_code"`     // 验证码
+	Alert        string `json:"alert"`           // 告警
+	AbnormalLogin string `json:"abnormal_login"` // 异常登录
+}
+
+// FeishuConfig 飞书配置
+type FeishuConfig struct {
+	WebhookURL string `json:"webhook_url"`
+	Secret     string `json:"secret"`
+}
+
+// LarkConfig Lark配置
+type LarkConfig struct {
+	WebhookURL string `json:"webhook_url"`
+	Secret     string `json:"secret"`
+}
+
+// UnmarshalSMSConfig 解析短信配置
+func UnmarshalSMSConfig(configJSON json.RawMessage) (*SMSConfig, error) {
+	var cfg SMSConfig
+	err := json.Unmarshal(configJSON, &cfg)
+	return &cfg, err
+}
+
+// UnmarshalFeishuConfig 解析飞书配置
+func UnmarshalFeishuConfig(configJSON json.RawMessage) (*FeishuConfig, error) {
+	var cfg FeishuConfig
+	err := json.Unmarshal(configJSON, &cfg)
+	return &cfg, err
+}
+
+// UnmarshalLarkConfig 解析Lark配置
+func UnmarshalLarkConfig(configJSON json.RawMessage) (*LarkConfig, error) {
+	var cfg LarkConfig
+	err := json.Unmarshal(configJSON, &cfg)
+	return &cfg, err
+}

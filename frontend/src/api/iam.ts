@@ -1,82 +1,18 @@
 import request from '@/utils/request'
 
-// ============= 权限管理 API =============
+// Import permission APIs
+import {
+  getPermissions,
+  createPermission,
+  updatePermission,
+  deletePermission,
+  enablePermission,
+  disablePermission,
+  clonePermission,
+  makePermissionPublic,
+  getPermission
+} from '@/api/permission'
 
-// 获取权限列表
-export function getPermissions(params?: {
-  resource?: string
-  action?: string
-  type?: string
-  keyword?: string
-  limit?: number
-  offset?: number
-}) {
-  return request({
-    url: '/permissions',
-    method: 'get',
-    params
-  })
-}
-
-// 获取权限详情
-export function getPermission(id: number) {
-  return request({
-    url: `/permissions/${id}`,
-    method: 'get'
-  })
-}
-
-// 创建权限
-export function createPermission(data: {
-  name: string
-  display_name: string
-  resource: string
-  action: string
-  type?: string
-  description?: string
-}) {
-  return request({
-    url: '/permissions',
-    method: 'post',
-    data
-  })
-}
-
-// 更新权限
-export function updatePermission(id: number, data: {
-  display_name?: string
-  description?: string
-}) {
-  return request({
-    url: `/permissions/${id}`,
-    method: 'put',
-    data
-  })
-}
-
-// 删除权限
-export function deletePermission(id: number) {
-  return request({
-    url: `/permissions/${id}`,
-    method: 'delete'
-  })
-}
-
-// 获取资源类型列表
-export function getResources() {
-  return request({
-    url: '/permissions/resources',
-    method: 'get'
-  })
-}
-
-// 获取操作类型列表
-export function getActions() {
-  return request({
-    url: '/permissions/actions',
-    method: 'get'
-  })
-}
 
 // ============= 角色管理 API =============
 
@@ -142,30 +78,6 @@ export function deleteRole(id: number) {
   })
 }
 
-// 获取角色权限
-export function getRolePermissions(roleId: number) {
-  return request({
-    url: `/roles/${roleId}/permissions`,
-    method: 'get'
-  })
-}
-
-// 分配权限给角色
-export function assignPermission(roleId: number, permissionId: number) {
-  return request({
-    url: `/roles/${roleId}/permissions`,
-    method: 'post',
-    data: { permission_id: permissionId }
-  })
-}
-
-// 从角色撤销权限
-export function revokePermission(roleId: number, permissionId: number) {
-  return request({
-    url: `/roles/${roleId}/permissions?permission_id=${permissionId}`,
-    method: 'delete'
-  })
-}
 
 // 启用角色
 export function enableRole(id: number) {
@@ -191,106 +103,6 @@ export function makeRolePublic(id: number) {
   })
 }
 
-// 获取角色的用户列表
-export function getRoleUsers(roleId: number, params?: { limit?: number; offset?: number }) {
-  return request({
-    url: `/roles/${roleId}/users`,
-    method: 'get',
-    params
-  })
-}
-
-// 获取角色的用户组列表
-export function getRoleGroups(roleId: number, params?: { limit?: number; offset?: number }) {
-  return request({
-    url: `/roles/${roleId}/groups`,
-    method: 'get',
-    params
-  })
-}
-
-// ============= 策略管理 API =============
-
-// 获取策略列表
-export function getPolicies(params?: {
-  scope?: string
-  domain_id?: string
-  limit?: number
-  offset?: number
-}) {
-  return request({
-    url: '/policies',
-    method: 'get',
-    params
-  })
-}
-
-// 获取策略详情
-export function getPolicy(id: string) {
-  return request({
-    url: `/policies/${id}`,
-    method: 'get'
-  })
-}
-
-// 创建策略
-export function createPolicy(data: {
-  name: string
-  scope: string
-  description?: string
-  domain_id?: string
-  policy: Record<string, any>
-  is_system?: boolean
-  is_public?: boolean
-}) {
-  return request({
-    url: '/policies',
-    method: 'post',
-    data
-  })
-}
-
-// 更新策略
-export function updatePolicy(id: string, data: Record<string, any>) {
-  return request({
-    url: `/policies/${id}`,
-    method: 'put',
-    data
-  })
-}
-
-// 删除策略
-export function deletePolicy(id: string) {
-  return request({
-    url: `/policies/${id}`,
-    method: 'delete'
-  })
-}
-
-// 获取角色的策略列表
-export function getRolePolicies(roleId: number) {
-  return request({
-    url: `/roles/${roleId}/policies`,
-    method: 'get'
-  })
-}
-
-// 分配策略给角色
-export function assignPolicyToRole(roleId: number, policyId: string) {
-  return request({
-    url: `/roles/${roleId}/policies`,
-    method: 'post',
-    data: { policy_id: policyId }
-  })
-}
-
-// 从角色撤销策略
-export function revokePolicyFromRole(roleId: number, policyId: string) {
-  return request({
-    url: `/roles/${roleId}/policies?policy_id=${policyId}`,
-    method: 'delete'
-  })
-}
 
 // ============= 认证源 API =============
 
@@ -490,6 +302,24 @@ export function getDomainRoles(domainId: number, params?: { limit?: number; offs
   })
 }
 
+// 获取域的云账号列表
+export function getDomainCloudAccounts(domainId: number, params?: { limit?: number; offset?: number }) {
+  return request({
+    url: `/domains/${domainId}/cloud-accounts`,
+    method: 'get',
+    params
+  })
+}
+
+// 获取域的操作日志列表
+export function getDomainOperationLogs(domainId: number, params?: { limit?: number; offset?: number }) {
+  return request({
+    url: `/domains/${domainId}/operation-logs`,
+    method: 'get',
+    params
+  })
+}
+
 // ============= 项目管理 API =============
 
 // 获取项目列表
@@ -605,10 +435,19 @@ export function removeUserFromProject(projectId: number, userId: number, roleId?
   })
 }
 
+// 设置项目管理员
+export function setProjectManager(projectId: number, userId: number) {
+  return request({
+    url: `/projects/${projectId}/manager`,
+    method: 'put',
+    data: { user_id: userId }
+  })
+}
+
 // ============= 用户 API =============
 
 // 获取用户列表
-export function getUsers(params?: { domain_id?: number; limit?: number; offset?: number }) {
+export function getUsers(params?: { domain_id?: number; keyword?: string; email?: string; enabled?: boolean; limit?: number; offset?: number }) {
   return request({
     url: '/users',
     method: 'get',
@@ -628,10 +467,13 @@ export function getUser(id: number) {
 export function createUser(data: {
   name: string
   display_name?: string
+  remark?: string
   email?: string
   phone?: string
   password: string
   domain_id: number
+  console_login?: boolean
+  mfa_enabled?: boolean
 }) {
   return request({
     url: '/users',
@@ -667,8 +509,11 @@ export function disableUser(id: number) {
 // 更新用户
 export function updateUser(id: number, data: {
   display_name?: string
+  remark?: string
   email?: string
   phone?: string
+  console_login?: boolean
+  mfa_enabled?: boolean
 }) {
   return request({
     url: `/users/${id}`,
@@ -734,6 +579,23 @@ export function leaveGroup(userId: number, groupId: number) {
   return request({
     url: `/users/${userId}/groups?group_id=${groupId}`,
     method: 'delete'
+  })
+}
+
+// 将用户分配到项目
+export function assignUserToProject(userId: number, projectId: number, roleId: number) {
+  return request({
+    url: `/users/${userId}/projects`,
+    method: 'post',
+    data: { project_id: projectId, role_id: roleId }
+  })
+}
+
+// 获取用户所属的项目
+export function getUserProjects(userId: number) {
+  return request({
+    url: `/users/${userId}/projects`,
+    method: 'get'
   })
 }
 
@@ -808,5 +670,89 @@ export function removeUserFromGroup(groupId: number, userId: number) {
   return request({
     url: `/groups/${groupId}/users?user_id=${userId}`,
     method: 'delete'
+  })
+}
+
+// 添加项目到用户组
+export function addGroupToProject(groupId: number, projectId: number) {
+  return request({
+    url: `/groups/${groupId}/projects`,
+    method: 'post',
+    data: { project_id: projectId }
+  })
+}
+
+// 从项目移除用户组
+export function removeGroupFromProject(groupId: number, projectId: number) {
+  return request({
+    url: `/groups/${groupId}/projects?project_id=${projectId}`,
+    method: 'delete'
+  })
+}
+
+// ============= 权限 API =============
+
+export {
+  getPermissions,
+  getPermission,
+  createPermission,
+  updatePermission,
+  deletePermission,
+  enablePermission,
+  disablePermission,
+  clonePermission,
+  makePermissionPublic
+}
+
+// 获取用户组的项目列表
+export function getGroupProjects(groupId: number, params?: { limit?: number; offset?: number }) {
+  return request({
+    url: `/groups/${groupId}/projects`,
+    method: 'get',
+    params
+  })
+}
+// Get project-specific alerts
+export function getProjectSecurityAlerts(projectId: number, params?: any) {
+  return request({
+    url: '/alerts',
+    method: 'get',
+    params: { ...params, project_id: projectId }
+  })
+}
+
+// Get project-specific messages
+export function getProjectMessages(projectId: number, params?: any) {
+  return request({
+    url: '/messages',
+    method: 'get',
+    params: { ...params, project_id: projectId }
+  })
+}
+
+// Get project-specific robots
+export function getProjectRobots(projectId: number, params?: any) {
+  return request({
+    url: '/robots',
+    method: 'get',
+    params: { ...params, project_id: projectId }
+  })
+}
+
+// Get project-specific receivers
+export function getProjectReceivers(projectId: number, params?: any) {
+  return request({
+    url: '/receivers',
+    method: 'get',
+    params: { ...params, project_id: projectId }
+  })
+}
+
+// Get project-specific subscriptions
+export function getProjectSubscriptions(projectId: number, params?: any) {
+  return request({
+    url: '/subscriptions',
+    method: 'get',
+    params: { ...params, project_id: projectId }
   })
 }

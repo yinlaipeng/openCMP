@@ -34,37 +34,64 @@
       <!-- 用户列表 -->
       <el-table :data="users" v-loading="loading" border stripe>
         <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="name" label="用户名" min-width="150" show-overflow-tooltip />
+        <el-table-column label="名称" min-width="150" show-overflow-tooltip>
+          <template #default="{ row }">
+            <div>
+              <el-button type="primary" link @click="handleView(row)" class="name-link">
+                <span>{{ row.name }}</span>
+              </el-button>
+              <br>
+              <small style="color: #999;">{{ row.remark || '-' }}</small>
+            </div>
+          </template>
+        </el-table-column>
         <el-table-column prop="display_name" label="显示名" min-width="120" show-overflow-tooltip />
-        <el-table-column prop="email" label="邮箱" min-width="180" show-overflow-tooltip />
-        <el-table-column prop="phone" label="手机号" width="120" />
-        <el-table-column prop="enabled" label="状态" width="80">
+        <el-table-column prop="enabled" label="启用状态" width="100">
           <template #default="{ row }">
             <el-tag :type="row.enabled ? 'success' : 'info'">
               {{ row.enabled ? '启用' : '禁用' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="mfa_enabled" label="MFA" width="60">
+        <el-table-column prop="console_login" label="控制台登陆" width="100">
+          <template #default="{ row }">
+            <el-tag :type="row.console_login ? 'success' : 'info'">
+              {{ row.console_login ? '允许' : '禁止' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="mfa_enabled" label="MFA" width="80">
           <template #default="{ row }">
             <el-tag :type="row.mfa_enabled ? 'success' : 'info'" size="small">
               {{ row.mfa_enabled ? '开' : '关' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="320" fixed="right">
+        <el-table-column prop="domain_id" label="所属域" width="120">
           <template #default="{ row }">
-            <el-button size="small" @click="handleView(row)">详情</el-button>
-            <el-button size="small" @click="handleEdit(row)">编辑</el-button>
-            <el-button size="small" @click="handleResetPassword(row)">重置密码</el-button>
-            <el-button 
-              size="small" 
-              :type="row.enabled ? 'warning' : 'success'" 
-              @click="handleToggleEnable(row)"
-            >
-              {{ row.enabled ? '禁用' : '启用' }}
-            </el-button>
-            <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+            <span>{{ getDomainName(row.domain_id) }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="200" fixed="right">
+          <template #default="{ row }">
+            <el-button size="small" @click="handleEdit(row)">修改属性</el-button>
+            <el-dropdown trigger="click" @command="(cmd) => handleCommand(cmd, row)">
+              <el-button size="small" type="primary" link>
+                更多 <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="enable" v-if="!row.enabled">启用</el-dropdown-item>
+                  <el-dropdown-item command="disable" v-if="row.enabled">禁用</el-dropdown-item>
+                  <el-dropdown-item command="resetPassword">重置密码</el-dropdown-item>
+                  <el-dropdown-item command="manageProjects">管理项目</el-dropdown-item>
+                  <el-dropdown-item command="resetMFA">重置MFA</el-dropdown-item>
+                  <el-dropdown-item command="delete" divided>
+                    <span style="color: #F56C6C">删除</span>
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </template>
         </el-table-column>
       </el-table>
@@ -83,13 +110,16 @@
     </el-card>
 
     <!-- 添加/编辑用户对话框 -->
-    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑用户' : '新建用户'" width="600px">
+    <el-dialog v-model="dialogVisible" :title="isEdit ? `修改用户属性（${form.name}）` : '新建用户'" width="600px">
       <el-form :model="form" :rules="rules" ref="formRef" label-width="100px">
-        <el-form-item label="用户名" prop="name">
+        <el-form-item label="用户名" prop="name" v-if="!isEdit">
           <el-input v-model="form.name" placeholder="请输入用户名" :disabled="isEdit" />
         </el-form-item>
         <el-form-item label="显示名" prop="display_name">
           <el-input v-model="form.display_name" placeholder="请输入显示名" />
+        </el-form-item>
+        <el-form-item label="备注" prop="remark">
+          <el-input v-model="form.remark" type="textarea" :rows="2" placeholder="请输入备注信息" />
         </el-form-item>
         <el-form-item label="邮箱" prop="email">
           <el-input v-model="form.email" placeholder="请输入邮箱" />
@@ -102,9 +132,82 @@
         </el-form-item>
         <el-form-item label="所属域" prop="domain_id" v-if="!isEdit">
           <el-select v-model="form.domain_id" placeholder="请选择所属域" style="width: 100%">
-            <el-option label="Default" :value="1" />
+            <el-option
+              v-for="domain in allDomains"
+              :key="domain.id"
+              :label="domain.name"
+              :value="domain.id"
+            />
           </el-select>
         </el-form-item>
+        <el-form-item label="控制台登录" prop="console_login">
+          <el-switch v-model="form.console_login" :active-value="true" :inactive-value="false" />
+        </el-form-item>
+        <el-form-item label="启用MFA" prop="mfa_enabled">
+          <el-switch v-model="form.mfa_enabled" :active-value="true" :inactive-value="false" />
+        </el-form-item>
+
+        <!-- 折叠面板：向该用户添加项目（可选） -->
+        <el-collapse v-model="activeCollapse" v-if="!isEdit">
+          <el-collapse-item title="向该用户添加项目（可选）" name="addProject">
+            <el-form-item label="选择域">
+              <el-select
+                v-model="addUserToProjectForm.domain_id"
+                placeholder="请选择域"
+                style="width: 100%"
+                @change="handleAddUserToProjectDomainChange"
+              >
+                <el-option
+                  v-for="item in allDomains"
+                  :key="item.id"
+                  :label="item.name"
+                  :value="item.id"
+                />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="选择项目">
+              <el-select
+                v-model="addUserToProjectForm.project_ids"
+                multiple
+                filterable
+                placeholder="请选择项目"
+                style="width: 100%"
+              >
+                <el-option
+                  v-for="item in allProjects"
+                  :key="item.id"
+                  :label="item.name"
+                  :value="item.id"
+                />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="选择角色">
+              <el-select
+                v-model="addUserToProjectForm.role_ids"
+                multiple
+                filterable
+                placeholder="请选择角色"
+                style="width: 100%"
+              >
+                <el-option
+                  v-for="item in allProjectRoles"
+                  :key="item.id"
+                  :label="item.display_name || item.name"
+                  :value="item.id"
+                />
+              </el-select>
+            </el-form-item>
+            <el-button size="small" type="primary" plain @click="handleCreateRole">+ 没有我想要的角色？立即创建</el-button>
+            <el-alert
+              title="提示"
+              description="项目和角色来源于所选域，权限通过角色配置"
+              type="info"
+              show-icon
+              :closable="false"
+              style="margin-top: 10px;"
+            />
+          </el-collapse-item>
+        </el-collapse>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
@@ -138,11 +241,17 @@
         <el-descriptions-item label="ID">{{ currentUser.id }}</el-descriptions-item>
         <el-descriptions-item label="用户名">{{ currentUser.name }}</el-descriptions-item>
         <el-descriptions-item label="显示名">{{ currentUser.display_name }}</el-descriptions-item>
+        <el-descriptions-item label="备注" :span="2">{{ currentUser.remark || '-' }}</el-descriptions-item>
         <el-descriptions-item label="邮箱">{{ currentUser.email || '-' }}</el-descriptions-item>
         <el-descriptions-item label="手机号">{{ currentUser.phone || '-' }}</el-descriptions-item>
         <el-descriptions-item label="状态">
           <el-tag :type="currentUser.enabled ? 'success' : 'info'" size="small">
             {{ currentUser.enabled ? '启用' : '禁用' }}
+          </el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="控制台登录">
+          <el-tag :type="currentUser.console_login ? 'success' : 'info'" size="small">
+            {{ currentUser.console_login ? '允许' : '禁止' }}
           </el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="MFA">
@@ -192,6 +301,21 @@
                 <el-button size="small" type="danger" @click="handleLeaveGroup(row)">离开</el-button>
               </template>
             </el-table-column>
+          </el-table>
+        </el-tab-pane>
+        <el-tab-pane label="已加入的项目" name="projects">
+          <el-table :data="userProjects" v-loading="projectsLoading">
+            <el-table-column prop="id" label="ID" width="80" />
+            <el-table-column prop="name" label="项目名" />
+            <el-table-column prop="description" label="描述" />
+          </el-table>
+        </el-tab-pane>
+        <el-tab-pane label="操作日志" name="logs">
+          <el-table :data="userLogs" v-loading="logsLoading">
+            <el-table-column prop="id" label="ID" width="80" />
+            <el-table-column prop="operation" label="操作" />
+            <el-table-column prop="timestamp" label="时间" />
+            <el-table-column prop="details" label="详情" />
           </el-table>
         </el-tab-pane>
       </el-tabs>
@@ -252,7 +376,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
-import { User, Role, Group, Domain } from '@/types/iam'
+import { User, Role, Group, Domain, Project } from '@/types/iam'
 import {
   getUsers,
   createUser,
@@ -269,7 +393,10 @@ import {
   leaveGroup,
   getRoles,
   getGroups,
-  getDomains
+  getDomains,
+  getProjects,
+  assignUserToProject,
+  getUserProjects
 } from '@/api/iam'
 
 const users = ref<User[]>([])
@@ -279,7 +406,7 @@ const resetPwdDialogVisible = ref(false)
 const detailDialogVisible = ref(false)
 const assignRoleDialogVisible = ref(false)
 const joinGroupDialogVisible = ref(false)
-const detailTab = ref('roles')
+const detailTab = ref('roles') // 'roles', 'groups', 'projects', 'logs'
 const isEdit = ref(false)
 const submitting = ref(false)
 const resetPwdSubmitting = ref(false)
@@ -289,11 +416,17 @@ const currentUserId = ref(0)
 const currentUser = ref<User | null>(null)
 const userRoles = ref<Role[]>([])
 const userGroups = ref<Group[]>([])
+const userProjects = ref<Project[]>([])
+const userLogs = ref<any[]>([]) // Operation logs
 const allRoles = ref<Role[]>([])
 const allGroups = ref<Group[]>([])
 const allDomains = ref<Domain[]>([])
+const allProjects = ref<Project[]>([])
+const allProjectRoles = ref<Role[]>([])
 const rolesLoading = ref(false)
 const groupsLoading = ref(false)
+const projectsLoading = ref(false)
+const logsLoading = ref(false)
 const formRef = ref<FormInstance>()
 
 const filterForm = reactive({
@@ -311,10 +444,13 @@ const pagination = reactive({
 const form = reactive({
   name: '',
   display_name: '',
+  remark: '',
   email: '',
   phone: '',
   password: '',
-  domain_id: 1
+  domain_id: 1,
+  console_login: true,
+  mfa_enabled: false
 })
 
 const resetPwdForm = reactive({
@@ -328,6 +464,14 @@ const assignRoleForm = reactive({
 
 const joinGroupForm = reactive({
   group_id: 0
+})
+
+const activeCollapse = ref<string[]>([])
+
+const addUserToProjectForm = reactive({
+  domain_id: 1,
+  project_ids: [] as number[],
+  role_ids: [] as number[]
 })
 
 const rules: FormRules = {
@@ -387,6 +531,37 @@ const loadUserGroups = async (userId: number) => {
   }
 }
 
+const loadUserProjects = async (userId: number) => {
+  projectsLoading.value = true
+  try {
+    const res = await getUserProjects(userId)
+    userProjects.value = res.items || []
+  } catch (e: any) {
+    console.error(e)
+  } finally {
+    projectsLoading.value = false
+  }
+}
+
+const loadUserLogs = async (userId: number) => {
+  logsLoading.value = true
+  try {
+    // For now, we'll use mock data since we don't have an API for user logs yet
+    // In a real implementation, we would call a proper API endpoint
+    userLogs.value = [
+      { id: 1, operation: '登录', timestamp: '2024-01-01 10:00:00', details: '成功登录系统' },
+      { id: 2, operation: '密码修改', timestamp: '2024-01-01 11:00:00', details: '用户修改了自己的密码' },
+      { id: 3, operation: '角色分配', timestamp: '2024-01-01 12:00:00', details: '管理员为用户分配了新角色' }
+    ]
+  } catch (e: any) {
+    console.error(e)
+    // Use mock data in case of error
+    userLogs.value = []
+  } finally {
+    logsLoading.value = false
+  }
+}
+
 const loadAllRoles = async () => {
   try {
     const res = await getRoles({ limit: 100 })
@@ -422,15 +597,42 @@ const resetFilter = () => {
   loadUsers()
 }
 
+const loadAllProjectsAndRoles = async (domainId: number) => {
+  try {
+    const [projectsRes, rolesRes] = await Promise.all([
+      getProjects({ domain_id: domainId, limit: 100 }),
+      getRoles({ domain_id: domainId, limit: 100 })
+    ])
+    allProjects.value = projectsRes.items || []
+    allProjectRoles.value = rolesRes.items || []
+  } catch (e: any) {
+    console.error(e)
+    ElMessage.error(e.message || '加载项目/角色列表失败')
+  }
+}
+
+const handleAddUserToProjectDomainChange = (domainId: number) => {
+  addUserToProjectForm.project_ids = []
+  addUserToProjectForm.role_ids = []
+  loadAllProjectsAndRoles(domainId)
+}
+
 const handleCreate = async () => {
   isEdit.value = false
   form.name = ''
   form.display_name = ''
+  form.remark = ''
   form.email = ''
   form.phone = ''
   form.password = ''
   form.domain_id = 1
+  form.console_login = true
+  form.mfa_enabled = false
   await loadAllDomains()
+  await loadAllProjectsAndRoles(1) // Load projects and roles for default domain
+  addUserToProjectForm.domain_id = 1
+  addUserToProjectForm.project_ids = []
+  addUserToProjectForm.role_ids = []
   dialogVisible.value = true
 }
 
@@ -439,18 +641,24 @@ const handleEdit = (row: User) => {
   currentUserId.value = row.id
   form.name = row.name
   form.display_name = row.display_name
+  form.remark = row.remark || ''
   form.email = row.email
   form.phone = row.phone || ''
-  form.password = ''
   form.domain_id = row.domain_id
+  form.console_login = row.console_login
+  form.mfa_enabled = row.mfa_enabled
   dialogVisible.value = true
 }
 
 const handleView = async (row: User) => {
   currentUser.value = row
   detailTab.value = 'roles'
-  await loadUserRoles(row.id)
-  await loadUserGroups(row.id)
+  await Promise.all([
+    loadUserRoles(row.id),
+    loadUserGroups(row.id),
+    loadUserProjects(row.id),
+    loadUserLogs(row.id)
+  ])
   detailDialogVisible.value = true
 }
 
@@ -502,11 +710,36 @@ const handleSubmit = async () => {
     submitting.value = true
     try {
       if (isEdit.value) {
-        await updateUser(currentUserId.value, form)
+        // For edit, only update the fields that are in the update payload
+        const updateData = {
+          display_name: form.display_name,
+          remark: form.remark,
+          email: form.email,
+          phone: form.phone,
+          console_login: form.console_login,
+          mfa_enabled: form.mfa_enabled
+        };
+        await updateUser(currentUserId.value, updateData)
         ElMessage.success('更新成功')
       } else {
-        await createUser(form)
-        ElMessage.success('创建成功')
+        // For create, use the full form data
+        const newUser = await createUser(form)
+
+        // 如果展开折叠面板且选择了项目和角色，则将用户添加到项目
+        if (activeCollapse.value.includes('addProject') &&
+            addUserToProjectForm.project_ids.length > 0 &&
+            addUserToProjectForm.role_ids.length > 0) {
+
+          // 为每个项目分配每个角色（可能需要调整策略）
+          for (const projectId of addUserToProjectForm.project_ids) {
+            for (const roleId of addUserToProjectForm.role_ids) {
+              await assignUserToProject(newUser.id, projectId, roleId)
+            }
+          }
+          ElMessage.success('创建成功并添加到项目')
+        } else {
+          ElMessage.success('创建成功')
+        }
       }
       dialogVisible.value = false
       loadUsers()
@@ -613,9 +846,54 @@ const handleLeaveGroup = async (row: Group) => {
   }
 }
 
+const handleCreateRole = () => {
+  // This would navigate to the role creation page
+  // For now, we'll just show a notification
+  ElMessage.info('角色创建功能将在后续实现')
+}
+
 const formatDate = (date: string) => {
   if (!date) return '-'
   return new Date(date).toLocaleString('zh-CN')
+}
+
+const getDomainName = (domainId: number) => {
+  const domain = allDomains.value.find(d => d.id === domainId);
+  return domain ? domain.name : `域#${domainId}`;
+}
+
+const handleCommand = (command: string, row: User) => {
+  switch (command) {
+    case 'enable': handleToggleEnable({...row, enabled: false}); break
+    case 'disable': handleToggleEnable({...row, enabled: true}); break
+    case 'resetPassword': handleResetPassword(row); break
+    case 'manageProjects': handleManageProjects(row); break
+    case 'resetMFA': handleResetMFA(row); break
+    case 'delete': handleDelete(row); break
+  }
+}
+
+const handleManageProjects = async (row: User) => {
+  // This will open the project management dialog
+  currentUser.value = row
+  // Load user's current projects and show in a dialog
+  try {
+    const res = await getUserProjects(row.id)
+    ElMessage.info('功能将在后续实现')
+  } catch (e: any) {
+    ElMessage.error(e.message || '加载项目失败')
+  }
+}
+
+const handleResetMFA = async (row: User) => {
+  try {
+    await ElMessageBox.confirm('确定要重置用户的MFA吗？', '提示', { type: 'warning' })
+    ElMessage.info('重置MFA功能将在后续实现')
+  } catch (e: any) {
+    if (e !== 'cancel') {
+      ElMessage.error(e.message || '重置MFA失败')
+    }
+  }
 }
 
 onMounted(() => {
@@ -659,5 +937,14 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
+}
+
+.name-link {
+  color: #409eff;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+  border: none;
+  background: none;
 }
 </style>

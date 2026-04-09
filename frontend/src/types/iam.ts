@@ -1,5 +1,7 @@
 // IAM 相关类型定义
 
+export * from './permission'
+
 export interface Domain {
   id: number
   name: string
@@ -14,6 +16,7 @@ export interface Project {
   name: string
   description: string
   domain_id: number
+  manager_id?: number
   enabled: boolean
   created_at: string
   updated_at: string
@@ -23,9 +26,11 @@ export interface User {
   id: number
   name: string
   display_name: string
+  remark: string
   email: string
   phone: string
   enabled: boolean
+  console_login: boolean
   mfa_enabled: boolean
   domain_id: number
   created_at: string
@@ -54,39 +59,6 @@ export interface Role {
   updated_at: string
 }
 
-export interface Permission {
-  id: number
-  name: string
-  display_name: string
-  resource: string
-  action: string
-  type: 'system' | 'custom'
-  description: string
-  domain_id: number
-  created_at: string
-  updated_at: string
-}
-
-export interface Policy {
-  id: string
-  name: string
-  description: string
-  scope: 'system' | 'domain' | 'project'
-  type: 'system' | 'custom'
-  enabled: boolean
-  is_system: boolean
-  is_public: boolean
-  domain_id: string
-  policy: Record<string, any>
-  created_at: string
-  updated_at: string
-  can_update: boolean
-  can_delete: boolean
-  delete_fail_reason?: {
-    details: string
-  }
-}
-
 export interface AuthSource {
   id: number
   name: string
@@ -103,11 +75,4 @@ export interface AuthSource {
   protocol: string
   sync_status: string
   is_default: boolean
-}
-
-export interface PolicyStatement {
-  effect: 'allow' | 'deny'
-  resource: string
-  action: string[]
-  service: string
 }

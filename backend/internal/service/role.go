@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"strings"
 
 	"gorm.io/gorm"
 
@@ -133,159 +132,15 @@ func (s *RoleService) GetGroupRoles(ctx context.Context, groupID, domainID uint)
 	return roles, err
 }
 
-// ListPermissions 列出权限（支持筛选、搜索）
-func (s *RoleService) ListPermissions(ctx context.Context, resource, action, permissionType, keyword string, limit, offset int) ([]*model.Permission, int64, error) {
-	var permissions []*model.Permission
-	var total int64
 
-	query := s.db.WithContext(ctx).Model(&model.Permission{})
 
-	// 按资源类型筛选
-	if resource != "" {
-		query = query.Where("resource = ?", resource)
-	}
 
-	// 按操作类型筛选
-	if action != "" {
-		query = query.Where("action = ?", action)
-	}
 
-	// 按权限类型筛选（system/custom）
-	if permissionType != "" {
-		query = query.Where("type = ?", permissionType)
-	}
 
-	// 关键词搜索（权限标识、显示名称、描述）
-	if keyword != "" {
-		keyword = "%" + strings.ToLower(keyword) + "%"
-		query = query.Where("LOWER(name) LIKE ? OR LOWER(display_name) LIKE ? OR LOWER(description) LIKE ?", keyword, keyword, keyword)
-	}
 
-	if err := query.Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
 
-	err := query.
-		Limit(limit).
-		Offset(offset).
-		Order("resource, action").
-		Find(&permissions).Error
 
-	return permissions, total, err
-}
 
-// GetPermission 获取权限详情
-func (s *RoleService) GetPermission(ctx context.Context, id uint) (*model.Permission, error) {
-	var permission model.Permission
-	err := s.db.WithContext(ctx).First(&permission, id).Error
-	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, nil
-		}
-		return nil, err
-	}
-	return &permission, nil
-}
-
-// CreatePermission 创建权限
-func (s *RoleService) CreatePermission(ctx context.Context, permission *model.Permission) error {
-	// 设置默认类型
-	if permission.Type == "" {
-		permission.Type = "custom"
-	}
-	return s.db.WithContext(ctx).Create(permission).Error
-}
-
-// UpdatePermission 更新权限
-func (s *RoleService) UpdatePermission(ctx context.Context, permission *model.Permission) error {
-	// 系统权限不可更新
-	if permission.Type == "system" {
-		return gorm.ErrInvalidData
-	}
-	return s.db.WithContext(ctx).Save(permission).Error
-}
-
-// DeletePermission 删除权限
-func (s *RoleService) DeletePermission(ctx context.Context, id uint) error {
-	// 检查是否是系统权限
-	var permission model.Permission
-	if err := s.db.WithContext(ctx).First(&permission, id).Error; err != nil {
-		return err
-	}
-
-	if permission.Type == "system" {
-		return gorm.ErrInvalidData
-	}
-
-	// 检查是否有关联的角色
-	var count int64
-	if err := s.db.Model(&model.RolePermission{}).Where("permission_id = ?", id).Count(&count).Error; err != nil {
-		return err
-	}
-
-	if count > 0 {
-		return gorm.ErrForeignKeyViolated
-	}
-
-	return s.db.WithContext(ctx).Delete(&model.Permission{}, id).Error
-}
-
-// AssignPermissionToRole 分配权限给角色
-func (s *RoleService) AssignPermissionToRole(ctx context.Context, roleID, permissionID uint) error {
-	// 检查是否已关联
-	var count int64
-	if err := s.db.Model(&model.RolePermission{}).Where("role_id = ? AND permission_id = ?", roleID, permissionID).Count(&count).Error; err != nil {
-		return err
-	}
-
-	if count > 0 {
-		return gorm.ErrDuplicatedKey
-	}
-
-	rp := &model.RolePermission{
-		RoleID:       roleID,
-		PermissionID: permissionID,
-	}
-	return s.db.WithContext(ctx).Create(rp).Error
-}
-
-// RevokePermissionFromRole 撤销角色权限
-func (s *RoleService) RevokePermissionFromRole(ctx context.Context, roleID, permissionID uint) error {
-	return s.db.WithContext(ctx).Where("role_id = ? AND permission_id = ?", roleID, permissionID).Delete(&model.RolePermission{}).Error
-}
-
-// GetRolePermissions 获取角色权限
-func (s *RoleService) GetRolePermissions(ctx context.Context, roleID uint) ([]*model.Permission, error) {
-	var permissions []*model.Permission
-	err := s.db.WithContext(ctx).
-		Table("permissions").
-		Joins("JOIN role_permissions ON role_permissions.permission_id = permissions.id").
-		Where("role_permissions.role_id = ?", roleID).
-		Find(&permissions).Error
-	return permissions, err
-}
-
-// GetPermissionResources 获取所有资源类型（用于筛选）
-func (s *RoleService) GetPermissionResources(ctx context.Context) ([]string, error) {
-	var resources []string
-	err := s.db.WithContext(ctx).
-		Model(&model.Permission{}).
-		Distinct("resource").
-		Order("resource").
-		Pluck("resource", &resources).Error
-	return resources, err
-}
-
-// GetPermissionActions 获取所有操作类型（用于筛选）
-func (s *RoleService) GetPermissionActions(ctx context.Context) ([]string, error) {
-	var actions []string
-	err := s.db.WithContext(ctx).
-		Model(&model.Permission{}).
-		Distinct("action").
-		Order("action").
-		Pluck("action", &actions).Error
-	return actions, err
-}
 
 // EnableRole 启用角色
 func (s *RoleService) EnableRole(ctx context.Context, id uint) error {
@@ -385,53 +240,131 @@ func (s *RoleService) RevokePolicyFromRole(ctx context.Context, roleID uint, pol
 	return s.db.WithContext(ctx).Where("role_id = ? AND policy_id = ?", roleID, policyID).Delete(&model.RolePolicy{}).Error
 }
 
+// GetUserPermissions 获取用户权限（包括通过角色获得的权限）
+func (s *RoleService) GetUserPermissions(ctx context.Context, userID uint) ([]*model.Permission, error) {
+	var permissions []*model.Permission
+
+	// 获取用户直接拥有的角色权限
+	err := s.db.WithContext(ctx).
+		Table("permissions").
+		Joins("JOIN role_permissions ON role_permissions.permission_id = permissions.id").
+		Joins("JOIN user_roles ON user_roles.role_id = role_permissions.role_id").
+		Where("user_roles.user_id = ?", userID).
+		Group("permissions.id").
+		Find(&permissions).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return permissions, nil
+}
+
+// GetUserPermissionsInDomain 获取用户在特定域中的权限
+func (s *RoleService) GetUserPermissionsInDomain(ctx context.Context, userID, domainID uint) ([]*model.Permission, error) {
+	var permissions []*model.Permission
+
+	err := s.db.WithContext(ctx).
+		Table("permissions").
+		Joins("JOIN role_permissions ON role_permissions.permission_id = permissions.id").
+		Joins("JOIN user_roles ON user_roles.role_id = role_permissions.role_id").
+		Where("user_roles.user_id = ? AND user_roles.domain_id = ?", userID, domainID).
+		Group("permissions.id").
+		Find(&permissions).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return permissions, nil
+}
+
+// GetUserPermissionsInProject 获取用户在特定项目中的权限
+func (s *RoleService) GetUserPermissionsInProject(ctx context.Context, userID, projectID uint) ([]*model.Permission, error) {
+	var permissions []*model.Permission
+
+	err := s.db.WithContext(ctx).
+		Table("permissions").
+		Joins("JOIN role_permissions ON role_permissions.permission_id = permissions.id").
+		Joins("JOIN project_user_roles ON project_user_roles.role_id = role_permissions.role_id").
+		Where("project_user_roles.user_id = ? AND project_user_roles.project_id = ?", userID, projectID).
+		Group("permissions.id").
+		Find(&permissions).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return permissions, nil
+}
+
+// GetUserPermissionsViaGroups 获取用户通过组获得的权限
+func (s *RoleService) GetUserPermissionsViaGroups(ctx context.Context, userID uint) ([]*model.Permission, error) {
+	var permissions []*model.Permission
+
+	err := s.db.WithContext(ctx).
+		Table("permissions").
+		Joins("JOIN role_permissions ON role_permissions.permission_id = permissions.id").
+		Joins("JOIN group_roles ON group_roles.role_id = role_permissions.role_id").
+		Joins("JOIN user_groups ON user_groups.group_id = group_roles.group_id").
+		Where("user_groups.user_id = ?", userID).
+		Group("permissions.id").
+		Find(&permissions).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return permissions, nil
+}
+
 // CheckUserPermission 检查用户是否有指定权限
 func (s *RoleService) CheckUserPermission(ctx context.Context, userID uint, resource, action string) (bool, error) {
 	// 检查用户直接拥有的角色权限
 	var hasPermission bool
-	
+
 	// 查询用户在域级别拥有的角色及其权限
 	err := s.db.WithContext(ctx).
 		Raw(`
-			SELECT COUNT(*) > 0 
+			SELECT COUNT(*) > 0
 			FROM permissions p
 			JOIN role_permissions rp ON p.id = rp.permission_id
 			JOIN user_roles ur ON rp.role_id = ur.role_id
 			WHERE ur.user_id = ? AND p.resource = ? AND p.action = ?
 		`, userID, resource, action).
 		Scan(&hasPermission).Error
-	
+
 	if err != nil {
 		return false, err
 	}
-	
+
 	if hasPermission {
 		return true, nil
 	}
-	
+
 	// 查询用户在项目级别拥有的角色及其权限
 	err = s.db.WithContext(ctx).
 		Raw(`
-			SELECT COUNT(*) > 0 
+			SELECT COUNT(*) > 0
 			FROM permissions p
 			JOIN role_permissions rp ON p.id = rp.permission_id
 			JOIN project_user_roles pur ON rp.role_id = pur.role_id
 			WHERE pur.user_id = ? AND p.resource = ? AND p.action = ?
 		`, userID, resource, action).
 		Scan(&hasPermission).Error
-	
+
 	if err != nil {
 		return false, err
 	}
-	
+
 	if hasPermission {
 		return true, nil
 	}
-	
+
 	// 检查用户所属组拥有的角色权限
 	err = s.db.WithContext(ctx).
 		Raw(`
-			SELECT COUNT(*) > 0 
+			SELECT COUNT(*) > 0
 			FROM permissions p
 			JOIN role_permissions rp ON p.id = rp.permission_id
 			JOIN group_roles gr ON rp.role_id = gr.role_id
@@ -439,10 +372,45 @@ func (s *RoleService) CheckUserPermission(ctx context.Context, userID uint, reso
 			WHERE ug.user_id = ? AND p.resource = ? AND p.action = ?
 		`, userID, resource, action).
 		Scan(&hasPermission).Error
-	
+
 	if err != nil {
 		return false, err
 	}
-	
+
 	return hasPermission, nil
+}
+
+// GetRolePermissions 获取角色的权限列表
+func (s *RoleService) GetRolePermissions(ctx context.Context, roleID uint) ([]*model.Permission, error) {
+	var permissions []*model.Permission
+	err := s.db.WithContext(ctx).
+		Table("permissions").
+		Joins("JOIN role_permissions ON role_permissions.permission_id = permissions.id").
+		Where("role_permissions.role_id = ?", roleID).
+		Find(&permissions).Error
+	return permissions, err
+}
+
+// AssignPermissionToRole 分配权限给角色
+func (s *RoleService) AssignPermissionToRole(ctx context.Context, roleID, permissionID uint) error {
+	// 检查是否已关联
+	var count int64
+	if err := s.db.Model(&model.RolePermission{}).Where("role_id = ? AND permission_id = ?", roleID, permissionID).Count(&count).Error; err != nil {
+		return err
+	}
+
+	if count > 0 {
+		return gorm.ErrDuplicatedKey
+	}
+
+	rp := &model.RolePermission{
+		RoleID:       roleID,
+		PermissionID: permissionID,
+	}
+	return s.db.WithContext(ctx).Create(rp).Error
+}
+
+// RevokePermissionFromRole 从角色撤销权限
+func (s *RoleService) RevokePermissionFromRole(ctx context.Context, roleID, permissionID uint) error {
+	return s.db.WithContext(ctx).Where("role_id = ? AND permission_id = ?", roleID, permissionID).Delete(&model.RolePermission{}).Error
 }

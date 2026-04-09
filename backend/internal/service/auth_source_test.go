@@ -226,3 +226,161 @@ func TestAuthSourceService_DisableAuthSource(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
+func TestAuthSourceService_GetAuthSourcesByScope_System(t *testing.T) {
+	db, mock := setupAuthSourceTestDB(t)
+	svc := NewAuthSourceService(db)
+
+	rows := sqlmock.NewRows([]string{"id", "name", "type", "scope", "enabled"}).
+		AddRow(1, "system-ldap", "ldap", "system", true)
+
+	mock.ExpectQuery("SELECT \\* FROM `auth_sources`").
+		WillReturnRows(rows)
+
+	sources, err := svc.GetAuthSourcesByScope(context.Background(), "system", nil)
+
+	assert.NoError(t, err)
+	assert.Len(t, sources, 1)
+	assert.Equal(t, "system", sources[0].Scope)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestAuthSourceService_GetAuthSourcesByScope_Domain(t *testing.T) {
+	db, mock := setupAuthSourceTestDB(t)
+	svc := NewAuthSourceService(db)
+
+	domainID := uint(42)
+	rows := sqlmock.NewRows([]string{"id", "name", "type", "scope", "domain_id", "enabled"}).
+		AddRow(2, "domain-ldap", "ldap", "domain", domainID, true)
+
+	mock.ExpectQuery("SELECT \\* FROM `auth_sources`").
+		WillReturnRows(rows)
+
+	sources, err := svc.GetAuthSourcesByScope(context.Background(), "domain", &domainID)
+
+	assert.NoError(t, err)
+	assert.Len(t, sources, 1)
+	assert.Equal(t, "domain", sources[0].Scope)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestAuthSourceService_AuthenticateUser_LocalSuccess(t *testing.T) {
+	db, mock := setupAuthSourceTestDB(t)
+	svc := NewAuthSourceService(db)
+
+	// bcrypt hash for "password123"
+	hash, _ := bcrypt.GenerateFromPassword([]byte("password123"), 4)
+
+	rows := sqlmock.NewRows([]string{"id", "name", "password", "enabled", "domain_id"}).
+		AddRow(1, "testuser", string(hash), true, 0)
+
+	mock.ExpectQuery("SELECT \\* FROM `users`").
+		WithArgs("testuser", 1).
+		WillReturnRows(rows)
+
+	user, authSource, err := svc.AuthenticateUser(context.Background(), "testuser", "password123", nil)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, user)
+	assert.Nil(t, authSource) // local auth, no auth source
+	assert.Equal(t, "testuser", user.Name)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestAuthSourceService_AuthenticateUser_WrongPassword(t *testing.T) {
+	db, mock := setupAuthSourceTestDB(t)
+	svc := NewAuthSourceService(db)
+
+	hash, _ := bcrypt.GenerateFromPassword([]byte("correctpassword"), 4)
+
+	userRows := sqlmock.NewRows([]string{"id", "name", "password", "enabled", "domain_id"}).
+		AddRow(1, "testuser", string(hash), true, 0)
+	mock.ExpectQuery("SELECT \\* FROM `users`").
+		WithArgs("testuser", 1).
+		WillReturnRows(userRows)
+
+	// After local failure, query LDAP sources
+	mock.ExpectQuery("SELECT \\* FROM `auth_sources`").
+		WillReturnRows(sqlmock.NewRows([]string{"id"})) // empty: no LDAP sources
+
+	_, _, err := svc.AuthenticateUser(context.Background(), "testuser", "wrongpassword", nil)
+
+	assert.Error(t, err)
+	assert.Equal(t, "invalid username or password", err.Error())
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestAuthSourceService_AuthenticateUser_DisabledUser(t *testing.T) {
+	db, mock := setupAuthSourceTestDB(t)
+	svc := NewAuthSourceService(db)
+
+	hash, _ := bcrypt.GenerateFromPassword([]byte("password123"), 4)
+
+	rows := sqlmock.NewRows([]string{"id", "name", "password", "enabled", "domain_id"}).
+		AddRow(1, "disableduser", string(hash), false, 0)
+	mock.ExpectQuery("SELECT \\* FROM `users`").
+		WithArgs("disableduser", 1).
+		WillReturnRows(rows)
+
+	_, _, err := svc.AuthenticateUser(context.Background(), "disableduser", "password123", nil)
+
+	assert.Error(t, err)
+	assert.Equal(t, "user is disabled", err.Error())
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestAuthSourceService_AuthenticateUser_UserNotFound(t *testing.T) {
+	db, mock := setupAuthSourceTestDB(t)
+	svc := NewAuthSourceService(db)
+
+	// User not found
+	mock.ExpectQuery("SELECT \\* FROM `users`").
+		WithArgs("nobody", 1).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}))
+
+	// Query LDAP sources - none available
+	mock.ExpectQuery("SELECT \\* FROM `auth_sources`").
+		WillReturnRows(sqlmock.NewRows([]string{"id"}))
+
+	_, _, err := svc.AuthenticateUser(context.Background(), "nobody", "pass", nil)
+
+	assert.Error(t, err)
+	assert.Equal(t, "invalid username or password", err.Error())
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestAuthSourceService_TestAuthSource_Local(t *testing.T) {
+	db, _ := setupAuthSourceTestDB(t)
+	svc := NewAuthSourceService(db)
+
+	// local type always returns true
+	source := &model.AuthSource{Type: "local"}
+	valid, err := svc.TestAuthSource(context.Background(), source)
+	assert.NoError(t, err)
+	assert.True(t, valid)
+}
+
+func TestAuthSourceService_TestAuthSource_LDAPNoConfig(t *testing.T) {
+	db, _ := setupAuthSourceTestDB(t)
+	svc := NewAuthSourceService(db)
+
+	source := &model.AuthSource{Type: "ldap", Config: nil}
+	valid, err := svc.TestAuthSource(context.Background(), source)
+	assert.Error(t, err)
+	assert.False(t, valid)
+	assert.Contains(t, err.Error(), "ldap config is empty")
+}
+
+func TestAuthSourceService_SyncUsers_UnsupportedType(t *testing.T) {
+	db, mock := setupAuthSourceTestDB(t)
+	svc := NewAuthSourceService(db)
+
+	rows := sqlmock.NewRows([]string{"id", "name", "type", "enabled"}).
+		AddRow(1, "oidc-src", "oidc", true)
+	mock.ExpectQuery("SELECT \\* FROM `auth_sources`").
+		WithArgs(1, 1).
+		WillReturnRows(rows)
+
+	_, err := svc.SyncUsers(context.Background(), 1)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "sync not supported")
+}

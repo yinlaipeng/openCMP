@@ -94,6 +94,7 @@ type Project struct {
 	Description string         `gorm:"size:500" json:"description"`
 	DomainID    uint           `gorm:"index;not null" json:"domain_id"`
 	ParentID    *uint          `gorm:"index" json:"parent_id"` // 支持项目层级
+	ManagerID   *uint          `gorm:"index" json:"manager_id"` // 项目管理员ID
 	Enabled     bool           `gorm:"default:true" json:"enabled"`
 	CreatedAt   time.Time      `json:"created_at"`
 	UpdatedAt   time.Time      `json:"updated_at"`
@@ -111,11 +112,13 @@ type User struct {
 	ID             uint           `gorm:"primaryKey" json:"id"`
 	Name           string         `gorm:"uniqueIndex;not null;size:100" json:"name"`
 	DisplayName    string         `gorm:"size:100" json:"display_name"`
+	Remark         string         `gorm:"size:255" json:"remark"` // 用户备注
 	Email          string         `gorm:"size:255;index" json:"email"`
 	Phone          string         `gorm:"size:20" json:"phone"`
 	Password       string         `gorm:"size:255;not null" json:"-"` // 加密存储
 	DomainID       uint           `gorm:"index;not null" json:"domain_id"`
 	Enabled        bool           `gorm:"default:true" json:"enabled"`
+	ConsoleLogin   bool           `gorm:"default:true" json:"console_login"` // 是否允许控制台登录
 	MFAEnabled     bool           `gorm:"default:false" json:"mfa_enabled"`
 	MFASecret      string         `gorm:"size:255" json:"-"` // MFA 密钥
 	LastLoginAt    *time.Time     `json:"last_login_at"`
@@ -181,17 +184,21 @@ func (Role) TableName() string {
 	return "roles"
 }
 
-// ============= 权限管理 =============
-
 // Permission 权限
 type Permission struct {
 	ID          uint           `gorm:"primaryKey" json:"id"`
-	Name        string         `gorm:"uniqueIndex;not null;size:100" json:"name"`
-	DisplayName string         `gorm:"size:100" json:"display_name"`
-	Description string         `gorm:"size:500" json:"description"`
-	Resource    string         `gorm:"type:varchar(50);index" json:"resource"` // 资源类型
-	Action      string         `gorm:"type:varchar(50);index" json:"action"`   // 操作类型
-	Type        string         `gorm:"type:varchar(20);default:custom" json:"type"` // system/custom
+	Name        string         `gorm:"uniqueIndex;not null;size:100" json:"name"`           // 权限名称，如 "user.create"
+	DisplayName string         `gorm:"size:100" json:"display_name"`                       // 显示名称
+	Description string         `gorm:"size:500" json:"description"`                        // 权限描述
+	Type        string         `gorm:"type:varchar(20);default:custom" json:"type"`        // 类型：system/custom
+	Resource    string         `gorm:"size:100;not null;index" json:"resource"`            // 资源类型，如 "user", "vm", "project"
+	Action      string         `gorm:"size:100;not null;index" json:"action"`              // 操作类型，如 "list", "create", "update", "delete"
+	Scope       string         `gorm:"type:varchar(20);not null;index" json:"scope"`       // system/domain/project
+	DomainID    *uint          `gorm:"index" json:"domain_id"`                             // 域 ID（仅当 scope=domain 时）
+	ProjectID   *uint          `gorm:"index" json:"project_id"`                            // 项目 ID（仅当 scope=project 时）
+	Enabled     bool           `gorm:"default:true" json:"enabled"`                        // 是否启用
+	IsPublic    bool           `gorm:"default:false" json:"is_public"`                     // 是否公开
+	Conditions  datatypes.JSON `gorm:"type:json" json:"conditions"`                        // 条件限制
 	CreatedAt   time.Time      `json:"created_at"`
 	UpdatedAt   time.Time      `json:"updated_at"`
 	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
@@ -252,6 +259,18 @@ type GroupRole struct {
 
 func (GroupRole) TableName() string {
 	return "group_roles"
+}
+
+// GroupProject 组项目关联
+type GroupProject struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	GroupID   uint      `gorm:"index;uniqueIndex:group_project" json:"group_id"`
+	ProjectID uint      `gorm:"index;uniqueIndex:group_project" json:"project_id"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+func (GroupProject) TableName() string {
+	return "group_projects"
 }
 
 // ============= 认证源管理 =============
@@ -340,7 +359,7 @@ func (Message) TableName() string {
 type NotificationChannel struct {
 	ID          uint           `gorm:"primaryKey" json:"id"`
 	Name        string         `gorm:"uniqueIndex;not null;size:100" json:"name"`
-	Type        string         `gorm:"type:varchar(20);not null" json:"type"` // email/sms/webhook/dingtalk/wechat
+	Type        string         `gorm:"type:varchar(20);not null" json:"type"` // email/sms/webhook/dingtalk/wechat/feishu/lark
 	Description string         `gorm:"size:500" json:"description"`
 	Config      datatypes.JSON `gorm:"type:json" json:"config"` // 渠道配置（加密）
 	Enabled     bool           `gorm:"default:true" json:"enabled"`
@@ -402,12 +421,26 @@ type Receiver struct {
 	Email     string         `gorm:"size:255" json:"email"`
 	Phone     string         `gorm:"size:20" json:"phone"`
 	UserID    *uint          `gorm:"uniqueIndex" json:"user_id"` // 关联用户（可选）
+	DomainID  uint           `gorm:"index" json:"domain_id"`    // 所属域
 	Enabled   bool           `gorm:"default:true" json:"enabled"`
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+
+	// Associations
+	Domain           Domain                 `gorm:"foreignKey:DomainID" json:"domain"`
+	NotificationChannels []*NotificationChannel `gorm:"many2many:receiver_channels;" json:"notification_channels"`
 }
 
-func (Receiver) TableName() string {
-	return "receivers"
+// ReceiverChannel 接收人通知渠道关联
+type ReceiverChannel struct {
+	ID                  uint `gorm:"primaryKey" json:"id"`
+	ReceiverID          uint `gorm:"index;uniqueIndex:idx_receiver_channel" json:"receiver_id"`
+	NotificationChannelID uint `gorm:"index;uniqueIndex:idx_receiver_channel" json:"notification_channel_id"`
+	Enabled             bool `gorm:"default:true" json:"enabled"`
+	CreatedAt           time.Time `json:"created_at"`
+}
+
+func (ReceiverChannel) TableName() string {
+	return "receiver_channels"
 }
