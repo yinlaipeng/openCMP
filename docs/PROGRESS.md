@@ -50,6 +50,7 @@
 
 ## 最近更新
 
+- 2026-04-12: 前端云资源创建弹窗全部完成（CreateVMModal 5步向导、CreateVPCModal、CreateSubnetModal、CloudAccountSelector、CIDR 校验工具）
 - 2026-04-12: AWS 适配器实现完成（Compute: VM 镜像管理 + Network: VPC/Subnet/SecurityGroup/EIP）
 - 2026-04-12: 腾讯云适配器实现完成（Compute: VM 镜像管理 + Network: VPC/Subnet/SecurityGroup/EIP）
 - 2026-04-12: 同步策略前端页面补全完成 2026-04-05: 消息中心测试用例全部完成（message/notification_channel/robot/receiver/subscription 服务层和 handler 层测试覆盖）

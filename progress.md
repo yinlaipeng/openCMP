@@ -42,22 +42,56 @@
   - frontend/src/api/iam.ts
 
 ### Phase 3: 云厂商适配器完善
-- **Status:** in_progress
+- **Status:** complete
 - Actions taken:
   - 安装腾讯云 SDK (tencentcloud-sdk-go)
   - 实现腾讯云适配器 provider.go (SDK 初始化)
   - 实现腾讯云适配器 vm.go (Compute: CreateVM/DeleteVM/StartVM/StopVM/RebootVM/ListVMs/GetVM/ListImages/GetImage)
   - 实现腾讯云适配器 vpc.go (Network: VPC/Subnet/SecurityGroup/EIP)
   - 编译验证成功
+  - 实现AWS适配器 provider.go (SDK 初始化，所有接口 stub 方法)
+  - 实现AWS适配器 vm.go (Compute: CreateVM/DeleteVM/StartVM/StopVM/RebootVM/GetVMStatus/ListVMs/GetVM/ListImages/GetImage)
+  - 实现AWS适配器 vpc.go (Network: VPC/Subnet/SecurityGroup/EIP)
+  - 编译验证成功
 - Files created/modified:
   - backend/pkg/cloudprovider/adapters/tencent/provider.go
   - backend/pkg/cloudprovider/adapters/tencent/vm.go (created)
   - backend/pkg/cloudprovider/adapters/tencent/vpc.go (created)
   - backend/go.mod, go.sum (SDK 依赖)
+  - backend/pkg/cloudprovider/adapters/aws/provider.go (rewritten)
+  - backend/pkg/cloudprovider/adapters/aws/vm.go (verified)
+  - backend/pkg/cloudprovider/adapters/aws/vpc.go (fixed imports)
 | Test | Input | Expected | Actual | Status |
 |------|-------|----------|--------|--------|
 | 项目结构分析 | 读取项目文件 | 了解模块完成状态 | 已了解 IAM/消息中心完成，多云管理待完成 | ✓ |
 | 适配器分析 | 读取 Alibaba adapter | 了解实现程度 | VM 完成，其他待实现 | ✓ |
+
+## Session: 2026-04-12 (Phase 4 完成)
+
+### Phase 4: 前端云资源页面完善
+- **Status:** complete
+- Actions taken:
+  - 设计文档创建: docs/superpowers/specs/2026-04-12-cloud-resource-create-modals-design.md
+  - 实现计划创建: docs/superpowers/plans/2026-04-12-cloud-resource-create-modals-plan.md
+  - Task 1: CIDR 校验工具函数 (frontend/src/utils/cidr.ts)
+  - Task 2: CloudAccountSelector 组件 (frontend/src/components/common/CloudAccountSelector.vue)
+  - Task 3: CreateVPCModal 组件 (frontend/src/components/network/CreateVPCModal.vue)
+  - Task 4: CreateSubnetModal 组件 (frontend/src/components/network/CreateSubnetModal.vue)
+  - Task 5: CreateVMModal 5步向导组件 (frontend/src/components/vm/CreateVMModal.vue)
+  - Task 6: VM 列表页面集成创建弹窗
+  - Task 7: VPC 列表页面集成创建弹窗
+  - Task 8: Subnet 列表页面集成创建弹窗
+  - 前端构建验证成功 (vite build)
+- Commits:
+  - d6af90d feat: add CIDR validation utility functions
+  - 151b7ce feat: add CloudAccountSelector reusable component
+  - b233895 feat: add CreateVPCModal component
+  - 5e1069c fix: add ipv6_cidr to createVPC API type
+  - b852fa1 feat: add CreateSubnetModal component
+  - 4d29fe6 feat: add CreateVMModal step wizard component
+  - 2d351f5 feat(compute): integrate CreateVMModal into VM list page
+  - 4edfd2a feat(network): integrate CreateVPCModal into VPC list page
+  - 4e543ce feat(network): integrate CreateSubnetModal into Subnet list page
 
 ## Error Log
 | Timestamp | Error | Attempt | Resolution |

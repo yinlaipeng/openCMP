@@ -118,3 +118,83 @@
 - 阿里云适配器 vm.go 已实现完整的 VM CRUD 操作（CreateVM, DeleteVM, StartVM, StopVM, RebootVM, GetVMStatus, ListVMs, GetVM）
 - INetwork 接口扩展支持 VPC 互联、VPC Peering、Route Table、L2 Network
 - 前端新增了大量 compute/network 相关视图和路由
+
+## Phase 4: 前端云资源页面现状分析 (2026-04-12)
+
+### Compute 页面现状
+| 页面/组件 | 状态 | 说明 |
+|----------|------|------|
+| vms/index.vue | ✅ 完整 | VM 列表、查询、分页、详情弹窗、VNC 控制台 |
+| VMModal.vue | ✅ 完整 | VM 详情弹窗组件 |
+| VNCConsole.vue | ✅ 完整 | VNC 远程控制台组件 |
+| VMActionDropdown.vue | ✅ 完整 | VM 操作下拉菜单 |
+| images/index.vue | ✅ 完整 | 镜像列表 |
+| keys/index.vue | ✅ 完整 | 密钥管理 |
+| host-templates/index.vue | ✅ 完整 | 主机模板 |
+| autoscaling-groups/index.vue | ✅ 完整 | 弹性伸缩组 |
+| **创建 VM 弹窗** | ❌ 缺失 | handleCreate 只显示"功能开发中" |
+
+### Network 页面现状
+| 页面 | 状态 | 说明 |
+|------|------|------|
+| vpcs/index.vue | ✅ 完整 | VPC 列表、详情查看、删除 |
+| subnets/index.vue | ✅ 完整 | 子网列表 |
+| services/eips/index.vue | ✅ 完整 | EIP 列表 |
+| services/security-groups | ✅ 完整 | 安全组列表 |
+| routes/index.vue | ✅ 完整 | 路由表 |
+| **创建 VPC 弹窗** | ❌ 缺失 | 无创建按钮或弹窗 |
+| **创建 Subnet 弹窗** | ❌ 缺失 | 无创建弹窗 |
+
+### Storage 页面现状
+| 页面 | 状态 | 说明 |
+|------|------|------|
+| block/block-storage/index.vue | ⬜ 待验证 | 块存储 |
+| storage/disks/index.vue | ✅ 存在 | 磁盘列表 |
+| storage/disk-snapshots/index.vue | ✅ 存在 | 磁盘快照 |
+
+### Database 页面现状
+| 页面 | 状态 | 说明 |
+|------|------|------|
+| rds/instances/index.vue | ✅ 存在 | RDS 实例列表 |
+| redis/instances/index.vue | ✅ 存在 | Redis 实例 |
+| mongodb/instances/index.vue | ✅ 存在 | MongoDB 实例 |
+
+### API 完整度
+| API 文件 | 状态 | 说明 |
+|----------|------|------|
+| api/compute.ts | ✅ 完整 | VM CRUD、镜像、模板、伸缩组 |
+| api/network.ts | ✅ 完整 | VPC、Subnet、SecurityGroup、EIP、Region、Zone、Peering 等 |
+| types/index.ts | ✅ 完整 | 所有类型定义完整 |
+
+### 后端 Handler 完整度
+| Handler | 状态 | 说明 |
+|--------|------|------|
+| compute.go | ✅ 完整 | VM CRUD、Action、Details、VNC、Images |
+| network.go | ✅ 完整 | VPC、Subnet、SecurityGroup、EIP、高级网络 |
+
+### 需要完善的功能
+1. **创建虚拟机弹窗组件** - CreateVMModal.vue ✅ 已完成
+2. **创建 VPC 弹窗** - vpcs/index.vue 添加创建功能 ✅ 已完成
+3. **创建 Subnet 弹窗** - subnets/index.vue 添加创建功能 ✅ 已完成
+4. **验证存储/数据库页面完整性** - 待后续迭代
+
+## Phase 4 实现结果 (2026-04-12)
+
+### 新增文件清单
+| 文件 | 类型 | 说明 |
+|------|------|------|
+| frontend/src/utils/cidr.ts | 工具 | CIDR 校验函数 |
+| frontend/src/components/common/CloudAccountSelector.vue | 组件 | 云账号选择器 |
+| frontend/src/components/network/CreateVPCModal.vue | 组件 | 创建 VPC 弹窗 |
+| frontend/src/components/network/CreateSubnetModal.vue | 组件 | 创建子网弹窗 |
+| frontend/src/components/vm/CreateVMModal.vue | 组件 | 创建 VM 5步向导 |
+| frontend/src/api/network.ts | 修改 | 添加 ipv6_cidr 类型 |
+| frontend/src/views/compute/vms/index.vue | 修改 | 集成创建弹窗 |
+| frontend/src/views/network/vpcs/index.vue | 修改 | 集成创建弹窗 |
+| frontend/src/views/network/subnets/index.vue | 修改 | 集成创建弹窗 |
+
+### 组件特性总结
+- **CreateVMModal**: 5步向导（基本配置→计算配置→网络配置→存储配置→确认创建），支持模板自动填充，字段级联加载
+- **CreateVPCModal**: 单页表单，CIDR 格式校验，CIDR 帮助提示
+- **CreateSubnetModal**: 单页表单，子网 CIDR 在 VPC 范围内校验
+- **CloudAccountSelector**: 可复用选择器，显示云厂商类型和健康状态标签

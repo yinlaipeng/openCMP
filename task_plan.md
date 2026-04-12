@@ -29,16 +29,24 @@ Phase 1 - 已完成项目分析，准备进入开发阶段
 ### Phase 3: 云厂商适配器完善
 - [x] 阿里云适配器完善（VM ✅ VPC ✅ Storage ✅）
 - [ ] 阿里云适配器（Database、Middleware）
-- [ ] **腾讯云适配器实现** - 安装 SDK ✅，待实现 Compute/Network
-- [ ] AWS 适配器实现（Compute、Network）
+- [x] **腾讯云适配器实现** - SDK 安装 ✅，Compute/Network ✅
+- [x] AWS 适配器实现（Compute ✅、Network ✅）
 - [ ] Azure 适配器实现（Compute、Network）
-- **Status:** in_progress
+- **Status:** in_progress（腾讯云、AWS 核心完成）
 
-### Phase 4: 前端功能完善
-- [ ] 云资源管理页面完善（Compute、Network、Storage、Database）
-- [ ] 多云同步相关页面
-- [ ] 资源详情页面
-- **Status:** pending
+### Phase 4: 前端云资源页面完善
+- [x] 分析现有页面和 API 完整度
+- [x] **设计文档** - docs/superpowers/specs/2026-04-12-cloud-resource-create-modals-design.md
+- [x] **实现计划** - docs/superpowers/plans/2026-04-12-cloud-resource-create-modals-plan.md
+- [x] **CIDR 校验工具** - frontend/src/utils/cidr.ts
+- [x] **CloudAccountSelector** - frontend/src/components/common/CloudAccountSelector.vue
+- [x] **CreateVPCModal** - frontend/src/components/network/CreateVPCModal.vue
+- [x] **CreateSubnetModal** - frontend/src/components/network/CreateSubnetModal.vue
+- [x] **创建虚拟机弹窗** - CreateVMModal.vue 组件 (5步向导)
+- [x] **VPC 创建功能** - vpcs/index.vue 添加创建弹窗
+- [x] **Subnet 创建功能** - subnets/index.vue 添加创建弹窗
+- [x] **前端构建验证** - vite build 成功
+- **Status:** complete
 
 ### Phase 5: 测试与集成
 - [ ] 后端单元测试完善
