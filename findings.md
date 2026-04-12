@@ -32,7 +32,22 @@
    - 路由：`main.go` 中注册 `/scheduled-tasks` ✅
    - 前端页面：`frontend/src/views/cloud-accounts/scheduled-tasks.vue` ✅
 
-### 后端代码结构发现
+### 云厂商适配器现状分析
+
+**阿里云适配器完成度：**
+| 模块 | 状态 | 实现文件 |
+|------|------|---------|
+| Compute (VM) | ✅ 完整 | vm.go - CreateVM/DeleteVM/StartVM/StopVM/RebootVM/ListVMs/GetVM |
+| Network (VPC) | ✅ 完整 | vpc.go - VPC/Subnet/SecurityGroup/EIP 全部实现 |
+| Storage (Disk) | ✅ 完整 | disk.go - CreateDisk/DeleteDisk/AttachDisk/DetachDisk |
+| Image | ✅ 完整 | vm.go - ListImages/GetImage |
+| Database | ⬜ 未实现 | provider.go 返回 ErrUnsupportedOperation |
+| Middleware | ⬜ 未实现 | provider.go 返回 ErrUnsupportedOperation |
+
+**腾讯云/AWS/Azure 适配器：**
+- 全部为骨架实现（provider.go 只有 GetCloudInfo）
+- 所有接口返回 `ErrUnsupportedOperation`
+- 需要初始化 SDK 客户端并实现核心接口
 
 **同步策略数据模型：**
 - `SyncPolicy` - 同步策略配置（Name, Remarks, Status, Enabled, Scope, DomainID）

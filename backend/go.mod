@@ -22,6 +22,12 @@ require (
 )
 
 require (
+	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common v1.3.76
+	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/cvm v1.3.72
+	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/vpc v1.3.75
+)
+
+require (
 	filippo.io/edwards25519 v1.2.0 // indirect
 	github.com/Azure/go-ntlmssp v0.0.0-20220621081337-cb9428e4ac1e // indirect
 	github.com/bytedance/gopkg v0.1.3 // indirect

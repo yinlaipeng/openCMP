@@ -17,20 +17,22 @@ Phase 1 - 已完成项目分析，准备进入开发阶段
 - **Status:** complete
 
 ### Phase 2: 补全缺失功能
-- [ ] **同步策略前端页面** - 创建 `frontend/src/views/cloud-accounts/sync-policies.vue`
-- [ ] **同步策略路由注册** - 在 router.ts 中添加路由
-- [ ] **同步策略类型定义** - 在 types/sync-policy.ts 中添加类型
+- [x] **同步策略前端页面** - 创建 `frontend/src/views/cloud-management/sync-policies/index.vue`
+- [x] **同步策略路由注册** - 路由已存在于 router.ts
+- [x] **同步策略类型定义** - 更新 types/sync-policy.ts（修正 RuleTag 结构）
+- [x] **前端构建错误修复** - 补充 iam.ts 缺失函数
 - [ ] **云账号增强测试** - 后端单元测试
 - [ ] **同步策略测试** - handler/service 测试
 - [ ] **定时同步任务测试** - handler/service 测试
-- **Status:** pending
+- **Status:** complete（核心功能已补全）
 
 ### Phase 3: 云厂商适配器完善
-- [ ] 阿里云适配器完善（VPC 网络、Database、Middleware）
-- [ ] 腾讯云适配器实现（Compute、Network）
+- [x] 阿里云适配器完善（VM ✅ VPC ✅ Storage ✅）
+- [ ] 阿里云适配器（Database、Middleware）
+- [ ] **腾讯云适配器实现** - 安装 SDK ✅，待实现 Compute/Network
 - [ ] AWS 适配器实现（Compute、Network）
 - [ ] Azure 适配器实现（Compute、Network）
-- **Status:** pending
+- **Status:** in_progress
 
 ### Phase 4: 前端功能完善
 - [ ] 云资源管理页面完善（Compute、Network、Storage、Database）

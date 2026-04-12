@@ -41,7 +41,19 @@
   - frontend/src/types/sync-policy.ts
   - frontend/src/api/iam.ts
 
-## Test Results
+### Phase 3: 云厂商适配器完善
+- **Status:** in_progress
+- Actions taken:
+  - 安装腾讯云 SDK (tencentcloud-sdk-go)
+  - 实现腾讯云适配器 provider.go (SDK 初始化)
+  - 实现腾讯云适配器 vm.go (Compute: CreateVM/DeleteVM/StartVM/StopVM/RebootVM/ListVMs/GetVM/ListImages/GetImage)
+  - 实现腾讯云适配器 vpc.go (Network: VPC/Subnet/SecurityGroup/EIP)
+  - 编译验证成功
+- Files created/modified:
+  - backend/pkg/cloudprovider/adapters/tencent/provider.go
+  - backend/pkg/cloudprovider/adapters/tencent/vm.go (created)
+  - backend/pkg/cloudprovider/adapters/tencent/vpc.go (created)
+  - backend/go.mod, go.sum (SDK 依赖)
 | Test | Input | Expected | Actual | Status |
 |------|-------|----------|--------|--------|
 | 项目结构分析 | 读取项目文件 | 了解模块完成状态 | 已了解 IAM/消息中心完成，多云管理待完成 | ✓ |
