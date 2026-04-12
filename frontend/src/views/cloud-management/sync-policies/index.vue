@@ -4,60 +4,63 @@
       <template #header>
         <div class="card-header">
           <span class="title">同步策略</span>
-          <el-button type="primary" @click="handleCreate">
+          <el-button type="primary" @click="showCreateDialog">
             <el-icon><Plus /></el-icon>
-            新建同步策略
+            添加策略
           </el-button>
         </div>
       </template>
 
-      <el-table :data="policies" v-loading="loading" border stripe>
+      <el-form :inline="true" :model="queryForm" class="query-form">
+        <el-form-item label="名称">
+          <el-input v-model="queryForm.name" placeholder="策略名称" clearable />
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="queryForm.enabled" placeholder="全部" clearable style="width: 120px">
+            <el-option label="启用" :value="true" />
+            <el-option label="禁用" :value="false" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="loadPolicies">查询</el-button>
+          <el-button @click="resetQuery">重置</el-button>
+        </el-form-item>
+      </el-form>
+
+      <el-table :data="policies" v-loading="loading" style="width: 100%">
         <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="name" label="名称/备注" width="200">
+        <el-table-column prop="name" label="名称" width="180" />
+        <el-table-column prop="scope" label="应用范围" width="150">
           <template #default="{ row }">
-            <div>
-              <div>{{ row.name }}</div>
-              <div v-if="row.remarks" class="remarks">{{ row.remarks }}</div>
-            </div>
+            <el-tag>{{ getScopeText(row.scope) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" width="100">
+        <el-table-column prop="rules" label="规则数量" width="100">
           <template #default="{ row }">
-            <el-tag :type="row.status === 'active' ? 'success' : 'danger'">
-              {{ row.status === 'active' ? '启用' : '停用' }}
+            <el-tag type="info">{{ row.rules?.length || 0 }} 条</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="remarks" label="备注" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="enabled" label="状态" width="100">
+          <template #default="{ row }">
+            <el-tag :type="row.enabled ? 'success' : 'info'">
+              {{ row.enabled ? '启用' : '禁用' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="enabled" label="启用状态" width="120">
+        <el-table-column prop="created_at" label="创建时间" width="180">
           <template #default="{ row }">
-            <el-switch v-model="row.enabled" @change="toggleEnabled(row)" />
+            {{ formatDate(row.created_at) }}
           </template>
         </el-table-column>
-        <el-table-column label="规则" width="200">
+        <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" @click="manageRules(row)">管理规则</el-button>
-          </template>
-        </el-table-column>
-        <el-table-column prop="scope" label="应用范围" width="150" />
-        <el-table-column prop="domain_id" label="所属域" width="100" />
-        <el-table-column label="操作" width="220" fixed="right">
-          <template #default="{ row }">
-            <el-dropdown>
-              <el-button size="small">
-                更多 <el-icon class="el-icon--right"><arrow-down /></el-icon>
-              </el-button>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item @click="viewDetails(row)">详情</el-dropdown-item>
-                  <el-dropdown-item @click="viewOperationLogs(row)">操作日志</el-dropdown-item>
-                  <el-dropdown-item divided @click="toggleEnabled(row)">
-                    {{ row.enabled ? '禁用' : '启用' }}
-                  </el-dropdown-item>
-                  <el-dropdown-item @click="handleEdit(row)">编辑</el-dropdown-item>
-                  <el-dropdown-item @click="handleDelete(row)" divided>删除</el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
+            <el-button size="small" @click="handleView(row)">查看</el-button>
+            <el-button size="small" @click="handleEdit(row)">编辑</el-button>
+            <el-button size="small" @click="handleToggle(row)">
+              {{ row.enabled ? '禁用' : '启用' }}
+            </el-button>
+            <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -76,173 +79,173 @@
 
     <!-- 创建/编辑对话框 -->
     <el-dialog
-      v-model="dialogVisible"
-      :title="isEdit ? '编辑同步策略' : '新建同步策略'"
+      v-model="showDialog"
+      :title="isEdit ? '编辑策略' : '添加策略'"
       width="800px"
-      :fullscreen="isMobile"
+      destroy-on-close
     >
-      <el-form :model="form" :rules="rules" ref="formRef" label-width="120px">
-        <el-form-item label="域" prop="domain_id">
-          <el-select v-model="form.domain_id" placeholder="请选择域" style="width: 100%">
-            <el-option
-              v-for="domain in domains"
-              :key="domain.id"
-              :label="domain.name"
-              :value="domain.id"
-            />
-          </el-select>
-        </el-form-item>
-
-        <el-form-item label="名称" prop="name">
+      <el-form :model="form" :rules="rules" ref="formRef" label-width="100px">
+        <el-form-item label="策略名称" prop="name">
           <el-input v-model="form.name" placeholder="请输入策略名称" />
         </el-form-item>
 
-        <el-form-item label="备注" prop="remarks">
-          <el-input v-model="form.remarks" type="textarea" placeholder="请输入备注" />
+        <el-form-item label="应用范围" prop="scope">
+          <el-select v-model="form.scope" placeholder="请选择应用范围" style="width: 100%">
+            <el-option label="全部云账号" value="all" />
+            <el-option label="指定云账号" value="specified" />
+            <el-option label="指定资源类型" value="resource_type" />
+          </el-select>
         </el-form-item>
 
-        <el-form-item label="状态" prop="status">
-          <el-radio-group v-model="form.status">
-            <el-radio label="active">启用</el-radio>
-            <el-radio label="inactive">停用</el-radio>
-          </el-radio-group>
+        <el-form-item label="备注">
+          <el-input v-model="form.remarks" type="textarea" :rows="2" placeholder="请输入备注信息" />
         </el-form-item>
 
-        <el-form-item label="启用状态" prop="enabled">
-          <el-switch v-model="form.enabled" />
+        <el-form-item label="所属域" prop="domain_id">
+          <el-select v-model="form.domain_id" placeholder="请选择所属域" style="width: 100%">
+            <el-option v-for="domain in domains" :key="domain.id" :label="domain.name" :value="domain.id" />
+          </el-select>
         </el-form-item>
 
-        <el-form-item label="规则配置" prop="rules">
-          <RuleConfiguration v-model="form.rules" />
+        <!-- 规则配置 -->
+        <el-form-item label="同步规则">
+          <div class="rules-container">
+            <el-button type="primary" size="small" @click="addRule" style="margin-bottom: 10px">
+              <el-icon><Plus /></el-icon>
+              添加规则
+            </el-button>
+
+            <div v-for="(rule, index) in form.rules" :key="index" class="rule-item">
+              <el-card shadow="hover" class="rule-card">
+                <template #header>
+                  <div class="rule-header">
+                    <span>规则 {{ index + 1 }}</span>
+                    <el-button type="danger" size="small" @click="removeRule(index)" :icon="Delete" circle />
+                  </div>
+                </template>
+
+                <el-form-item label="条件类型">
+                  <el-select v-model="rule.condition_type" placeholder="请选择条件类型" style="width: 100%">
+                    <el-option label="全部匹配标签" value="all_match" />
+                    <el-option label="至少一个标签" value="any_match" />
+                    <el-option label="根据标签Key匹配" value="key_match" />
+                  </el-select>
+                </el-form-item>
+
+                <el-form-item label="资源映射">
+                  <el-select v-model="rule.resource_mapping" placeholder="请选择映射方式" style="width: 100%">
+                    <el-option label="指定项目" value="specify_project" />
+                    <el-option label="根据名称映射" value="specify_name" />
+                  </el-select>
+                </el-form-item>
+
+                <el-form-item label="目标项目" v-if="rule.resource_mapping === 'specify_project'">
+                  <el-select v-model="rule.target_project_id" placeholder="请选择目标项目" style="width: 100%">
+                    <el-option v-for="project in projects" :key="project.id" :label="project.name" :value="project.id" />
+                  </el-select>
+                </el-form-item>
+
+                <!-- 标签配置 -->
+                <el-form-item label="匹配标签">
+                  <div class="tags-container">
+                    <el-button size="small" @click="addTag(index)" style="margin-bottom: 8px">
+                      <el-icon><Plus /></el-icon>
+                      添加标签
+                    </el-button>
+
+                    <div v-for="(tag, tagIndex) in rule.tags" :key="tagIndex" class="tag-item">
+                      <el-input v-model="tag.tag_key" placeholder="标签Key" style="width: 150px; margin-right: 8px" />
+                      <el-input v-model="tag.tag_value" placeholder="标签Value" style="width: 150px; margin-right: 8px" />
+                      <el-button type="danger" size="small" @click="removeTag(index, tagIndex)" :icon="Delete" circle />
+                    </div>
+                  </div>
+                </el-form-item>
+              </el-card>
+            </div>
+          </div>
+        </el-form-item>
+
+        <el-form-item label="启用状态">
+          <el-switch v-model="form.enabled" active-text="启用" inactive-text="禁用" />
         </el-form-item>
       </el-form>
 
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button @click="showDialog = false">取消</el-button>
         <el-button type="primary" @click="handleSubmit" :loading="submitting">确定</el-button>
       </template>
     </el-dialog>
 
-    <!-- 规则管理对话框 -->
-    <el-dialog
-      v-model="rulesDialogVisible"
-      title="管理规则"
-      width="900px"
-      :fullscreen="isMobile"
-    >
-      <el-table :data="currentRules" border stripe>
-        <el-table-column prop="condition_type" label="规则" width="200">
-          <template #default="{ row }">
-            <el-tag>
-              {{ getConditionTypeName(row.condition_type) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="resource_mapping" label="资源映射" width="200">
-          <template #default="{ row }">
-            <el-tag type="info">
-              {{ getResourceMappingName(row.resource_mapping) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="标签" min-width="200">
-          <template #default="{ row }">
-            <el-tag
-              v-for="(tag, index) in row.tags || []"
-              :key="index"
-              size="small"
-              style="margin-right: 5px; margin-bottom: 5px;"
-            >
-              {{ tag.key }}: {{ tag.value }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="150" fixed="right">
-          <template #default="{ row, $index }">
-            <el-button size="small" @click="editRule($index)">修改</el-button>
-            <el-button size="small" type="danger" @click="deleteRule($index)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-
-      <template #footer>
-        <el-button @click="rulesDialogVisible = false">关闭</el-button>
-        <el-button type="primary" @click="saveRules">保存</el-button>
-      </template>
-    </el-dialog>
-
     <!-- 详情对话框 -->
-    <el-dialog
-      v-model="detailsDialogVisible"
-      title="详情"
-      width="800px"
-      :fullscreen="isMobile"
-    >
+    <el-dialog v-model="showDetailDialog" title="策略详情" width="700px">
       <el-descriptions :column="2" border>
-        <el-descriptions-item label="ID">{{ currentPolicy.id }}</el-descriptions-item>
-        <el-descriptions-item label="名称">{{ currentPolicy.name }}</el-descriptions-item>
-        <el-descriptions-item label="备注" :span="2">{{ currentPolicy.remarks }}</el-descriptions-item>
+        <el-descriptions-item label="策略名称">{{ currentPolicy?.name }}</el-descriptions-item>
         <el-descriptions-item label="状态">
-          <el-tag :type="currentPolicy.status === 'active' ? 'success' : 'danger'">
-            {{ currentPolicy.status === 'active' ? '启用' : '停用' }}
+          <el-tag :type="currentPolicy?.enabled ? 'success' : 'info'">
+            {{ currentPolicy?.enabled ? '启用' : '禁用' }}
           </el-tag>
         </el-descriptions-item>
-        <el-descriptions-item label="启用状态">
-          <el-tag :type="currentPolicy.enabled ? 'success' : 'info'">
-            {{ currentPolicy.enabled ? '启用' : '禁用' }}
-          </el-tag>
-        </el-descriptions-item>
-        <el-descriptions-item label="应用范围" :span="2">{{ currentPolicy.scope }}</el-descriptions-item>
-        <el-descriptions-item label="所属域">{{ currentPolicy.domain_id }}</el-descriptions-item>
-        <el-descriptions-item label="创建时间">{{ formatDate(currentPolicy.created_at) }}</el-descriptions-item>
-        <el-descriptions-item label="更新时间">{{ formatDate(currentPolicy.updated_at) }}</el-descriptions-item>
+        <el-descriptions-item label="应用范围">{{ getScopeText(currentPolicy?.scope) }}</el-descriptions-item>
+        <el-descriptions-item label="所属域">{{ currentPolicy?.domain_id }}</el-descriptions-item>
+        <el-descriptions-item label="备注" :span="2">{{ currentPolicy?.remarks || '无' }}</el-descriptions-item>
+        <el-descriptions-item label="创建时间">{{ formatDate(currentPolicy?.created_at) }}</el-descriptions-item>
+        <el-descriptions-item label="更新时间">{{ formatDate(currentPolicy?.updated_at) }}</el-descriptions-item>
       </el-descriptions>
 
-      <div class="section">
-        <h3>规则配置</h3>
-        <div v-for="(rule, index) in currentPolicy.rules || []" :key="index" class="rule-detail">
-          <h4>规则 {{ index + 1 }}</h4>
-          <p><strong>条件类型:</strong> {{ getConditionTypeName(rule.condition_type) }}</p>
-          <p><strong>资源映射:</strong> {{ getResourceMappingName(rule.resource_mapping) }}</p>
-          <p v-if="rule.target_project_id"><strong>目标项目ID:</strong> {{ rule.target_project_id }}</p>
-          <p v-if="rule.target_project_name"><strong>目标项目名称:</strong> {{ rule.target_project_name }}</p>
-          <p><strong>标签:</strong></p>
-          <ul>
-            <li v-for="(tag, tagIndex) in rule.tags || []" :key="tagIndex">
-              {{ tag.key }}: {{ tag.value }}
-            </li>
-          </ul>
-        </div>
+      <div class="rules-detail" v-if="currentPolicy?.rules?.length">
+        <h4 style="margin: 20px 0 10px">同步规则</h4>
+        <el-collapse>
+          <el-collapse-item v-for="(rule, index) in currentPolicy.rules" :key="index" :title="`规则 ${index + 1}`">
+            <el-descriptions :column="2" border size="small">
+              <el-descriptions-item label="条件类型">{{ getConditionText(rule.condition_type) }}</el-descriptions-item>
+              <el-descriptions-item label="资源映射">{{ getMappingText(rule.resource_mapping) }}</el-descriptions-item>
+              <el-descriptions-item label="目标项目" v-if="rule.target_project_id">{{ rule.target_project_name || rule.target_project_id }}</el-descriptions-item>
+              <el-descriptions-item label="匹配标签" :span="2">
+                <el-tag v-for="tag in rule.tags" :key="tag.tag_key" style="margin-right: 8px">
+                  {{ tag.tag_key }}: {{ tag.tag_value }}
+                </el-tag>
+              </el-descriptions-item>
+            </el-descriptions>
+          </el-collapse-item>
+        </el-collapse>
       </div>
-
-      <template #footer>
-        <el-button @click="detailsDialogVisible = false">关闭</el-button>
-      </template>
     </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue'
-import { ElMessage, ElMessageBox, type FormInstance, ElDescriptions, ElDescriptionsItem } from 'element-plus'
-import { Plus, ArrowDown } from '@element-plus/icons-vue'
-import { getSyncPolicies, createSyncPolicy, updateSyncPolicy, deleteSyncPolicy, updateSyncPolicyStatus } from '@/api/sync-policy'
+import { ref, reactive, onMounted } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import type { FormInstance } from 'element-plus'
+import { Plus, Delete } from '@element-plus/icons-vue'
+import { getSyncPolicies, getSyncPolicy, createSyncPolicy, updateSyncPolicy, deleteSyncPolicy, updateSyncPolicyStatus } from '@/api/sync-policy'
 import { getDomains } from '@/api/iam'
-import type { SyncPolicy, CreateSyncPolicyRequest, Rule } from '@/types/sync-policy'
-import type { Domain } from '@/types'
-import RuleConfiguration from '@/components/RuleConfiguration.vue'
+import { getProjects } from '@/api/project'
+import type { SyncPolicy, CreateSyncPolicyRequest, Rule, RuleTag } from '@/types/sync-policy'
+
+interface TagItem {
+  tag_key: string
+  tag_value: string
+}
+
+interface RuleForm {
+  condition_type: 'all_match' | 'any_match' | 'key_match'
+  resource_mapping: 'specify_project' | 'specify_name'
+  target_project_id?: number
+  target_project_name?: string
+  tags: TagItem[]
+}
 
 const policies = ref<SyncPolicy[]>([])
-const domains = ref<Domain[]>([])
+const domains = ref<{ id: number; name: string }[]>([])
+const projects = ref<{ id: number; name: string }[]>([])
 const loading = ref(false)
-const dialogVisible = ref(false)
+const showDialog = ref(false)
+const showDetailDialog = ref(false)
 const isEdit = ref(false)
 const submitting = ref(false)
 const formRef = ref<FormInstance>()
-const rulesDialogVisible = ref(false)
-const detailsDialogVisible = ref(false)
-const currentRules = ref<Rule[]>([])
-const currentPolicy = ref<SyncPolicy>({} as SyncPolicy)
+const currentPolicy = ref<SyncPolicy | null>(null)
 
 const pagination = reactive({
   currentPage: 1,
@@ -250,115 +253,188 @@ const pagination = reactive({
   total: 0
 })
 
-const form = reactive<CreateSyncPolicyRequest>({
+const queryForm = reactive({
+  name: '',
+  enabled: undefined as boolean | undefined
+})
+
+const form = reactive<CreateSyncPolicyRequest & { rules: RuleForm[] }>({
   name: '',
   remarks: '',
-  status: 'active',
+  scope: 'all',
+  domain_id: 1,
   enabled: true,
-  rules: [],
-  scope: '',
-  domain_id: 1
+  rules: []
 })
 
 const rules = {
   name: [{ required: true, message: '请输入策略名称', trigger: 'blur' }],
-  domain_id: [{ required: true, message: '请选择所属域', trigger: 'change' }],
-  rules: [{ required: true, message: '请至少配置一条规则', trigger: 'change' }]
+  scope: [{ required: true, message: '请选择应用范围', trigger: 'change' }],
+  domain_id: [{ required: true, message: '请选择所属域', trigger: 'change' }]
 }
 
-// 检测移动端
-const isMobile = computed(() => {
-  return window.innerWidth < 768
-})
-
-// 加载数据
-const loadData = async () => {
+const loadPolicies = async () => {
   loading.value = true
   try {
-    // 并行加载数据
-    await Promise.all([
-      loadSyncPolicies(),
-      loadDomains()
-    ])
+    const params = {
+      limit: pagination.pageSize,
+      offset: (pagination.currentPage - 1) * pagination.pageSize
+    }
+    const res = await getSyncPolicies(params)
+    policies.value = res.items || []
+    pagination.total = res.total || 0
   } catch (e) {
     console.error(e)
-    ElMessage.error('加载数据失败')
+    ElMessage.error('加载策略列表失败')
   } finally {
     loading.value = false
   }
-}
-
-const loadSyncPolicies = async () => {
-  const params = {
-    page: pagination.currentPage,
-    page_size: pagination.pageSize
-  }
-  const res = await getSyncPolicies(params)
-  policies.value = res.items || []
-  pagination.total = res.total || 0
 }
 
 const loadDomains = async () => {
   try {
     const res = await getDomains()
     domains.value = res.items || []
-    // 如果domain_id没有选择且有可用的域，则默认选择第一个
-    if (!form.domain_id && domains.value.length > 0) {
-      form.domain_id = domains.value[0].id
-    }
   } catch (e) {
-    console.error('Failed to load domains:', e)
-    ElMessage.error('加载域列表失败')
+    console.error(e)
   }
 }
 
-const handleCreate = () => {
-  isEdit.value = false
-  Object.assign(form, {
-    name: '',
-    remarks: '',
-    status: 'active',
-    enabled: true,
-    rules: [],
-    scope: '',
-    domain_id: domains.value.length > 0 ? domains.value[0].id : 1
-  })
-  dialogVisible.value = true
+const loadProjects = async () => {
+  try {
+    const res = await getProjects()
+    projects.value = res.items || []
+  } catch (e) {
+    console.error(e)
+  }
 }
 
-const handleEdit = (row: SyncPolicy) => {
-  isEdit.value = true
-  Object.assign(form, { ...row })
-  dialogVisible.value = true
+const getScopeText = (scope?: string) => {
+  const map: Record<string, string> = {
+    'all': '全部云账号',
+    'specified': '指定云账号',
+    'resource_type': '指定资源类型'
+  }
+  return map[scope || ''] || scope || ''
+}
+
+const getConditionText = (type?: string) => {
+  const map: Record<string, string> = {
+    'all_match': '全部匹配标签',
+    'any_match': '至少一个标签',
+    'key_match': '根据标签Key匹配'
+  }
+  return map[type || ''] || type || ''
+}
+
+const getMappingText = (mapping?: string) => {
+  const map: Record<string, string> = {
+    'specify_project': '指定项目',
+    'specify_name': '根据名称映射'
+  }
+  return map[mapping || ''] || mapping || ''
+}
+
+const formatDate = (date?: string) => {
+  if (!date) return ''
+  return new Date(date).toLocaleString('zh-CN')
+}
+
+const showCreateDialog = () => {
+  isEdit.value = false
+  resetForm()
+  showDialog.value = true
+}
+
+const resetForm = () => {
+  form.name = ''
+  form.remarks = ''
+  form.scope = 'all'
+  form.domain_id = domains.value[0]?.id || 1
+  form.enabled = true
+  form.rules = []
+}
+
+const addRule = () => {
+  form.rules.push({
+    condition_type: 'all_match',
+    resource_mapping: 'specify_project',
+    tags: []
+  })
+}
+
+const removeRule = (index: number) => {
+  form.rules.splice(index, 1)
+}
+
+const addTag = (ruleIndex: number) => {
+  form.rules[ruleIndex].tags.push({ tag_key: '', tag_value: '' })
+}
+
+const removeTag = (ruleIndex: number, tagIndex: number) => {
+  form.rules[ruleIndex].tags.splice(tagIndex, 1)
+}
+
+const handleView = async (row: SyncPolicy) => {
+  try {
+    const detail = await getSyncPolicy(row.id)
+    currentPolicy.value = detail
+    showDetailDialog.value = true
+  } catch (e) {
+    console.error(e)
+    ElMessage.error('获取详情失败')
+  }
+}
+
+const handleEdit = async (row: SyncPolicy) => {
+  try {
+    const detail = await getSyncPolicy(row.id)
+    isEdit.value = true
+    form.name = detail.name
+    form.remarks = detail.remarks || ''
+    form.scope = detail.scope
+    form.domain_id = detail.domain_id
+    form.enabled = detail.enabled
+    form.rules = detail.rules?.map(r => ({
+      condition_type: r.condition_type,
+      resource_mapping: r.resource_mapping,
+      target_project_id: r.target_project_id,
+      target_project_name: r.target_project_name,
+      tags: r.tags?.map(t => ({ key: t.key, value: t.value })) || []
+    })) || []
+    currentPolicy.value = detail
+    showDialog.value = true
+  } catch (e) {
+    console.error(e)
+    ElMessage.error('获取策略详情失败')
+  }
+}
+
+const handleToggle = async (row: SyncPolicy) => {
+  const newEnabled = !row.enabled
+  try {
+    await updateSyncPolicyStatus(row.id, newEnabled)
+    row.enabled = newEnabled
+    ElMessage.success(`${newEnabled ? '启用' : '禁用'}成功`)
+  } catch (e) {
+    console.error(e)
+    ElMessage.error('更新状态失败')
+  }
 }
 
 const handleDelete = async (row: SyncPolicy) => {
   try {
-    await ElMessageBox.confirm(`确定要删除同步策略 "${row.name}" 吗？`, '提示', {
+    await ElMessageBox.confirm(`确定要删除策略 "${row.name}" 吗？`, '提示', {
       type: 'warning'
     })
     await deleteSyncPolicy(row.id)
     ElMessage.success('删除成功')
-    loadData()
+    loadPolicies()
   } catch (e: any) {
     if (e !== 'cancel') {
       console.error(e)
       ElMessage.error('删除失败')
     }
-  }
-}
-
-const toggleEnabled = async (row: SyncPolicy) => {
-  try {
-    await updateSyncPolicyStatus(row.id, !row.enabled)
-    row.enabled = !row.enabled
-    ElMessage.success(`${row.enabled ? '启用' : '禁用'}成功`)
-    loadData()
-  } catch (e) {
-    console.error(e)
-    ElMessage.error('更新状态失败')
-    // 恢复开关状态
-    row.enabled = !row.enabled
   }
 }
 
@@ -368,16 +444,32 @@ const handleSubmit = async () => {
     if (!valid) return
     submitting.value = true
     try {
-      let res
-      if (isEdit.value) {
-        res = await updateSyncPolicy(form.id as number, form)
+      // 转换规则格式以匹配API
+      const submitData = {
+        name: form.name,
+        remarks: form.remarks,
+        scope: form.scope,
+        domain_id: form.domain_id,
+        enabled: form.enabled,
+        status: form.enabled ? 'active' : 'inactive',
+        rules: form.rules.map(r => ({
+          condition_type: r.condition_type,
+          resource_mapping: r.resource_mapping,
+          target_project_id: r.target_project_id,
+          target_project_name: r.target_project_name,
+          tags: r.tags
+        }))
+      }
+
+      if (isEdit.value && currentPolicy.value) {
+        await updateSyncPolicy(currentPolicy.value.id, submitData)
         ElMessage.success('更新成功')
       } else {
-        res = await createSyncPolicy(form)
+        await createSyncPolicy(submitData)
         ElMessage.success('创建成功')
       }
-      dialogVisible.value = false
-      loadData()
+      showDialog.value = false
+      loadPolicies()
     } catch (e) {
       console.error(e)
       ElMessage.error(isEdit.value ? '更新失败' : '创建失败')
@@ -387,70 +479,26 @@ const handleSubmit = async () => {
   })
 }
 
-const manageRules = (row: SyncPolicy) => {
-  currentPolicy.value = row
-  currentRules.value = [...(row.rules || [])]
-  rulesDialogVisible.value = true
-}
-
-const viewDetails = (row: SyncPolicy) => {
-  currentPolicy.value = row
-  detailsDialogVisible.value = true
-}
-
-const viewOperationLogs = (row: SyncPolicy) => {
-  ElMessage.info('操作日志功能即将实现')
-}
-
-const getConditionTypeName = (type: string) => {
-  const map: Record<string, string> = {
-    'all_match': '全部匹配标签',
-    'any_match': '至少一个标签',
-    'key_match': '根据标签key匹配'
-  }
-  return map[type] || type
-}
-
-const getResourceMappingName = (mapping: string) => {
-  const map: Record<string, string> = {
-    'specify_project': '指定项目',
-    'specify_name': '指定名称'
-  }
-  return map[mapping] || mapping
-}
-
-const formatDate = (dateString: string) => {
-  const date = new Date(dateString)
-  return date.toLocaleString('zh-CN')
-}
-
-const editRule = (index: number) => {
-  ElMessage.info('规则编辑功能请在主表单中操作')
-}
-
-const deleteRule = (index: number) => {
-  currentRules.value.splice(index, 1)
-  // 更新主策略的规则
-  currentPolicy.value.rules = [...currentRules.value]
-}
-
-const saveRules = () => {
-  rulesDialogVisible.value = false
-  // 规则已在主表单中编辑，无需额外保存
+const resetQuery = () => {
+  queryForm.name = ''
+  queryForm.enabled = undefined
+  loadPolicies()
 }
 
 const handleSizeChange = (size: number) => {
   pagination.pageSize = size
-  loadData()
+  loadPolicies()
 }
 
 const handleCurrentChange = (page: number) => {
   pagination.currentPage = page
-  loadData()
+  loadPolicies()
 }
 
 onMounted(() => {
-  loadData()
+  loadPolicies()
+  loadDomains()
+  loadProjects()
 })
 </script>
 
@@ -474,10 +522,8 @@ onMounted(() => {
   font-weight: bold;
 }
 
-.remarks {
-  font-size: 12px;
-  color: #999;
-  margin-top: 4px;
+.query-form {
+  margin-bottom: 20px;
 }
 
 .pagination {
@@ -485,21 +531,35 @@ onMounted(() => {
   justify-content: flex-end;
 }
 
-.section {
-  margin-top: 20px;
-  padding-top: 20px;
-  border-top: 1px solid #eee;
+.rules-container {
+  width: 100%;
 }
 
-.rule-detail {
-  margin: 10px 0;
-  padding: 10px;
-  background-color: #f5f5f5;
-  border-radius: 4px;
+.rule-item {
+  margin-bottom: 16px;
 }
 
-.rule-detail h4 {
-  margin-top: 0;
-  color: #333;
+.rule-card {
+  margin-bottom: 0;
+}
+
+.rule-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.tags-container {
+  width: 100%;
+}
+
+.tag-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.rules-detail {
+  margin-top: 16px;
 }
 </style>

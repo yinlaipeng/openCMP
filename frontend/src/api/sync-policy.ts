@@ -1,8 +1,8 @@
 import request from '@/utils/request'
 import type { SyncPolicy, CreateSyncPolicyRequest } from '@/types/sync-policy'
 
-export function getSyncPolicies(params?: { page?: number; page_size?: number }) {
-  return request({ url: '/sync-policies', method: 'get', params })
+export function getSyncPolicies(params?: { limit?: number; offset?: number }) {
+  return request<{ items: SyncPolicy[], total: number }>({ url: '/sync-policies', method: 'get', params })
 }
 
 export function getSyncPolicy(id: number) {

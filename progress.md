@@ -26,11 +26,12 @@
   - progress.md (created, updated)
 
 ### Phase 2: 补全缺失功能
-- **Status:** pending
+- **Status:** in_progress
 - Actions taken:
-  - 待开始
+  - 提交现有改动（164 文件，+20053/-1790）
+  - commit: `ecf86fa feat: 多云管理平台核心功能增强`
 - Files created/modified:
-  - 待确定
+  - 提交内容详见 git log
 
 ## Test Results
 | Test | Input | Expected | Actual | Status |

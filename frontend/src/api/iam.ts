@@ -103,6 +103,24 @@ export function makeRolePublic(id: number) {
   })
 }
 
+// 获取角色的用户列表
+export function getRoleUsers(roleId: number, params?: { limit?: number; offset?: number }) {
+  return request<{ items: any[], total: number }>({
+    url: `/roles/${roleId}/users`,
+    method: 'get',
+    params
+  })
+}
+
+// 获取角色的组列表
+export function getRoleGroups(roleId: number, params?: { limit?: number; offset?: number }) {
+  return request<{ items: any[], total: number }>({
+    url: `/roles/${roleId}/groups`,
+    method: 'get',
+    params
+  })
+}
+
 
 // ============= 认证源 API =============
 
@@ -737,6 +755,38 @@ export function getProjectRobots(projectId: number, params?: any) {
     url: '/robots',
     method: 'get',
     params: { ...params, project_id: projectId }
+  })
+}
+
+// Robot management functions
+export function createRobot(data: any) {
+  return request({
+    url: '/robots',
+    method: 'post',
+    data
+  })
+}
+
+export function updateRobot(id: number, data: any) {
+  return request({
+    url: `/robots/${id}`,
+    method: 'put',
+    data
+  })
+}
+
+export function deleteRobot(id: number) {
+  return request({
+    url: `/robots/${id}`,
+    method: 'delete'
+  })
+}
+
+export function toggleRobotStatus(id: number, enabled: boolean) {
+  return request({
+    url: `/robots/${id}/status`,
+    method: 'post',
+    data: { enabled }
   })
 }
 

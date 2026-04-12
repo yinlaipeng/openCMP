@@ -1,10 +1,14 @@
+export interface RuleTag {
+  id?: number
+  tag_key: string
+  tag_value: string
+}
+
 export interface Rule {
   id?: number
+  sync_policy_id?: number
   condition_type: 'all_match' | 'any_match' | 'key_match' // 全部匹配标签、至少一个标签、根据标签key匹配
-  tags: Array<{
-    key: string
-    value: string
-  }> // 标签键值对
+  tags: RuleTag[] // 标签键值对
   resource_mapping: 'specify_project' | 'specify_name' // 资源映射方式
   target_project_id?: number // 指定项目ID
   target_project_name?: string // 指定项目名称
