@@ -14,6 +14,7 @@ export function createVPC(data: {
   account_id: number
   name: string
   cidr: string
+  ipv6_cidr?: string
   description?: string
 }) {
   return request<VPC>({

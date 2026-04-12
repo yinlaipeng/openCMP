@@ -290,6 +290,11 @@ const handleSubmit = async () => {
     return
   }
 
+  if (!formData.value.account_id) {
+    ElMessage.error('请选择云账号')
+    return
+  }
+
   submitting.value = true
   try {
     const data: {
@@ -299,7 +304,7 @@ const handleSubmit = async () => {
       ipv6_cidr?: string
       description?: string
     } = {
-      account_id: formData.value.account_id!,
+      account_id: formData.value.account_id,
       name: formData.value.name,
       cidr: formData.value.cidr,
       ipv6_cidr: formData.value.ipv6_cidr || undefined,
