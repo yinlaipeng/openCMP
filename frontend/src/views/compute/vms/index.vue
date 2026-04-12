@@ -201,6 +201,12 @@
       :account-id="parseInt(queryForm.account_id)"
       @close="vncModalVisible = false"
     />
+
+    <!-- 创建虚拟机模态框 -->
+    <CreateVMModal
+      v-model:visible="createModalVisible"
+      @success="handleCreateSuccess"
+    />
   </div>
 </template>
 
@@ -219,12 +225,14 @@ import type { VirtualMachine } from '@/types'
 import VMModal from '@/components/vm/VMModal.vue'
 import VNCConsole from '@/components/vm/VNCConsole.vue'
 import VMActionDropdown from '@/components/vm/VMActionDropdown.vue'
+import CreateVMModal from '@/components/vm/CreateVMModal.vue'
 
 // 响应式数据
 const vms = ref<VirtualMachine[]>([])
 const loading = ref(false)
 const detailsModalVisible = ref(false)
 const vncModalVisible = ref(false)
+const createModalVisible = ref(false)
 const selectedVM = ref<VirtualMachine | null>(null)
 
 // 分页数据
@@ -292,7 +300,7 @@ const loadVMs = async () => {
 }
 
 const handleCreate = () => {
-  ElMessage.info('创建虚拟机功能开发中')
+  createModalVisible.value = true
 }
 
 const handleAction = async (row: VirtualMachine, action: string) => {
@@ -354,6 +362,11 @@ const handleCurrentChange = (page: number) => {
 const handleVmAction = (action: string, data?: any) => {
   console.log('VM action triggered:', action, data)
   // 处理特定的 VM 操作
+}
+
+const handleCreateSuccess = (vm: VirtualMachine) => {
+  ElMessage.success(`${vm.name} 创建成功`)
+  loadVMs()
 }
 
 onMounted(() => {
