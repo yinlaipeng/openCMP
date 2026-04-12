@@ -4,6 +4,10 @@
       <template #header>
         <div class="card-header">
           <span class="title">IP子网列表</span>
+          <el-button type="primary" @click="handleCreate">
+            <el-icon><Plus /></el-icon>
+            创建子网
+          </el-button>
         </div>
       </template>
 
@@ -137,13 +141,20 @@
         <el-button type="primary" @click="submitAdjustTags">确定</el-button>
       </template>
     </el-dialog>
+
+    <!-- 创建子网模态框 -->
+    <CreateSubnetModal
+      v-model:visible="createModalVisible"
+      @success="handleCreateSuccess"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowDown } from '@element-plus/icons-vue'
+import { ArrowDown, Plus } from '@element-plus/icons-vue'
+import CreateSubnetModal from '@/components/network/CreateSubnetModal.vue'
 
 interface ExtendedSubnet {
   id: string
@@ -165,6 +176,7 @@ const subnets = ref<ExtendedSubnet[]>([])
 const loading = ref(false)
 const detailDialogVisible = ref(false)
 const adjustTagsDialogVisible = ref(false)
+const createModalVisible = ref(false)
 const selectedSubnet = ref<ExtendedSubnet | null>(null)
 const detailTab = ref('detail')
 const scheduleTags = ref<string[]>([])
@@ -319,6 +331,15 @@ const handleDelete = async (row: ExtendedSubnet) => {
   } catch (e) {
     console.error(e)
   }
+}
+
+const handleCreate = () => {
+  createModalVisible.value = true
+}
+
+const handleCreateSuccess = (subnet: ExtendedSubnet) => {
+  ElMessage.success(`${subnet.name} 创建成功`)
+  loadSubnets()
 }
 
 onMounted(() => {
