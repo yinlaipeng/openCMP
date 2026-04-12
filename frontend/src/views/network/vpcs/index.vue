@@ -4,6 +4,10 @@
       <template #header>
         <div class="card-header">
           <span class="title">VPC列表</span>
+          <el-button type="primary" @click="handleCreate">
+            <el-icon><Plus /></el-icon>
+            创建 VPC
+          </el-button>
         </div>
       </template>
 
@@ -204,13 +208,20 @@
         <el-button type="primary" @click="submitChangeDomain">确定</el-button>
       </template>
     </el-dialog>
+
+    <!-- 创建 VPC 模态框 -->
+    <CreateVPCModal
+      v-model:visible="createModalVisible"
+      @success="handleCreateSuccess"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowDown } from '@element-plus/icons-vue'
+import { ArrowDown, Plus } from '@element-plus/icons-vue'
+import CreateVPCModal from '@/components/network/CreateVPCModal.vue'
 
 interface ExtendedVPC {
   id: string
@@ -234,6 +245,7 @@ const loading = ref(false)
 const activeTab = ref('all')
 const detailDialogVisible = ref(false)
 const changeDomainDialogVisible = ref(false)
+const createModalVisible = ref(false)
 const selectedVPC = ref<ExtendedVPC | null>(null)
 const detailTab = ref('detail')
 const targetDomain = ref('')
@@ -378,6 +390,15 @@ const handleDelete = async (row: ExtendedVPC) => {
   } catch (e) {
     console.error(e)
   }
+}
+
+const handleCreate = () => {
+  createModalVisible.value = true
+}
+
+const handleCreateSuccess = (vpc: ExtendedVPC) => {
+  ElMessage.success(`${vpc.name} 创建成功`)
+  loadVPCs()
 }
 
 onMounted(() => {
