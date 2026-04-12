@@ -1,9 +1,129 @@
 # Findings & Decisions
 
 ## Requirements
-- 继续完成 openCMP 多云管理平台开发
-- 重点：多云管理模块（同步策略、资源同步规则、定时同步任务）
-- 重点：云厂商适配器完善（阿里云 VPC/Database/Middleware、腾讯云/AWS/Azure）
+- 实现 openCMP 项目完整落地，前端与后端真实对接
+- 不再使用模拟接口，实现真实的云厂商 SDK 调用
+- 完成从云账号添加 → 资源同步 → 资源管理的完整业务流程
+
+## Research Findings (2026-04-12 Session 3)
+
+### 后端 API 调用链分析
+
+**真实数据流已建立：**
+```
+前端页面 → API 请求 → Handler → Service → CloudProvider Adapter → 云厂商 SDK → 真实云资源
+                                ↓
+                           数据库存储（账号/资源元数据/同步状态）
+```
+
+**关键发现：**
+1. `ComputeService` 和 `NetworkService` 已正确实现 `getProvider()` 方法获取适配器
+2. 适配器通过 `cloudprovider.GetProvider(account.ProviderType, config)` 动态获取
+3. Handler 层已正确调用 Service 层方法
+4. Service 层已正确调用 Provider 接口
+
+### 云厂商适配器实现状态 (更新 2026-04-12)
+
+| 云厂商 | Compute | Network | Storage | Database | Middleware | SDK 安装 |
+|--------|---------|---------|---------|----------|------------|----------|
+| 阿里云 | ✅ 真实 | ✅ 真实 | ✅ 真实 | ⚠️ 待实现 | ⚠️ 待实现 | ✅ alibaba-cloud-sdk-go |
+| 腾讯云 | ✅ 真实 | ✅ 真实 | ❌ 占位  | ❌ 占位   | ❌ 占位    | ✅ tencentcloud-sdk-go |
+| AWS    | ✅ 真实 | ✅ 真实 | ❌ 占位  | ❌ 占位   | ❌ 占位    | ✅ aws-sdk-go-v2 |
+| Azure  | ✅ 真实 | ✅ 真实 | ❌ 占位  | ❌ 占位   | ❌ 占位    | ✅ azure-sdk-for-go |
+
+**阿里云适配器文件结构：**
+- `provider.go` - SDK 初始化 (ECSClient, VPCClient)
+- `vm.go` - CreateVM/DeleteVM/StartVM/StopVM/ListVMs 真实调用
+- `vpc.go` - CreateVPC/DeleteVPC/ListVPCs/CreateSubnet 真实调用
+- `disk.go` - CreateDisk/DeleteDisk/AttachDisk 真实调用
+
+**腾讯云适配器文件结构：**
+- `provider.go` - SDK 初始化 (CvmClient, VpcClient)
+- `vm.go` - CreateVM/DeleteVM/StartVM/StopVM/ListVMs 真实调用
+- `vpc.go` - CreateVPC/DeleteVPC/ListVPCs/CreateSubnet 真实调用
+
+**AWS适配器文件结构：**
+- `provider.go` - SDK 初始化 (EC2Client)
+- `vm.go` - RunInstances/TerminateInstances/StartInstances 真实调用
+- `vpc.go` - CreateVpc/DeleteVpc/CreateSubnet 真实调用
+
+**Azure适配器状态 (已完成)：**
+- `provider.go` - SDK 初始化 (vmClient, vnetClient, subnetClient, nsgClient, ipClient)
+- `vm.go` - CreateVM/DeleteVM/StartVM/StopVM/RebootVM/GetVMStatus/ListVMs 真实调用
+- `vpc.go` - CreateVPC/DeleteVPC/ListVPCs/CreateSubnet/DeleteSubnet/ListSubnets/CreateSecurityGroup 真实调用
+
+### 前端页面功能按钮分析
+
+| 页面 | 按钮/操作 | 后端 API | 状态 |
+|------|----------|----------|------|
+| VMs | 创建虚拟机 | POST /compute/vms | ✅ 已对接 |
+| VMs | 启动/停止/重启 | POST /compute/vms/:id/action | ✅ 已对接 |
+| VMs | 删除 | DELETE /compute/vms/:id | ✅ 已对接 |
+| VPCs | 创建 VPC | POST /network/vpcs | ✅ 已对接 |
+| VPCs | 删除 | DELETE /network/vpcs/:id | ✅ 已对接 |
+| Subnets | 创建子网 | POST /network/subnets | ✅ 已对接 |
+| SecurityGroups | 创建安全组 | POST /network/security-groups | ✅ 已对接 |
+| EIPs | 申请 EIP | POST /network/eips | ✅ 已对接 |
+
+**结论：前端已准备好调用真实后端 API，后端也已正确调用云厂商适配器。**
+
+### 需要完善的内容
+
+**Phase 8 - Azure 适配器实现：**
+1. 安装 Azure SDK (`github.com/Azure/azure-sdk-for-go`)
+2. 实现 Compute 接口 (VM CRUD)
+3. 实现 Network 接口 (VNet/Subnet/NSG)
+
+**Phase 9 - 云账号流程完善：**
+1. 前端云账号创建 → 后端验证凭证 → 存储
+2. 云账号同步功能（全量/增量）
+3. 同步策略配置生效
+
+**Phase 10 - Database/Middleware 适配器：**
+1. 阿里云 RDS (MySQL/PostgreSQL)
+2. 阿里云 Redis
+3. 其他云厂商 Database
+
+### 云账号凭证格式
+
+**阿里云：**
+```json
+{
+  "access_key_id": "LTAI...",
+  "access_key_secret": "...",
+  "region_id": "cn-hangzhou"
+}
+```
+
+**腾讯云：**
+```json
+{
+  "secret_id": "...",
+  "secret_key": "...",
+  "region": "ap-guangzhou"
+}
+```
+
+**AWS：**
+```json
+{
+  "access_key": "AKIA...",
+  "secret_key": "...",
+  "region": "us-west-2"
+}
+```
+
+**Azure：**
+```json
+{
+  "tenant_id": "...",
+  "client_id": "...",
+  "client_secret": "...",
+  "subscription_id": "..."
+}
+```
+
+## Previous Findings
 
 ## Research Findings
 
@@ -178,7 +298,115 @@
 3. **创建 Subnet 弹窗** - subnets/index.vue 添加创建功能 ✅ 已完成
 4. **验证存储/数据库页面完整性** - 待后续迭代
 
-## Phase 4 实现结果 (2026-04-12)
+## Phase 7: UI/UX 设计系统分析 (2026-04-12)
+
+### ui-ux-pro-max 推荐设计系统
+
+**产品类型**: multi-cloud management platform SaaS dashboard
+
+| 维度 | 推荐 | 说明 |
+|------|------|------|
+| **Pattern** | App Store Style Landing | 展示真实截图，包含评分，平台特定 CTA |
+| **Style** | Glassmorphism | 毛玻璃效果，模糊背景，层次感 |
+| **Colors** | Dark bg + Green accent | #020617 背景, #22C55E 强调色 |
+| **Typography** | Fira Code / Fira Sans | 仪表盘/数据分析风格，技术感 |
+| **Effects** | Backdrop blur + Subtle border | 10-20px 模糊，1px 白色透明边框 |
+| **Avoid** | 过度动画 + 默认深色模式 | 保持简洁，支持亮/暗双模式 |
+
+### 推荐颜色变量
+
+```css
+--color-primary: #0F172A       /* 主要色 */
+--color-on-primary: #FFFFFF    /* 主要色上的文字 */
+--color-secondary: #1E293B     /* 次级色 */
+--color-accent: #22C55E        /* 强调色/CTA */
+--color-background: #020617    /* 背景色 */
+--color-foreground: #F8FAFC    /* 前景色 */
+--color-muted: #1A1E2F         /* 柔和色 */
+--color-border: #334155        /* 边框色 */
+--color-destructive: #EF4444   /* 危险操作色 */
+```
+
+### 现有页面分析
+
+#### VMs 页面 (vms/index.vue)
+| 问题 | 当前状态 | 建议改进 |
+|------|---------|---------|
+| 查询区域 | 固定展开 inline form | 添加折叠/展开功能 |
+| 状态标签 | el-tag type 属性 | 统一颜色语义 (success=绿色, warning=橙色, danger=红色) |
+| 空状态 | 无提示 | 添加空状态占位图和引导文案 |
+| 响应式 | 无适配 | 添加断点样式 |
+| 字体 | 默认字体 | 技术数据使用 Fira Code |
+
+#### VPCs 页面 (vpcs/index.vue)
+| 问题 | 当前状态 | 建议改进 |
+|------|---------|---------|
+| Tabs 过滤 | 全部/本地idc/公有云 | 标签样式增强 |
+| 拓扑图 | placeholder 文字 | 添加视觉占位或简化拓扑图 |
+| 操作按钮 | el-button + dropdown | 主要/次要/危险按钮分组优化 |
+
+#### Subnets 页面 (subnets/index.vue)
+| 问题 | 当前状态 | 建议改进 |
+|------|---------|---------|
+| 详情弹窗 | el-tabs 多标签 | 标签样式增强 |
+| IP 使用图表 | el-statistic 简单数字 | 可视化进度条或环形图 |
+
+#### CreateVMModal (5步向导)
+| 问题 | 当前状态 | 建议改进 |
+|------|---------|---------|
+| 步骤指示器 | el-steps simple | 添加进度条或卡片式步骤 |
+| 表单布局 | 单列布局 | 可考虑双列紧凑布局 |
+| 确认页 | el-descriptions | 数据卡片分组布局 |
+
+#### CreateVPCModal/CreateSubnetModal
+| 问题 | 当前状态 | 建议改进 |
+|------|---------|---------|
+| CIDR 帮助 | 弹窗 + 表格 | 保持，样式增强 |
+| 表单宽度 | 固定宽度 | 响应式宽度调整 |
+
+### 优化优先级
+
+| 优先级 | 类别 | 关键检查项 | 避免反模式 |
+|--------|------|-----------|-----------|
+| 1 (CRITICAL) | Accessibility | 对比度 4.5:1, Alt text, Keyboard nav | 移除 focus ring, 无标签图标按钮 |
+| 2 (CRITICAL) | Touch & Interaction | 最小 44×44px, 加载反馈 | 仅依赖 hover, 瞬时状态变化 |
+| 3 (HIGH) | Performance | 懒加载, CLS < 0.1 | 布局跳动 |
+| 4 (HIGH) | Style Selection | 匹配产品类型, 一致性, SVG 图标 | 随意混用风格, emoji 作为图标 |
+| 5 (HIGH) | Layout & Responsive | Mobile-first breakpoints | 水平滚动, 禁止缩放 |
+| 6 (MEDIUM) | Typography & Color | 16px 基准, line-height 1.5 | < 12px 文字, 灰色叠加灰色 |
+
+### 实现方案
+
+**Phase 7 分步计划:**
+
+1. **Step 1: CSS 变量定义** - 创建 `frontend/src/styles/design-system.css`
+   - 定义颜色 token (primary, secondary, accent, surface, etc.)
+   - 定义字体变量 (Fira Code for data, Fira Sans for text)
+   - 定义间距 token (4/8/12/16/24/32/48)
+
+2. **Step 2: Glassmorphism 样式** - 创建 `frontend/src/styles/glass-card.css`
+   - backdrop-filter: blur(10-20px)
+   - background: rgba(15, 23, 42, 0.8)
+   - border: 1px solid rgba(255, 255, 255, 0.2)
+   - 用于 el-card 和 el-dialog 自定义样式
+
+3. **Step 3: 列表页面优化** - 修改 vpcs/subnets/vms/index.vue
+   - 添加查询折叠按钮
+   - 状态标签颜色语义化
+   - 空状态组件
+
+4. **Step 4: 创建弹窗优化** - 修改 CreateVMModal/CreateVPCModal/CreateSubnetModal
+   - 步骤指示器视觉增强
+   - 确认页数据卡片布局
+
+5. **Step 5: 响应式样式** - 添加 CSS media queries
+   - @media (max-width: 768px) { ... }
+   - @media (max-width: 375px) { ... }
+
+6. **Step 6: 无障碍检查** - 使用 axe-core 或手动检查
+   - 验证对比度
+   - 添加 aria-label
+   - 测试键盘导航
 
 ### 新增文件清单
 | 文件 | 类型 | 说明 |
