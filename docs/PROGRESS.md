@@ -45,12 +45,14 @@
 |--------|------|------|------|--------|--------|------|
 | 阿里云 | ✅ | ✅ | ✅ | ⬜ | ⬜ | 核心完成 |
 | 腾讯云 | ✅ | ✅ | ⬜ | ⬜ | ⬜ | 核心完成 |
-| AWS | 🚧 | 🚧 | ⬜ | ⬜ | ⬜ | 骨架 |
+| AWS | ✅ | ✅ | ⬜ | ⬜ | ⬜ | 核心完成 |
 | Azure | 🚧 | 🚧 | ⬜ | ⬜ | ⬜ | 骨架 |
 
 ## 最近更新
 
-- 2026-04-05: 消息中心测试用例全部完成（message/notification_channel/robot/receiver/subscription 服务层和 handler 层测试覆盖）
+- 2026-04-12: AWS 适配器实现完成（Compute: VM 镜像管理 + Network: VPC/Subnet/SecurityGroup/EIP）
+- 2026-04-12: 腾讯云适配器实现完成（Compute: VM 镜像管理 + Network: VPC/Subnet/SecurityGroup/EIP）
+- 2026-04-12: 同步策略前端页面补全完成 2026-04-05: 消息中心测试用例全部完成（message/notification_channel/robot/receiver/subscription 服务层和 handler 层测试覆盖）
 - 2026-04-05: 认证源模块完善：操作列改为"更多"下拉、LDAP 认证流程骨架、域绑定登录、JWT 携带 domain_id、service/handler 双层单元测试（14 个测试用例）
 - 2026-04-05: 产品设计 Agent 规范文档创建（docs/superpowers/specs/2026-04-05-product-design-agent-guide.md）
 - 2026-04-05: 消息中心后端 handler 层全部完成（message/notification_channel/robot/receiver/subscription 5 个 handler + 路由注册）
