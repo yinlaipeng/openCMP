@@ -68,6 +68,14 @@ export function testConnection(id: number) {
   })
 }
 
+// 验证凭证（实际调用云厂商 API）
+export function verifyCredentials(id: number) {
+  return request<{ valid: boolean; message: string }>({
+    url: `/cloud-accounts/${id}/verify-credentials`,
+    method: 'get'
+  })
+}
+
 // 更新云账号状态
 export function updateCloudAccountStatus(id: number, enabled: boolean) {
   return request<CloudAccount>({

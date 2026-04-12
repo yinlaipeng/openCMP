@@ -150,6 +150,8 @@ func main() {
 			cloudAccountGroup.DELETE("/:id", cloudAccountHandler.Delete)
 			cloudAccountGroup.POST("/:id/verify", cloudAccountHandler.Verify)
 			cloudAccountGroup.POST("/:id/test-connection", cloudAccountHandler.TestConnection)
+			cloudAccountGroup.POST("/:id/sync", cloudAccountHandler.Sync)
+			cloudAccountGroup.GET("/:id/verify-credentials", cloudAccountHandler.VerifyCredentials)
 		}
 
 		// 计算资源路由

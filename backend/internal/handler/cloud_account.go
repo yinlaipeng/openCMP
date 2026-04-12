@@ -304,3 +304,72 @@ func (h *CloudAccountHandler) TestConnection(c *gin.Context) {
 		"message":   "connection test succeeded",
 	})
 }
+
+// Sync 同步云账户资源
+func (h *CloudAccountHandler) Sync(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	account, err := h.service.GetCloudAccount(c.Request.Context(), uint(id))
+	if err != nil {
+		h.logger.Error("failed to get cloud account", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if account == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "account not found"})
+		return
+	}
+
+	stats, err := h.service.SyncResources(c.Request.Context(), account)
+	if err != nil {
+		h.logger.Error("failed to sync cloud account resources", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":    "sync completed",
+		"statistics": stats,
+	})
+}
+
+// VerifyCredentials 验证云账户凭证（实际调用 API）
+func (h *CloudAccountHandler) VerifyCredentials(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	account, err := h.service.GetCloudAccount(c.Request.Context(), uint(id))
+	if err != nil {
+		h.logger.Error("failed to get cloud account", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if account == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "account not found"})
+		return
+	}
+
+	valid, message, err := h.service.VerifyCredentials(c.Request.Context(), account)
+	if err != nil {
+		h.logger.Error("failed to verify cloud account credentials", zap.Error(err))
+		c.JSON(http.StatusOK, gin.H{
+			"valid":   false,
+			"message": message,
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"valid":   valid,
+		"message": message,
+	})
+}

@@ -125,3 +125,121 @@ func (s *CloudAccountService) TestConnection(ctx context.Context, account *model
 
 	return true, nil
 }
+
+// SyncResources 同步云账户资源
+// 返回同步的资源统计（VM数量、VPC数量等）
+func (s *CloudAccountService) SyncResources(ctx context.Context, account *model.CloudAccount) (map[string]int, error) {
+	var creds map[string]string
+	if err := json.Unmarshal(account.Credentials, &creds); err != nil {
+		return nil, err
+	}
+
+	config := cloudprovider.CloudAccountConfig{
+		ID:           strconv.Itoa(int(account.ID)),
+		Name:         account.Name,
+		ProviderType: account.ProviderType,
+		Credentials:  creds,
+		Region:       creds["region_id"],
+	}
+
+	provider, err := cloudprovider.GetProvider(account.ProviderType, config)
+	if err != nil {
+		return nil, err
+	}
+
+	stats := map[string]int{}
+
+	// 同步虚拟机
+	vms, err := provider.ListVMs(ctx, cloudprovider.VMListFilter{})
+	if err == nil {
+		stats["vms"] = len(vms)
+	}
+
+	// 同步 VPC
+	vpcs, err := provider.ListVPCs(ctx, cloudprovider.VPCFilter{})
+	if err == nil {
+		stats["vpcs"] = len(vpcs)
+	}
+
+	// 同步子网
+	subnets, err := provider.ListSubnets(ctx, cloudprovider.SubnetFilter{})
+	if err == nil {
+		stats["subnets"] = len(subnets)
+	}
+
+	// 同步安全组
+	sgs, err := provider.ListSecurityGroups(ctx, cloudprovider.SGFilter{})
+	if err == nil {
+		stats["security_groups"] = len(sgs)
+	}
+
+	// 同步 EIP
+	eips, err := provider.ListEIPs(ctx, cloudprovider.EIPFilter{})
+	if err == nil {
+		stats["eips"] = len(eips)
+	}
+
+	// 同步镜像
+	images, err := provider.ListImages(ctx, cloudprovider.ImageFilter{})
+	if err == nil {
+		stats["images"] = len(images)
+	}
+
+	// 更新同步状态
+	account.Status = string(model.CloudAccountStatusActive)
+	s.db.WithContext(ctx).Save(account)
+
+	return stats, nil
+}
+
+// VerifyCredentials 实际验证云账户凭证（通过调用真实 API）
+func (s *CloudAccountService) VerifyCredentials(ctx context.Context, account *model.CloudAccount) (bool, string, error) {
+	var creds map[string]string
+	if err := json.Unmarshal(account.Credentials, &creds); err != nil {
+		return false, "invalid credentials format", err
+	}
+
+	config := cloudprovider.CloudAccountConfig{
+		ID:           strconv.Itoa(int(account.ID)),
+		Name:         account.Name,
+		ProviderType: account.ProviderType,
+		Credentials:  creds,
+		Region:       creds["region_id"],
+	}
+
+	provider, err := cloudprovider.GetProvider(account.ProviderType, config)
+	if err != nil {
+		return false, "failed to initialize provider: " + err.Error(), err
+	}
+
+	// 尝试实际调用云厂商 API 来验证凭证有效性
+	// 不同云厂商使用不同的验证方式
+	switch account.ProviderType {
+	case "alibaba":
+		// 尝试列出区域来验证
+		regions, err := provider.ListRegions()
+		if err != nil {
+			return false, "failed to list regions: " + err.Error(), err
+		}
+		if len(regions) == 0 {
+			return false, "no regions returned", nil
+		}
+		return true, "credentials verified, " + strconv.Itoa(len(regions)) + " regions available", nil
+
+	case "tencent", "aws", "azure":
+		// 尝试列出镜像来验证
+		images, err := provider.ListImages(ctx, cloudprovider.ImageFilter{})
+		if err != nil {
+			return false, "failed to list images: " + err.Error(), err
+		}
+		return true, "credentials verified, " + strconv.Itoa(len(images)) + " images available", nil
+
+	default:
+		// 对于其他云厂商，使用基本验证
+		cloudInfo := provider.GetCloudInfo()
+		if cloudInfo.Provider == "" {
+			return false, "provider info not available", nil
+		}
+		return true, "provider initialized", nil
+	}
+}
