@@ -26,12 +26,20 @@
   - progress.md (created, updated)
 
 ### Phase 2: 补全缺失功能
-- **Status:** in_progress
+- **Status:** complete
 - Actions taken:
-  - 提交现有改动（164 文件，+20053/-1790）
-  - commit: `ecf86fa feat: 多云管理平台核心功能增强`
+  - 提交现有改动（164 文件，+20053/-1790）commit: `ecf86fa`
+  - 创建同步策略前端页面 `sync-policies/index.vue`
+  - 更新 sync-policy.ts API（修正参数名）
+  - 更新 types/sync-policy.ts（修正 RuleTag 结构）
+  - 补充 iam.ts 缺失函数（getRoleUsers, getRoleGroups, Robot 管理）
+  - 修复前端构建错误
+  - 提交同步策略前端 commit: `8275754`
 - Files created/modified:
-  - 提交内容详见 git log
+  - frontend/src/views/cloud-management/sync-policies/index.vue
+  - frontend/src/api/sync-policy.ts
+  - frontend/src/types/sync-policy.ts
+  - frontend/src/api/iam.ts
 
 ## Test Results
 | Test | Input | Expected | Actual | Status |
