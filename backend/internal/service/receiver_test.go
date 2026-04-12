@@ -20,10 +20,10 @@ func TestReceiverService(t *testing.T) {
 
 	// Create a test receiver
 	receiver := &model.Receiver{
-		Name:      "Test Receiver",
-		Email:     "test@example.com",
-		Phone:     "1234567890",
-		Enabled:   true,
+		Name:    "Test Receiver",
+		Email:   "test@example.com",
+		Phone:   "1234567890",
+		Enabled: true,
 	}
 
 	// Test CreateReceiver
@@ -139,10 +139,10 @@ func TestReceiverService_GetByUserID(t *testing.T) {
 
 	// Create a receiver linked to the user
 	receiver := &model.Receiver{
-		Name:      "Linked Receiver",
-		Email:     "linked@example.com",
-		UserID:    &user.ID,
-		Enabled:   true,
+		Name:    "Linked Receiver",
+		Email:   "linked@example.com",
+		UserID:  &user.ID,
+		Enabled: true,
 	}
 	err := service.CreateReceiver(ctx, receiver)
 	assert.NoError(t, err)

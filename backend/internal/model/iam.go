@@ -11,27 +11,27 @@ import (
 
 // Policy 策略（参考 OneCloud 设计）
 type Policy struct {
-	ID                 string         `gorm:"primaryKey;size:64" json:"id"` // 策略 ID（UUID）
-	Name               string         `gorm:"uniqueIndex;not null;size:100" json:"name"` // 策略名称
-	Description        string         `gorm:"size:500" json:"description"` // 策略描述
-	Scope              string         `gorm:"type:varchar(20);not null;index" json:"scope"` // system/domain/project
-	DomainID           string         `gorm:"size:64;index" json:"domain_id"` // 域 ID
-	ProjectID          string         `gorm:"size:64;index" json:"project_id"` // 项目 ID
-	Policy             datatypes.JSON `gorm:"type:json;not null" json:"policy"` // 策略内容（JSON 格式）
-	IsSystem           bool           `gorm:"default:false;index" json:"is_system"` // 是否系统策略
-	IsPublic           bool           `gorm:"default:false" json:"is_public"` // 是否公开
-	IsEmulated         bool           `gorm:"default:false" json:"is_emulated"` // 是否预置策略
-	Enabled            bool           `gorm:"default:true;index" json:"enabled"` // 是否启用
-	CanDelete          bool           `gorm:"-" json:"can_delete"` // 是否可删除（计算字段）
-	CanUpdate          bool           `gorm:"-" json:"can_update"` // 是否可更新（计算字段）
-	DeleteFailReason   datatypes.JSON `gorm:"type:json" json:"delete_fail_reason"` // 删除失败原因
-	PendingDeleted     bool           `gorm:"default:false" json:"pending_deleted"` // 是否待删除
-	Deleted            bool           `gorm:"default:false" json:"deleted"` // 是否已删除
-	PublicScope        string         `gorm:"type:varchar(20)" json:"public_scope"` // 公开范围
-	UpdateVersion      int            `gorm:"default:0" json:"update_version"` // 更新版本
-	CreatedAt          time.Time      `gorm:"index" json:"created_at"`
-	UpdatedAt          time.Time      `gorm:"index" json:"updated_at"`
-	DeletedAt          gorm.DeletedAt `gorm:"index" json:"-"`
+	ID               string         `gorm:"primaryKey;size:64" json:"id"`                 // 策略 ID（UUID）
+	Name             string         `gorm:"uniqueIndex;not null;size:100" json:"name"`    // 策略名称
+	Description      string         `gorm:"size:500" json:"description"`                  // 策略描述
+	Scope            string         `gorm:"type:varchar(20);not null;index" json:"scope"` // system/domain/project
+	DomainID         string         `gorm:"size:64;index" json:"domain_id"`               // 域 ID
+	ProjectID        string         `gorm:"size:64;index" json:"project_id"`              // 项目 ID
+	Policy           datatypes.JSON `gorm:"type:json;not null" json:"policy"`             // 策略内容（JSON 格式）
+	IsSystem         bool           `gorm:"default:false;index" json:"is_system"`         // 是否系统策略
+	IsPublic         bool           `gorm:"default:false" json:"is_public"`               // 是否公开
+	IsEmulated       bool           `gorm:"default:false" json:"is_emulated"`             // 是否预置策略
+	Enabled          bool           `gorm:"default:true;index" json:"enabled"`            // 是否启用
+	CanDelete        bool           `gorm:"-" json:"can_delete"`                          // 是否可删除（计算字段）
+	CanUpdate        bool           `gorm:"-" json:"can_update"`                          // 是否可更新（计算字段）
+	DeleteFailReason datatypes.JSON `gorm:"type:json" json:"delete_fail_reason"`          // 删除失败原因
+	PendingDeleted   bool           `gorm:"default:false" json:"pending_deleted"`         // 是否待删除
+	Deleted          bool           `gorm:"default:false" json:"deleted"`                 // 是否已删除
+	PublicScope      string         `gorm:"type:varchar(20)" json:"public_scope"`         // 公开范围
+	UpdateVersion    int            `gorm:"default:0" json:"update_version"`              // 更新版本
+	CreatedAt        time.Time      `gorm:"index" json:"created_at"`
+	UpdatedAt        time.Time      `gorm:"index" json:"updated_at"`
+	DeletedAt        gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 func (Policy) TableName() string {
@@ -52,15 +52,15 @@ func (RolePolicy) TableName() string {
 
 // PolicyStatement 策略语句
 type PolicyStatement struct {
-	ID          uint           `gorm:"primaryKey" json:"id"`
-	PolicyID    string         `gorm:"index;size:64" json:"policy_id"`
-	Effect      string         `gorm:"type:varchar(20);not null" json:"effect"` // Allow/Deny
-	Resource    string         `gorm:"size:255" json:"resource"`                // 资源标识，支持通配符
-	Actions     datatypes.JSON `gorm:"type:json" json:"actions"`                // 操作列表，JSON数组
-	Conditions  datatypes.JSON `gorm:"type:json" json:"conditions"`             // 条件，JSON对象
-	CreatedAt   time.Time      `json:"created_at"`
-	UpdatedAt   time.Time      `json:"updated_at"`
-	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
+	ID         uint           `gorm:"primaryKey" json:"id"`
+	PolicyID   string         `gorm:"index;size:64" json:"policy_id"`
+	Effect     string         `gorm:"type:varchar(20);not null" json:"effect"` // Allow/Deny
+	Resource   string         `gorm:"size:255" json:"resource"`                // 资源标识，支持通配符
+	Actions    datatypes.JSON `gorm:"type:json" json:"actions"`                // 操作列表，JSON数组
+	Conditions datatypes.JSON `gorm:"type:json" json:"conditions"`             // 条件，JSON对象
+	CreatedAt  time.Time      `json:"created_at"`
+	UpdatedAt  time.Time      `json:"updated_at"`
+	DeletedAt  gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 func (PolicyStatement) TableName() string {
@@ -93,7 +93,7 @@ type Project struct {
 	Name        string         `gorm:"uniqueIndex;not null;size:100" json:"name"`
 	Description string         `gorm:"size:500" json:"description"`
 	DomainID    uint           `gorm:"index;not null" json:"domain_id"`
-	ParentID    *uint          `gorm:"index" json:"parent_id"` // 支持项目层级
+	ParentID    *uint          `gorm:"index" json:"parent_id"`  // 支持项目层级
 	ManagerID   *uint          `gorm:"index" json:"manager_id"` // 项目管理员ID
 	Enabled     bool           `gorm:"default:true" json:"enabled"`
 	CreatedAt   time.Time      `json:"created_at"`
@@ -171,7 +171,7 @@ type Role struct {
 	Name        string         `gorm:"uniqueIndex;not null;size:100" json:"name"`
 	DisplayName string         `gorm:"size:100" json:"display_name"`
 	Description string         `gorm:"size:500" json:"description"`
-	DomainID    uint           `gorm:"index" json:"domain_id"` // 为空表示系统角色
+	DomainID    uint           `gorm:"index" json:"domain_id"`                      // 为空表示系统角色
 	Type        string         `gorm:"type:varchar(20);default:custom" json:"type"` // system/custom
 	Enabled     bool           `gorm:"default:true" json:"enabled"`
 	IsPublic    bool           `gorm:"default:false" json:"is_public"` // 是否公开
@@ -187,18 +187,18 @@ func (Role) TableName() string {
 // Permission 权限
 type Permission struct {
 	ID          uint           `gorm:"primaryKey" json:"id"`
-	Name        string         `gorm:"uniqueIndex;not null;size:100" json:"name"`           // 权限名称，如 "user.create"
-	DisplayName string         `gorm:"size:100" json:"display_name"`                       // 显示名称
-	Description string         `gorm:"size:500" json:"description"`                        // 权限描述
-	Type        string         `gorm:"type:varchar(20);default:custom" json:"type"`        // 类型：system/custom
-	Resource    string         `gorm:"size:100;not null;index" json:"resource"`            // 资源类型，如 "user", "vm", "project"
-	Action      string         `gorm:"size:100;not null;index" json:"action"`              // 操作类型，如 "list", "create", "update", "delete"
-	Scope       string         `gorm:"type:varchar(20);not null;index" json:"scope"`       // system/domain/project
-	DomainID    *uint          `gorm:"index" json:"domain_id"`                             // 域 ID（仅当 scope=domain 时）
-	ProjectID   *uint          `gorm:"index" json:"project_id"`                            // 项目 ID（仅当 scope=project 时）
-	Enabled     bool           `gorm:"default:true" json:"enabled"`                        // 是否启用
-	IsPublic    bool           `gorm:"default:false" json:"is_public"`                     // 是否公开
-	Conditions  datatypes.JSON `gorm:"type:json" json:"conditions"`                        // 条件限制
+	Name        string         `gorm:"uniqueIndex;not null;size:100" json:"name"`    // 权限名称，如 "user.create"
+	DisplayName string         `gorm:"size:100" json:"display_name"`                 // 显示名称
+	Description string         `gorm:"size:500" json:"description"`                  // 权限描述
+	Type        string         `gorm:"type:varchar(20);default:custom" json:"type"`  // 类型：system/custom
+	Resource    string         `gorm:"size:100;not null;index" json:"resource"`      // 资源类型，如 "user", "vm", "project"
+	Action      string         `gorm:"size:100;not null;index" json:"action"`        // 操作类型，如 "list", "create", "update", "delete"
+	Scope       string         `gorm:"type:varchar(20);not null;index" json:"scope"` // system/domain/project
+	DomainID    *uint          `gorm:"index" json:"domain_id"`                       // 域 ID（仅当 scope=domain 时）
+	ProjectID   *uint          `gorm:"index" json:"project_id"`                      // 项目 ID（仅当 scope=project 时）
+	Enabled     bool           `gorm:"default:true" json:"enabled"`                  // 是否启用
+	IsPublic    bool           `gorm:"default:false" json:"is_public"`               // 是否公开
+	Conditions  datatypes.JSON `gorm:"type:json" json:"conditions"`                  // 条件限制
 	CreatedAt   time.Time      `json:"created_at"`
 	UpdatedAt   time.Time      `json:"updated_at"`
 	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
@@ -250,10 +250,10 @@ func (ProjectUserRole) TableName() string {
 
 // GroupRole 组角色关联（域级别）
 type GroupRole struct {
-	ID       uint      `gorm:"primaryKey" json:"id"`
-	GroupID  uint      `gorm:"index;uniqueIndex:group_role_domain" json:"group_id"`
-	RoleID   uint      `gorm:"index;uniqueIndex:group_role_domain" json:"role_id"`
-	DomainID uint      `gorm:"index;uniqueIndex:group_role_domain" json:"domain_id"`
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	GroupID   uint      `gorm:"index;uniqueIndex:group_role_domain" json:"group_id"`
+	RoleID    uint      `gorm:"index;uniqueIndex:group_role_domain" json:"role_id"`
+	DomainID  uint      `gorm:"index;uniqueIndex:group_role_domain" json:"domain_id"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -277,19 +277,19 @@ func (GroupProject) TableName() string {
 
 // AuthSource 认证源
 type AuthSource struct {
-	ID           uint           `gorm:"primaryKey" json:"id"`
-	Name         string         `gorm:"uniqueIndex;not null;size:100" json:"name"`
-	Description  string         `gorm:"size:500" json:"description"`
-	Type         string         `gorm:"type:varchar(20);not null" json:"type"` // ldap/oidc/saml/local
-	Scope        string         `gorm:"type:varchar(20);default:system" json:"scope"` // system/domain
-	DomainID     *uint          `gorm:"index" json:"domain_id"` // 域 ID（仅当 scope=domain 时）
-	Enabled      bool           `gorm:"default:true" json:"enabled"`
-	Config       datatypes.JSON `gorm:"type:json" json:"config"` // 认证源配置（加密）
-	AutoCreate   bool           `gorm:"default:false" json:"auto_create"` // 自动创建用户
-	DefaultRole  *uint          `gorm:"index" json:"default_role_id"` // 默认角色
-	CreatedAt    time.Time      `json:"created_at"`
-	UpdatedAt    time.Time      `json:"updated_at"`
-	DeletedAt    gorm.DeletedAt `gorm:"index" json:"-"`
+	ID          uint           `gorm:"primaryKey" json:"id"`
+	Name        string         `gorm:"uniqueIndex;not null;size:100" json:"name"`
+	Description string         `gorm:"size:500" json:"description"`
+	Type        string         `gorm:"type:varchar(20);not null" json:"type"`        // ldap/oidc/saml/local
+	Scope       string         `gorm:"type:varchar(20);default:system" json:"scope"` // system/domain
+	DomainID    *uint          `gorm:"index" json:"domain_id"`                       // 域 ID（仅当 scope=domain 时）
+	Enabled     bool           `gorm:"default:true" json:"enabled"`
+	Config      datatypes.JSON `gorm:"type:json" json:"config"`          // 认证源配置（加密）
+	AutoCreate  bool           `gorm:"default:false" json:"auto_create"` // 自动创建用户
+	DefaultRole *uint          `gorm:"index" json:"default_role_id"`     // 默认角色
+	CreatedAt   time.Time      `json:"created_at"`
+	UpdatedAt   time.Time      `json:"updated_at"`
+	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 func (AuthSource) TableName() string {
@@ -300,18 +300,18 @@ func (AuthSource) TableName() string {
 
 // SecurityAlert 安全告警
 type SecurityAlert struct {
-	ID         uint           `gorm:"primaryKey" json:"id"`
-	Type       string         `gorm:"type:varchar(50);index" json:"type"` // login_failed/password_expired/mfa_disabled等
-	Level      string         `gorm:"type:varchar(20);default:medium" json:"level"` // low/medium/high/critical
-	Title      string         `gorm:"size:200" json:"title"`
-	Message    string         `gorm:"type:text" json:"message"`
-	UserID     *uint          `gorm:"index" json:"user_id"`
-	SourceIP   string         `gorm:"size:50" json:"source_ip"`
-	Status     string         `gorm:"type:varchar(20);default:active" json:"status"` // active/resolved/ignored
-	HandledAt  *time.Time     `json:"handled_at"`
-	HandledBy  *uint          `json:"handled_by"`
-	CreatedAt  time.Time      `json:"created_at"`
-	UpdatedAt  time.Time      `json:"updated_at"`
+	ID        uint       `gorm:"primaryKey" json:"id"`
+	Type      string     `gorm:"type:varchar(50);index" json:"type"`           // login_failed/password_expired/mfa_disabled等
+	Level     string     `gorm:"type:varchar(20);default:medium" json:"level"` // low/medium/high/critical
+	Title     string     `gorm:"size:200" json:"title"`
+	Message   string     `gorm:"type:text" json:"message"`
+	UserID    *uint      `gorm:"index" json:"user_id"`
+	SourceIP  string     `gorm:"size:50" json:"source_ip"`
+	Status    string     `gorm:"type:varchar(20);default:active" json:"status"` // active/resolved/ignored
+	HandledAt *time.Time `json:"handled_at"`
+	HandledBy *uint      `json:"handled_by"`
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
 }
 
 func (SecurityAlert) TableName() string {
@@ -322,13 +322,13 @@ func (SecurityAlert) TableName() string {
 
 // MessageType 消息类型
 type MessageType struct {
-	ID          uint           `gorm:"primaryKey" json:"id"`
-	Name        string         `gorm:"uniqueIndex;not null;size:100" json:"name"`
-	DisplayName string         `gorm:"size:100" json:"display_name"`
-	Description string         `gorm:"size:500" json:"description"`
-	Enabled     bool           `gorm:"default:true" json:"enabled"`
-	CreatedAt   time.Time      `json:"created_at"`
-	UpdatedAt   time.Time      `json:"updated_at"`
+	ID          uint      `gorm:"primaryKey" json:"id"`
+	Name        string    `gorm:"uniqueIndex;not null;size:100" json:"name"`
+	DisplayName string    `gorm:"size:100" json:"display_name"`
+	Description string    `gorm:"size:500" json:"description"`
+	Enabled     bool      `gorm:"default:true" json:"enabled"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 func (MessageType) TableName() string {
@@ -337,16 +337,16 @@ func (MessageType) TableName() string {
 
 // Message 消息
 type Message struct {
-	ID         uint           `gorm:"primaryKey" json:"id"`
-	TypeID     uint           `gorm:"index" json:"type_id"`
-	Title      string         `gorm:"size:200" json:"title"`
-	Content    string         `gorm:"type:text" json:"content"`
-	Level      string         `gorm:"type:varchar(20);default:info" json:"level"` // info/warning/error
-	SenderID   uint           `gorm:"index" json:"sender_id"`
-	ReceiverID uint           `gorm:"index" json:"receiver_id"`
-	Read       bool           `gorm:"default:false" json:"read"`
-	ReadAt     *time.Time     `json:"read_at"`
-	CreatedAt  time.Time      `json:"created_at"`
+	ID         uint       `gorm:"primaryKey" json:"id"`
+	TypeID     uint       `gorm:"index" json:"type_id"`
+	Title      string     `gorm:"size:200" json:"title"`
+	Content    string     `gorm:"type:text" json:"content"`
+	Level      string     `gorm:"type:varchar(20);default:info" json:"level"` // info/warning/error
+	SenderID   uint       `gorm:"index" json:"sender_id"`
+	ReceiverID uint       `gorm:"index" json:"receiver_id"`
+	Read       bool       `gorm:"default:false" json:"read"`
+	ReadAt     *time.Time `json:"read_at"`
+	CreatedAt  time.Time  `json:"created_at"`
 }
 
 func (Message) TableName() string {
@@ -376,15 +376,15 @@ func (NotificationChannel) TableName() string {
 
 // MessageSubscription 消息订阅
 type MessageSubscription struct {
-	ID          uint      `gorm:"primaryKey" json:"id"`
-	UserID      uint      `gorm:"index;uniqueIndex:user_message_type" json:"user_id"`
-	MessageTypeID uint    `gorm:"index;uniqueIndex:user_message_type" json:"message_type_id"`
-	Email       bool      `gorm:"default:true" json:"email"`
-	SMS         bool      `gorm:"default:false" json:"sms"`
-	Webhook     bool      `gorm:"default:false" json:"webhook"`
-	Station     bool      `gorm:"default:true" json:"station"` // 站内信
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID            uint      `gorm:"primaryKey" json:"id"`
+	UserID        uint      `gorm:"index;uniqueIndex:user_message_type" json:"user_id"`
+	MessageTypeID uint      `gorm:"index;uniqueIndex:user_message_type" json:"message_type_id"`
+	Email         bool      `gorm:"default:true" json:"email"`
+	SMS           bool      `gorm:"default:false" json:"sms"`
+	Webhook       bool      `gorm:"default:false" json:"webhook"`
+	Station       bool      `gorm:"default:true" json:"station"` // 站内信
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }
 
 func (MessageSubscription) TableName() string {
@@ -395,17 +395,17 @@ func (MessageSubscription) TableName() string {
 
 // Robot 机器人
 type Robot struct {
-	ID          uint           `gorm:"primaryKey" json:"id"`
-	Name        string         `gorm:"uniqueIndex;not null;size:100" json:"name"`
-	Description string         `gorm:"size:500" json:"description"`
-	Type        string         `gorm:"type:varchar(20);not null" json:"type"` // webhook/dingtalk/wechat/feishu
-	WebhookURL  string         `gorm:"size:500" json:"webhook_url"`
-	Secret      string         `gorm:"size:255" json:"-"` // 签名密钥
-	Enabled     bool           `gorm:"default:true" json:"enabled"`
+	ID           uint           `gorm:"primaryKey" json:"id"`
+	Name         string         `gorm:"uniqueIndex;not null;size:100" json:"name"`
+	Description  string         `gorm:"size:500" json:"description"`
+	Type         string         `gorm:"type:varchar(20);not null" json:"type"` // webhook/dingtalk/wechat/feishu
+	WebhookURL   string         `gorm:"size:500" json:"webhook_url"`
+	Secret       string         `gorm:"size:255" json:"-"` // 签名密钥
+	Enabled      bool           `gorm:"default:true" json:"enabled"`
 	MessageTypes datatypes.JSON `gorm:"type:json" json:"message_types"` // 订阅的消息类型
-	CreatedAt   time.Time      `json:"created_at"`
-	UpdatedAt   time.Time      `json:"updated_at"`
-	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
+	CreatedAt    time.Time      `json:"created_at"`
+	UpdatedAt    time.Time      `json:"updated_at"`
+	DeletedAt    gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 func (Robot) TableName() string {
@@ -421,24 +421,24 @@ type Receiver struct {
 	Email     string         `gorm:"size:255" json:"email"`
 	Phone     string         `gorm:"size:20" json:"phone"`
 	UserID    *uint          `gorm:"uniqueIndex" json:"user_id"` // 关联用户（可选）
-	DomainID  uint           `gorm:"index" json:"domain_id"`    // 所属域
+	DomainID  uint           `gorm:"index" json:"domain_id"`     // 所属域
 	Enabled   bool           `gorm:"default:true" json:"enabled"`
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 
 	// Associations
-	Domain           Domain                 `gorm:"foreignKey:DomainID" json:"domain"`
+	Domain               Domain                 `gorm:"foreignKey:DomainID" json:"domain"`
 	NotificationChannels []*NotificationChannel `gorm:"many2many:receiver_channels;" json:"notification_channels"`
 }
 
 // ReceiverChannel 接收人通知渠道关联
 type ReceiverChannel struct {
-	ID                  uint `gorm:"primaryKey" json:"id"`
-	ReceiverID          uint `gorm:"index;uniqueIndex:idx_receiver_channel" json:"receiver_id"`
-	NotificationChannelID uint `gorm:"index;uniqueIndex:idx_receiver_channel" json:"notification_channel_id"`
-	Enabled             bool `gorm:"default:true" json:"enabled"`
-	CreatedAt           time.Time `json:"created_at"`
+	ID                    uint      `gorm:"primaryKey" json:"id"`
+	ReceiverID            uint      `gorm:"index;uniqueIndex:idx_receiver_channel" json:"receiver_id"`
+	NotificationChannelID uint      `gorm:"index;uniqueIndex:idx_receiver_channel" json:"notification_channel_id"`
+	Enabled               bool      `gorm:"default:true" json:"enabled"`
+	CreatedAt             time.Time `json:"created_at"`
 }
 
 func (ReceiverChannel) TableName() string {

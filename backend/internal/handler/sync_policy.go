@@ -28,34 +28,34 @@ func NewSyncPolicyHandler(db *gorm.DB, logger *zap.Logger) *SyncPolicyHandler {
 
 // CreateSyncPolicyRequest 创建同步策略请求
 type CreateSyncPolicyRequest struct {
-	Name     string      `json:"name" binding:"required"`
-	Remarks  string      `json:"remarks"`
-	Status   string      `json:"status"`
-	Enabled  bool        `json:"enabled"`
-	Rules    []RuleData  `json:"rules" binding:"required"`
-	Scope    string      `json:"scope" binding:"required"`
-	DomainID uint        `json:"domain_id" binding:"required"`
+	Name     string     `json:"name" binding:"required"`
+	Remarks  string     `json:"remarks"`
+	Status   string     `json:"status"`
+	Enabled  bool       `json:"enabled"`
+	Rules    []RuleData `json:"rules" binding:"required"`
+	Scope    string     `json:"scope" binding:"required"`
+	DomainID uint       `json:"domain_id" binding:"required"`
 }
 
 // UpdateSyncPolicyRequest 更新同步策略请求
 type UpdateSyncPolicyRequest struct {
-	Name     string      `json:"name"`
-	Remarks  string      `json:"remarks"`
-	Status   string      `json:"status"`
-	Enabled  bool        `json:"enabled"`
-	Rules    []RuleData  `json:"rules"`
-	Scope    string      `json:"scope"`
-	DomainID uint        `json:"domain_id"`
+	Name     string     `json:"name"`
+	Remarks  string     `json:"remarks"`
+	Status   string     `json:"status"`
+	Enabled  bool       `json:"enabled"`
+	Rules    []RuleData `json:"rules"`
+	Scope    string     `json:"scope"`
+	DomainID uint       `json:"domain_id"`
 }
 
 // RuleData 规则数据结构
 type RuleData struct {
-	ID                uint         `json:"id,omitempty"`
-	ConditionType     string       `json:"condition_type" binding:"required"`
-	ResourceMapping   string       `json:"resource_mapping" binding:"required"`
-	TargetProjectID   *uint        `json:"target_project_id"`
-	TargetProjectName string       `json:"target_project_name"`
-	Tags              []TagData    `json:"tags"`
+	ID                uint      `json:"id,omitempty"`
+	ConditionType     string    `json:"condition_type" binding:"required"`
+	ResourceMapping   string    `json:"resource_mapping" binding:"required"`
+	TargetProjectID   *uint     `json:"target_project_id"`
+	TargetProjectName string    `json:"target_project_name"`
+	Tags              []TagData `json:"tags"`
 }
 
 // TagData 标签数据结构

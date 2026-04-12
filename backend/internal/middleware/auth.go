@@ -121,4 +121,3 @@ func AdminOnlyMiddleware(logger *zap.Logger, db *gorm.DB) gin.HandlerFunc {
 		c.Next()
 	}
 }
-

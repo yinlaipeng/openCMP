@@ -80,6 +80,7 @@ func (s *CloudAccountService) VerifyCloudAccount(ctx context.Context, account *m
 		Name:         account.Name,
 		ProviderType: account.ProviderType,
 		Credentials:  creds,
+		Region:       creds["region_id"], // 使用凭证中的region_id，如果没有则为空，适配器会使用默认值
 	}
 
 	provider, err := cloudprovider.GetProvider(account.ProviderType, config)
@@ -88,6 +89,35 @@ func (s *CloudAccountService) VerifyCloudAccount(ctx context.Context, account *m
 	}
 
 	// 尝试获取云厂商信息来验证连接
+	cloudInfo := provider.GetCloudInfo()
+	if cloudInfo.Provider == "" {
+		return false, nil
+	}
+
+	return true, nil
+}
+
+// TestConnection 测试云账户连接
+func (s *CloudAccountService) TestConnection(ctx context.Context, account *model.CloudAccount) (bool, error) {
+	var creds map[string]string
+	if err := json.Unmarshal(account.Credentials, &creds); err != nil {
+		return false, err
+	}
+
+	config := cloudprovider.CloudAccountConfig{
+		ID:           strconv.Itoa(int(account.ID)),
+		Name:         account.Name,
+		ProviderType: account.ProviderType,
+		Credentials:  creds,
+		Region:       creds["region_id"], // 使用凭证中的region_id，如果没有则为空，适配器会使用默认值
+	}
+
+	provider, err := cloudprovider.GetProvider(account.ProviderType, config)
+	if err != nil {
+		return false, err
+	}
+
+	// 尝试获取云厂商信息来测试连接
 	cloudInfo := provider.GetCloudInfo()
 	if cloudInfo.Provider == "" {
 		return false, nil

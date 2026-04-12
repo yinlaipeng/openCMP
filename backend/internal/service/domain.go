@@ -221,3 +221,77 @@ func (s *DomainService) GetDomainRoles(ctx context.Context, domainID uint, limit
 
 	return roles, total, err
 }
+
+// GetDomainCloudAccounts 获取域的云账号列表
+func (s *DomainService) GetDomainCloudAccounts(ctx context.Context, domainID uint, limit, offset int) ([]*model.CloudAccount, int64, error) {
+	// 当前云账号表没有直接关联到域的字段
+	// 可能通过项目间接关联，或需要扩展云账号模型增加域字段
+	// 暂时返回空列表，可根据实际需求调整
+	var cloudAccounts []*model.CloudAccount
+	var total int64
+	return cloudAccounts, total, nil
+}
+
+// GetDomainOperationLogs 获取域的操作日志列表
+func (s *DomainService) GetDomainOperationLogs(ctx context.Context, domainID uint, limit, offset int) ([]*model.OperationLog, int64, error) {
+	var logs []*model.OperationLog
+	var total int64
+
+	query := s.db.Model(&model.OperationLog{}).Where("domain_id = ?", domainID)
+
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	if err := query.Limit(limit).Offset(offset).Order("created_at DESC").Find(&logs).Error; err != nil {
+		return nil, 0, err
+	}
+
+	return logs, total, nil
+}
+
+// ListDomainsWithFilters 列出域（支持筛选）
+func (s *DomainService) ListDomainsWithFilters(ctx context.Context, filters map[string]interface{}, limit, offset int) ([]*DomainWithAuthSourceCount, int64, error) {
+	var domains []*model.Domain
+	var total int64
+
+	query := s.db.Model(&model.Domain{})
+
+	// 关键词搜索（域名称、描述）
+	if keyword, ok := filters["keyword"].(string); ok && keyword != "" {
+		keyword = "%" + keyword + "%"
+		query = query.Where("name LIKE ? OR description LIKE ?", keyword, keyword)
+	}
+
+	// 按状态筛选
+	if enabled, ok := filters["enabled"].(bool); ok {
+		query = query.Where("enabled = ?", enabled)
+	}
+
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	err := s.db.WithContext(ctx).
+		Limit(limit).
+		Offset(offset).
+		Order("created_at DESC").
+		Find(&domains).Error
+
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Convert to enhanced format with auth source count
+	var enhancedDomains []*DomainWithAuthSourceCount
+	for _, domain := range domains {
+		count, _ := s.getAuthSourceCountForDomain(ctx, domain.ID)
+		enhancedDomain := &DomainWithAuthSourceCount{
+			Domain:          *domain,
+			AuthSourceCount: count,
+		}
+		enhancedDomains = append(enhancedDomains, enhancedDomain)
+	}
+
+	return enhancedDomains, total, nil
+}

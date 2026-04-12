@@ -160,9 +160,9 @@ func (s *ReceiverService) SetNotificationChannelsForReceiver(ctx context.Context
 	// 添加新的关联
 	for _, channelID := range channelIDs {
 		rc := &model.ReceiverChannel{
-			ReceiverID:          receiverID,
+			ReceiverID:            receiverID,
 			NotificationChannelID: channelID,
-			Enabled:             true,
+			Enabled:               true,
 		}
 		if err := tx.Create(rc).Error; err != nil {
 			tx.Rollback()

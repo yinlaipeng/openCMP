@@ -65,7 +65,21 @@ export interface AuthSource {
   type: 'ldap' | 'local' | 'sql'
   scope: 'system' | 'domain'
   description: string
-  config: Record<string, any>
+  config: {
+    url?: string
+    base_dn?: string
+    bind_dn?: string
+    bind_password?: string
+    user_filter?: string
+    user_id_attr?: string
+    user_name_attr?: string
+    user_search_base?: string
+    group_search_base?: string
+    user_enabled_attribute?: string
+    protocol?: string
+    auth_type?: string
+    target_domain?: string
+  }
   enabled: boolean
   running: boolean
   auto_create: boolean
@@ -75,4 +89,20 @@ export interface AuthSource {
   protocol: string
   sync_status: string
   is_default: boolean
+}
+
+export interface OperationLog {
+  id: number
+  operation_time: string
+  resource_name: string
+  resource_type: string
+  operation_type: string
+  service_type: string
+  risk_level: string
+  time_type: string
+  result: string
+  operator: string
+  project_id: number
+  created_at: string
+  updated_at: string
 }

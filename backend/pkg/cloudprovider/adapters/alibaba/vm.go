@@ -207,6 +207,96 @@ func (p *AlibabaProvider) ListVMs(ctx context.Context, filter cloudprovider.VMLi
 	return vms, nil
 }
 
+// GetVM 获取虚拟机
+func (p *AlibabaProvider) GetVM(ctx context.Context, vmID string) (*cloudprovider.VirtualMachine, error) {
+	request := ecs.CreateDescribeInstancesRequest()
+	request.Scheme = "https"
+	request.RegionId = p.regionID
+	request.InstanceIds = "[\"" + vmID + "\"]"
+
+	response, err := p.ecsClient.DescribeInstances(request)
+	if err != nil {
+		return nil, cloudprovider.NewCloudError(
+			cloudprovider.ErrOperationFailed,
+			"failed to describe instance",
+			err.Error(),
+		)
+	}
+
+	if len(response.Instances.Instance) == 0 {
+		return nil, cloudprovider.NewCloudError(
+			cloudprovider.ErrResourceNotFound,
+			"instance not found",
+			vmID,
+		)
+	}
+
+	instance := response.Instances.Instance[0]
+	vmStatus := convertECSStatus(instance.Status)
+	var privateIP, publicIP string
+	if len(instance.InnerIpAddress.IpAddress) > 0 {
+		privateIP = instance.InnerIpAddress.IpAddress[0]
+	}
+	if len(instance.PublicIpAddress.IpAddress) > 0 {
+		publicIP = instance.PublicIpAddress.IpAddress[0]
+	}
+
+	return &cloudprovider.VirtualMachine{
+		ID:           instance.InstanceId,
+		Name:         instance.InstanceName,
+		Status:       vmStatus,
+		InstanceType: instance.InstanceType,
+		ImageID:      instance.ImageId,
+		PrivateIP:    privateIP,
+		PublicIP:     publicIP,
+		RegionID:     p.regionID,
+		ZoneID:       instance.ZoneId,
+		CreatedAt:    time.Now(), // Use current time as approximation
+	}, nil
+}
+
+// ResetVMPassword 重置虚拟机密码
+func (p *AlibabaProvider) ResetVMPassword(ctx context.Context, vmID, username, newPassword string) error {
+	// Aliyun ECS ResetPassword requires the instance to be stopped
+	// For now, we'll return unsupported operation since it requires changing instance state
+	return cloudprovider.NewCloudError(
+		cloudprovider.ErrUnsupportedOperation,
+		"ResetVMPassword not fully implemented for Alibaba Cloud (requires instance to be stopped)",
+		vmID,
+	)
+}
+
+// UpdateVMConfig 更新虚拟机配置
+func (p *AlibabaProvider) UpdateVMConfig(ctx context.Context, vmID, instanceType, name string) error {
+	// This is a simplified implementation - in practice, changing instance type requires stopping the instance
+	if instanceType != "" {
+		return cloudprovider.NewCloudError(
+			cloudprovider.ErrUnsupportedOperation,
+			"UpdateVMConfig (instance type change) not fully implemented for Alibaba Cloud (requires instance to be stopped)",
+			vmID,
+		)
+	}
+
+	// Only allow name changes
+	if name != "" {
+		request := ecs.CreateModifyInstanceAttributeRequest()
+		request.Scheme = "https"
+		request.InstanceId = vmID
+		request.InstanceName = name
+
+		_, err := p.ecsClient.ModifyInstanceAttribute(request)
+		if err != nil {
+			return cloudprovider.NewCloudError(
+				cloudprovider.ErrOperationFailed,
+				"failed to update instance name",
+				err.Error(),
+			)
+		}
+	}
+
+	return nil
+}
+
 // convertECSStatus 转换 ECS 状态
 func convertECSStatus(status string) cloudprovider.VMStatus {
 	switch status {

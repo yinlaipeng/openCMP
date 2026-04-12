@@ -179,6 +179,229 @@ func (h *ComputeHandler) VMAction(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "action performed", "action": req.Action})
 }
 
+// GetVMDetails 获取虚拟机详细信息
+func (h *ComputeHandler) GetVMDetails(c *gin.Context) {
+	accountIDStr := c.Query("account_id")
+	vmID := c.Param("id")
+
+	accountID, err := strconv.ParseUint(accountIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid account_id"})
+		return
+	}
+
+	vmDetails, err := h.service.GetVMDetails(c.Request.Context(), uint(accountID), vmID)
+	if err != nil {
+		h.logger.Error("failed to get vm details", zap.Error(err))
+		if err.Error() == "vm not found" {
+			c.JSON(http.StatusNotFound, gin.H{"error": "vm not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, vmDetails)
+}
+
+// GetVMSecurityGroups 获取虚拟机关联的安全组
+func (h *ComputeHandler) GetVMSecurityGroups(c *gin.Context) {
+	accountIDStr := c.Query("account_id")
+	vmID := c.Param("id")
+
+	accountID, err := strconv.ParseUint(accountIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid account_id"})
+		return
+	}
+
+	securityGroups, err := h.service.GetVMSecurityGroups(c.Request.Context(), uint(accountID), vmID)
+	if err != nil {
+		h.logger.Error("failed to get vm security groups", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"items": securityGroups,
+		"total": len(securityGroups),
+	})
+}
+
+// GetVMNetworkInfo 获取虚拟机网络信息
+func (h *ComputeHandler) GetVMNetworkInfo(c *gin.Context) {
+	accountIDStr := c.Query("account_id")
+	vmID := c.Param("id")
+
+	accountID, err := strconv.ParseUint(accountIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid account_id"})
+		return
+	}
+
+	networkInfo, err := h.service.GetVMNetworkInfo(c.Request.Context(), uint(accountID), vmID)
+	if err != nil {
+		h.logger.Error("failed to get vm network info", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, networkInfo)
+}
+
+// GetVMDisks 获取虚拟机关联的磁盘
+func (h *ComputeHandler) GetVMDisks(c *gin.Context) {
+	accountIDStr := c.Query("account_id")
+	vmID := c.Param("id")
+
+	accountID, err := strconv.ParseUint(accountIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid account_id"})
+		return
+	}
+
+	disks, err := h.service.GetVMDisks(c.Request.Context(), uint(accountID), vmID)
+	if err != nil {
+		h.logger.Error("failed to get vm disks", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"items": disks,
+		"total": len(disks),
+	})
+}
+
+// GetVMSnapshots 获取虚拟机相关的快照
+func (h *ComputeHandler) GetVMSnapshots(c *gin.Context) {
+	accountIDStr := c.Query("account_id")
+	vmID := c.Param("id")
+
+	accountID, err := strconv.ParseUint(accountIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid account_id"})
+		return
+	}
+
+	snapshots, err := h.service.GetVMSnapshots(c.Request.Context(), uint(accountID), vmID)
+	if err != nil {
+		h.logger.Error("failed to get vm snapshots", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"items": snapshots,
+		"total": len(snapshots),
+	})
+}
+
+// GetVMOperationLogs 获取虚拟机操作日志
+func (h *ComputeHandler) GetVMOperationLogs(c *gin.Context) {
+	accountIDStr := c.Query("account_id")
+	vmID := c.Param("id")
+
+	accountID, err := strconv.ParseUint(accountIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid account_id"})
+		return
+	}
+
+	logs, err := h.service.GetVMOperationLogs(c.Request.Context(), uint(accountID), vmID)
+	if err != nil {
+		h.logger.Error("failed to get vm operation logs", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"items": logs,
+		"total": len(logs),
+	})
+}
+
+// GetVNCInfo 获取虚拟机VNC连接信息
+func (h *ComputeHandler) GetVNCInfo(c *gin.Context) {
+	accountIDStr := c.Query("account_id")
+	vmID := c.Param("id")
+
+	accountID, err := strconv.ParseUint(accountIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid account_id"})
+		return
+	}
+
+	vncInfo, err := h.service.GetVNCInfo(c.Request.Context(), uint(accountID), vmID)
+	if err != nil {
+		h.logger.Error("failed to get vm vnc info", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, vncInfo)
+}
+
+// ResetPassword 重置虚拟机密码
+func (h *ComputeHandler) ResetPassword(c *gin.Context) {
+	accountIDStr := c.Query("account_id")
+	vmID := c.Param("id")
+
+	accountID, err := strconv.ParseUint(accountIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid account_id"})
+		return
+	}
+
+	var req struct {
+		Username    string `json:"username"`
+		NewPassword string `json:"new_password"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err = h.service.ResetPassword(c.Request.Context(), uint(accountID), vmID, req.Username, req.NewPassword)
+	if err != nil {
+		h.logger.Error("failed to reset vm password", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "password reset successfully"})
+}
+
+// UpdateVMConfig 更新虚拟机配置
+func (h *ComputeHandler) UpdateVMConfig(c *gin.Context) {
+	accountIDStr := c.Query("account_id")
+	vmID := c.Param("id")
+
+	accountID, err := strconv.ParseUint(accountIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid account_id"})
+		return
+	}
+
+	var req struct {
+		InstanceType string `json:"instance_type"`
+		Name         string `json:"name"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err = h.service.UpdateVMConfig(c.Request.Context(), uint(accountID), vmID, req.InstanceType, req.Name)
+	if err != nil {
+		h.logger.Error("failed to update vm config", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "config updated successfully"})
+}
+
 // ListImages 列出镜像
 func (h *ComputeHandler) ListImages(c *gin.Context) {
 	accountIDStr := c.Query("account_id")

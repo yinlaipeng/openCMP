@@ -8,9 +8,9 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"github.com/opencmp/opencmp/internal/model"
 	"github.com/opencmp/opencmp/internal/service"
-	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"

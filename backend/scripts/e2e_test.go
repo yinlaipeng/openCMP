@@ -29,100 +29,78 @@ type LoginResponse struct {
 func main() {
 	// 检查服务器是否运行
 	if !isServerRunning() {
-		fmt.Println("❌ 服务器未运行，请先启动后端服务")
+		fmt.Println("ERROR: 服务器未运行，请先启动后端服务")
 		os.Exit(1)
 	}
 
-	fmt.Println("✅ 服务器正在运行，开始端到端测试...")
+	fmt.Println("SUCCESS: 服务器正在运行，开始端到端测试...")
 
 	// 1. 测试用户登录
-	fmt.Println("
-🔍 测试用户登录...")
+	fmt.Println("\nTEST: 测试用户登录...")
 	token, err := login("admin", "admin123")
 	if err != nil {
-		fmt.Printf("❌ 登录失败: %v
-", err)
+		fmt.Printf("FAILED: 登录失败: %v\n", err)
 		os.Exit(1)
 	}
-	fmt.Printf("✅ 登录成功，获取到令牌: %s
-", token)
+	fmt.Printf("SUCCESS: 登录成功，获取到令牌: %s\n", token)
 
 	// 2. 测试获取当前用户信息
-	fmt.Println("
-🔍 测试获取当前用户信息...")
+	fmt.Println("\nTEST: 测试获取当前用户信息...")
 	userInfo, err := getCurrentUser(token)
 	if err != nil {
-		fmt.Printf("❌ 获取当前用户信息失败: %v
-", err)
+		fmt.Printf("FAILED: 获取当前用户信息失败: %v\n", err)
 		os.Exit(1)
 	}
-	fmt.Printf("✅ 成功获取当前用户信息: %+v
-", userInfo)
+	fmt.Printf("SUCCESS: 成功获取当前用户信息: %+v\n", userInfo)
 
 	// 3. 测试列出用户
-	fmt.Println("
-🔍 测试列出用户...")
+	fmt.Println("\nTEST: 测试列出用户...")
 	users, err := listUsers(token)
 	if err != nil {
-		fmt.Printf("❌ 列出用户失败: %v
-", err)
+		fmt.Printf("FAILED: 列出用户失败: %v\n", err)
 		os.Exit(1)
 	}
-	fmt.Printf("✅ 成功列出用户，共 %d 个用户
-", len(users))
+	fmt.Printf("SUCCESS: 成功列出用户，共 %d 个用户\n", len(users))
 
 	// 4. 测试创建新用户
-	fmt.Println("
-🔍 测试创建新用户...")
+	fmt.Println("\nTEST: 测试创建新用户...")
 	newUserID, err := createUser(token)
 	if err != nil {
-		fmt.Printf("❌ 创建用户失败: %v
-", err)
+		fmt.Printf("FAILED: 创建用户失败: %v\n", err)
 		// 不退出，继续测试其他功能
 	} else {
-		fmt.Printf("✅ 成功创建新用户，ID: %d
-", newUserID)
+		fmt.Printf("SUCCESS: 成功创建新用户，ID: %d\n", newUserID)
 	}
 
 	// 5. 测试列出角色
-	fmt.Println("
-🔍 测试列出角色...")
+	fmt.Println("\nTEST: 测试列出角色...")
 	roles, err := listRoles(token)
 	if err != nil {
-		fmt.Printf("❌ 列出角色失败: %v
-", err)
+		fmt.Printf("FAILED: 列出角色失败: %v\n", err)
 		os.Exit(1)
 	}
-	fmt.Printf("✅ 成功列出角色，共 %d 个角色
-", len(roles))
+	fmt.Printf("SUCCESS: 成功列出角色，共 %d 个角色\n", len(roles))
 
 	// 6. 测试列出权限
-	fmt.Println("
-🔍 测试列出权限...")
+	fmt.Println("\nTEST: 测试列出权限...")
 	permissions, err := listPermissions(token)
 	if err != nil {
-		fmt.Printf("❌ 列出权限失败: %v
-", err)
+		fmt.Printf("FAILED: 列出权限失败: %v\n", err)
 		os.Exit(1)
 	}
-	fmt.Printf("✅ 成功列出权限，共 %d 个权限
-", len(permissions))
+	fmt.Printf("SUCCESS: 成功列出权限，共 %d 个权限\n", len(permissions))
 
 	// 7. 测试认证源功能
-	fmt.Println("
-🔍 测试认证源功能...")
+	fmt.Println("\nTEST: 测试认证源功能...")
 	authSources, err := listAuthSources(token)
 	if err != nil {
-		fmt.Printf("⚠️  列出认证源失败: %v
-", err)
+		fmt.Printf("WARNING: 列出认证源失败: %v\n", err)
 		// 这可能不是致命错误，继续测试
 	} else {
-		fmt.Printf("✅ 成功列出认证源，共 %d 个认证源
-", len(authSources))
+		fmt.Printf("SUCCESS: 成功列出认证源，共 %d 个认证源\n", len(authSources))
 	}
 
-	fmt.Println("
-🎉 所有端到端测试完成！")
+	fmt.Println("\nCOMPLETE: 所有端到端测试完成！")
 }
 
 // isServerRunning 检查服务器是否运行
@@ -229,11 +207,11 @@ func listUsers(token string) ([]interface{}, error) {
 // createUser 创建用户
 func createUser(token string) (int, error) {
 	userData := map[string]interface{}{
-		"name":      "testuser_e2e",
+		"name":         "testuser_e2e",
 		"display_name": "E2E Test User",
-		"email":     "testuser_e2e@example.com",
-		"password":  "Password123!",
-		"domain_id": 1,
+		"email":        "testuser_e2e@example.com",
+		"password":     "Password123!",
+		"domain_id":    1,
 	}
 
 	reqBody, _ := json.Marshal(userData)
@@ -264,7 +242,7 @@ func createUser(token string) (int, error) {
 	if idFloat, ok := result["id"].(float64); ok {
 		return int(idFloat), nil
 	}
-	
+
 	return 0, nil
 }
 

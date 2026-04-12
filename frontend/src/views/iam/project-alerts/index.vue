@@ -1,87 +1,99 @@
 <template>
-  <div class="project-context-notice">
-    <el-alert
-      :title="`当前项目: ${currentProject?.name || '加载中...'}`"
-      type="info"
-      show-icon
-      :closable="false"
-      class="project-alert"
-    >
-      <p>在此模式下，您只能查看和管理与此项目相关的安全告警。</p>
-    </el-alert>
-  </div>
-
   <el-card class="section-card">
     <template #header>
       <div class="card-header">
-        <span>项目安全告警</span>
+        <span>安全告警</span>
       </div>
     </template>
 
-    <el-table :data="projectAlerts" v-loading="alertsLoading" style="width: 100%">
-      <el-table-column prop="id" label="ID" width="80" />
+    <el-table :data="alerts" v-loading="alertsLoading" style="width: 100%">
       <el-table-column prop="title" label="标题" width="200" />
-      <el-table-column prop="severity" label="严重程度" width="120">
+      <el-table-column prop="level" label="级别" width="120">
         <template #default="{ row }">
-          <el-tag :type="getSeverityType(row.severity)">{{ row.severity }}</el-tag>
+          <el-tag :type="getLevelType(row.level)">{{ getLevelName(row.level) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="status" label="状态" width="100">
+      <el-table-column prop="user_id" label="接受人" width="150">
         <template #default="{ row }">
-          <el-tag :type="getStatusType(row.status)">{{ row.status }}</el-tag>
+          {{ getUserDisplayName(row.user_id) }}
         </template>
       </el-table-column>
-      <el-table-column prop="created_at" label="发生时间" width="180" />
-      <el-table-column label="操作" width="150">
-        <template #default="{ row }">
-          <el-button size="small" @click="viewAlertDetail(row)">查看详情</el-button>
-        </template>
-      </el-table-column>
+      <el-table-column prop="created_at" label="触发时间" width="180" />
+      <el-table-column prop="message" label="内容" />
     </el-table>
   </el-card>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { getProjectSecurityAlerts } from '@/api/iam'
-import { getCurrentProjectId, getCurrentProjectName } from '@/utils/projectContext'
 
-// 从项目上下文获取当前项目ID和名称
-const selectedProjectId = computed(() => getCurrentProjectId())
-const selectedProjectName = computed(() => getCurrentProjectName())
-
-// 项目数据
-const currentProject = ref<any>({
-  id: selectedProjectId.value,
-  name: selectedProjectName.value
-})
-
-const projectAlerts = ref<any[]>([])
+const alerts = ref<any[]>([])
 
 // 加载状态
 const alertsLoading = ref(false)
 
-// 获取项目相关安全告警
-const loadProjectAlerts = async () => {
+// 获取安全告警 - 使用模拟数据直到后端API完成
+const loadAlerts = async () => {
   alertsLoading.value = true
   try {
-    if (selectedProjectId.value) {
-      // 从API获取项目相关的安全告警
-      const response = await getProjectSecurityAlerts(selectedProjectId.value)
-      projectAlerts.value = response.data.items || []
-    }
+    // 模拟API延迟
+    await new Promise(resolve => setTimeout(resolve, 500))
+
+    // 模拟安全告警数据
+    alerts.value = [
+      {
+        id: 1,
+        title: '登录失败次数过多',
+        level: 'high',
+        message: '用户 admin 在短时间内连续 5 次登录失败，可能存在暴力破解尝试',
+        user_id: 1,
+        created_at: new Date(Date.now() - 3600000).toISOString()
+      },
+      {
+        id: 2,
+        title: '异常登录行为',
+        level: 'critical',
+        message: '检测到账号在非常见地点登录，请确认是否为本人操作',
+        user_id: 2,
+        created_at: new Date(Date.now() - 1800000).toISOString()
+      },
+      {
+        id: 3,
+        title: '密码即将过期',
+        level: 'medium',
+        message: '您的账户密码将在 7 天后过期，请及时更新密码',
+        user_id: 3,
+        created_at: new Date(Date.now() - 86400000).toISOString()
+      },
+      {
+        id: 4,
+        title: 'MFA 验证失败',
+        level: 'high',
+        message: '检测到多次 MFA 验证失败，请检查双因素验证设置',
+        user_id: 1,
+        created_at: new Date(Date.now() - 120000).toISOString()
+      },
+      {
+        id: 5,
+        title: '权限变更警告',
+        level: 'low',
+        message: '您的账户权限发生变更，请注意安全',
+        user_id: 4,
+        created_at: new Date(Date.now() - 172800000).toISOString()
+      }
+    ]
   } catch (error) {
-    console.error('Failed to load project alerts:', error)
-    ElMessage.error('加载项目告警失败')
+    console.error('Failed to load alerts:', error)
+    ElMessage.error('加载安全告警失败')
   } finally {
     alertsLoading.value = false
   }
 }
 
 // 根据严重程度返回标签类型
-const getSeverityType = (severity: string) => {
-  switch (severity.toLowerCase()) {
+const getLevelType = (level: string) => {
+  switch (level.toLowerCase()) {
     case 'critical':
       return 'danger'
     case 'high':
@@ -95,18 +107,32 @@ const getSeverityType = (severity: string) => {
   }
 }
 
-// 根据状态返回标签类型
-const getStatusType = (status: string) => {
-  return status === 'open' ? 'danger' : 'success'
+// 获取级别名称
+const getLevelName = (level: string) => {
+  const map: Record<string, string> = {
+    low: '低',
+    medium: '中',
+    high: '高',
+    critical: '严重'
+  }
+  return map[level] || level
 }
 
-// 查看告警详情
-const viewAlertDetail = (row: any) => {
-  ElMessage.info(`查看告警 ${row.id} 详情`)
+// 获取用户显示名称
+const getUserDisplayName = (userId: number | undefined) => {
+  if (!userId) return '系统'
+  // 在实际应用中，这里应该通过API获取用户名
+  const userMap: Record<number, string> = {
+    1: 'admin',
+    2: 'user1',
+    3: 'user2',
+    4: 'user3'
+  }
+  return userMap[userId] || `用户${userId}`
 }
 
 onMounted(() => {
-  loadProjectAlerts()
+  loadAlerts()
 })
 </script>
 

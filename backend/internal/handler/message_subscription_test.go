@@ -35,12 +35,12 @@ func TestMessageSubscriptionHandler(t *testing.T) {
 
 	// Create a test subscription
 	subscription := &model.MessageSubscription{
-		UserID:         1,
-		MessageTypeID:  messageType.ID,
-		Email:          true,
-		SMS:            false,
-		Webhook:        true,
-		Station:        true,
+		UserID:        1,
+		MessageTypeID: messageType.ID,
+		Email:         true,
+		SMS:           false,
+		Webhook:       true,
+		Station:       true,
 	}
 	db.Create(subscription)
 
@@ -76,12 +76,12 @@ func TestMessageSubscriptionHandler(t *testing.T) {
 
 	t.Run("Create", func(t *testing.T) {
 		newSub := &model.MessageSubscription{
-			UserID:         2,
-			MessageTypeID:  messageType.ID,
-			Email:          false,
-			SMS:            true,
-			Webhook:        false,
-			Station:        true,
+			UserID:        2,
+			MessageTypeID: messageType.ID,
+			Email:         false,
+			SMS:           true,
+			Webhook:       false,
+			Station:       true,
 		}
 
 		jsonBytes, _ := json.Marshal(newSub)
@@ -97,12 +97,12 @@ func TestMessageSubscriptionHandler(t *testing.T) {
 
 	t.Run("Update", func(t *testing.T) {
 		updateData := &model.MessageSubscription{
-			UserID:         1,
-			MessageTypeID:  messageType.ID,
-			Email:          false,
-			SMS:            true,
-			Webhook:        false,
-			Station:        false,
+			UserID:        1,
+			MessageTypeID: messageType.ID,
+			Email:         false,
+			SMS:           true,
+			Webhook:       false,
+			Station:       false,
 		}
 
 		jsonBytes, _ := json.Marshal(updateData)
@@ -120,12 +120,12 @@ func TestMessageSubscriptionHandler(t *testing.T) {
 	t.Run("Delete", func(t *testing.T) {
 		// Create another subscription to delete
 		deleteSub := &model.MessageSubscription{
-			UserID:         3,
-			MessageTypeID:  messageType.ID,
-			Email:          true,
-			SMS:            false,
-			Webhook:        false,
-			Station:        true,
+			UserID:        3,
+			MessageTypeID: messageType.ID,
+			Email:         true,
+			SMS:           false,
+			Webhook:       false,
+			Station:       true,
 		}
 		db.Create(deleteSub)
 

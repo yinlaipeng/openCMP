@@ -20,9 +20,12 @@ func Migrate(db *gorm.DB) error {
 		&model.Group{},
 		&model.UserGroup{},
 		&model.Role{},
+		&model.Permission{}, // 新增权限模型
+		&model.RolePermission{},
 		&model.UserRole{},
 		&model.ProjectUserRole{},
 		&model.GroupRole{},
+		&model.GroupProject{},
 		&model.AuthSource{},
 
 		// 安全和通知模型
@@ -33,9 +36,19 @@ func Migrate(db *gorm.DB) error {
 		&model.MessageSubscription{},
 		&model.Robot{},
 		&model.Receiver{},
+		&model.ReceiverChannel{},
 
 		// 多云管理模型
-		&model.SyncPolicy{},
-		&model.ScheduledTask{},
+		&model.SyncPolicy{},    // 添加同步策略模型
+		&model.ScheduledTask{}, // 添加定时任务模型
+
+		// 操作日志模型
+		&model.OperationLog{},
+
+		// 主机模版模型
+		&model.HostTemplate{},
+
+		// 弹性伸缩组模型
+		&model.AutoscalingGroup{},
 	)
 }

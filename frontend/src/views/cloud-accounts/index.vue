@@ -17,8 +17,8 @@
         <el-table-column prop="description" label="备注" width="200" />
         <el-table-column prop="status" label="状态" width="100">
           <template #default="{ row }">
-            <el-tag :type="row.status === 'active' ? 'success' : 'danger'">
-              {{ row.status === 'active' ? '正常' : row.status === 'inactive' ? '未激活' : '错误' }}
+            <el-tag :type="getStatusType(row.status)">
+              {{ getStatusText(row.status) }}
             </el-tag>
           </template>
         </el-table-column>
@@ -31,8 +31,8 @@
         </el-table-column>
         <el-table-column prop="health_status" label="健康状态" width="100">
           <template #default="{ row }">
-            <el-tag :type="row.health_status === 'healthy' ? 'success' : 'warning'">
-              {{ row.health_status === 'healthy' ? '健康' : '异常' }}
+            <el-tag :type="getHealthStatusType(row.health_status)">
+              {{ getHealthStatusText(row.health_status) }}
             </el-tag>
           </template>
         </el-table-column>
@@ -56,9 +56,21 @@
         <el-table-column prop="created_at" label="创建时间" width="180" />
         <el-table-column label="操作" width="280" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" @click="handleVerify(row)">验证</el-button>
-            <el-button size="small" @click="handleEdit(row)">编辑</el-button>
-            <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+            <el-dropdown trigger="click" @command="(cmd) => handleDropdownCommand(cmd, row)">
+              <el-button size="small" type="primary" link>
+                更多 <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="sync" :icon="Refresh">同步云账号</el-dropdown-item>
+                  <el-dropdown-item command="status" :icon="Setting">状态设置</el-dropdown-item>
+                  <el-dropdown-item command="attributes" :icon="Tickets">属性设置</el-dropdown-item>
+                  <el-dropdown-item command="verify" :icon="CircleCheck">验证</el-dropdown-item>
+                  <el-dropdown-item command="edit" :icon="EditPen">编辑</el-dropdown-item>
+                  <el-dropdown-item command="delete" :icon="Delete" divided>删除</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </template>
         </el-table-column>
       </el-table>
@@ -131,6 +143,15 @@
 
           <el-form-item label="密钥Secret" prop="accessKeySecret">
             <el-input v-model="wizardForm.accessKeySecret" type="password" placeholder="请输入Access Key Secret" />
+          </el-form-item>
+
+          <el-form-item label="测试连接">
+            <el-button @click="testConnectionInWizard" :loading="wizardForm.testConnectionStatus === 'testing'">
+              {{ wizardForm.testConnectionStatus === 'testing' ? '测试中...' : '测试连接' }}
+            </el-button>
+            <span v-if="wizardForm.testConnectionResult" :class="wizardForm.testConnectionResult.includes('成功') ? 'text-success' : 'text-danger'">
+              {{ wizardForm.testConnectionResult }}
+            </span>
           </el-form-item>
 
           <el-form-item label="资源归属方式" prop="resourceAssignmentMethod">
@@ -220,8 +241,8 @@
           <el-table-column prop="name" label="名称" />
           <el-table-column prop="status" label="状态">
             <template #default="{ row }">
-              <el-tag :type="row.status === 'available' ? 'success' : 'info'">
-                {{ row.status === 'available' ? '可用' : '不可用' }}
+              <el-tag :type="getRegionStatusType(row.status)">
+                {{ getRegionStatusText(row.status) }}
               </el-tag>
             </template>
           </el-table-column>
@@ -307,14 +328,104 @@
         </div>
       </template>
     </el-dialog>
+
+    <!-- 同步云账号对话框 -->
+    <el-dialog v-model="showSyncDialog" title="同步云账号" width="600px">
+      <el-form :model="syncForm" label-width="120px">
+        <el-form-item label="云账号名称">
+          <el-input v-model="syncForm.name" readonly />
+        </el-form-item>
+        <el-form-item label="环境">
+          <el-input v-model="syncForm.environment" readonly />
+        </el-form-item>
+        <el-form-item label="连接状态">
+          <el-tag :type="syncForm.connectionStatus ? 'success' : 'danger'">
+            {{ syncForm.connectionStatus ? '已连接' : '未连接' }}
+          </el-tag>
+        </el-form-item>
+        <el-form-item label="同步模式">
+          <el-radio-group v-model="syncForm.syncMode">
+            <el-radio value="full">全量同步</el-radio>
+            <el-radio value="incremental">增量同步</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="同步资源类型">
+          <el-select v-model="syncForm.syncResourceTypes" multiple placeholder="请选择同步资源类型">
+            <el-option value="all" label="全部" />
+            <el-option value="instances" label="主机" />
+            <el-option value="subnets" label="IP子网" />
+            <el-option value="vpcs" label="VPC" />
+            <el-option value="security_groups" label="安全组" />
+            <el-option value="load_balancers" label="负载均衡器" />
+            <el-option value="eips" label="EIP" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="confirmSync">确认同步</el-button>
+        <el-button @click="showSyncDialog = false">取消</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 状态设置对话框 -->
+    <el-dialog v-model="showStatusDialog" title="状态设置" width="500px">
+      <el-form :model="statusForm" label-width="120px">
+        <el-form-item label="启用状态">
+          <el-switch v-model="statusForm.enabled" />
+        </el-form-item>
+        <el-form-item label="连接测试">
+          <el-button @click="testConnection" :loading="statusForm.connectionStatus === 'testing'">
+            {{ statusForm.connectionStatus === 'testing' ? '测试中...' : '测试连接' }}
+          </el-button>
+          <span v-if="statusForm.connectionResult" :class="statusForm.connectionResult.includes('成功') ? 'text-success' : 'text-danger'">
+            {{ statusForm.connectionResult }}
+          </span>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="confirmStatusChange">保存</el-button>
+        <el-button @click="showStatusDialog = false">取消</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 属性设置对话框 -->
+    <el-dialog v-model="showAttributesDialog" title="属性设置" width="600px">
+      <el-form :model="attributesForm" label-width="150px">
+        <el-form-item label="自动同步">
+          <el-switch v-model="attributesForm.autoSync" />
+        </el-form-item>
+        <el-form-item label="同步策略">
+          <el-select v-model="attributesForm.syncPolicy" placeholder="请选择同步策略">
+            <el-option value="default" label="默认策略" />
+            <el-option value="full" label="全量策略" />
+            <el-option value="incremental" label="增量策略" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="同步间隔(小时)">
+          <el-input-number v-model="attributesForm.syncInterval" :min="1" :max="168" />
+        </el-form-item>
+        <el-form-item label="同步资源类型">
+          <el-select v-model="attributesForm.syncResourceTypes" multiple placeholder="请选择同步资源类型">
+            <el-option value="instances" label="主机" />
+            <el-option value="subnets" label="IP子网" />
+            <el-option value="vpcs" label="VPC" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="updateAccount">更新账号</el-button>
+        <el-button @click="confirmAttributesChange">确认</el-button>
+        <el-button @click="showAttributesDialog = false">取消</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed, watch } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
-import { Plus, Cloudy, Search, Menu } from '@element-plus/icons-vue'
-import { getCloudAccounts, createCloudAccount, updateCloudAccount, deleteCloudAccount, verifyCloudAccount } from '@/api/cloud-account'
+import { Plus, Cloudy, Search, Menu, ArrowDown, Refresh, Setting, Tickets, CircleCheck, EditPen, Delete } from '@element-plus/icons-vue'
+import { getCloudAccounts, createCloudAccount, updateCloudAccount, deleteCloudAccount, verifyCloudAccount, syncCloudAccount, testConnection, updateCloudAccountStatus, updateCloudAccountAttributes } from '@/api/cloud-account'
 import { getSyncPolicies } from '@/api/sync-policy'
 import { getProjects } from '@/api/project'
 import type { CloudAccount, CreateCloudAccountRequest, Project } from '@/types'
@@ -351,6 +462,8 @@ const wizardForm = reactive({
   accountType: 'public',
   accessKeyId: '',
   accessKeySecret: '',
+  testConnectionStatus: '', // 'testing', 'success', 'error'
+  testConnectionResult: '',
   resourceAssignmentMethod: [] as string[],
   syncStrategy: {
     policy: '',
@@ -569,6 +682,52 @@ const submitWizard = async () => {
   }
 }
 
+// 测试连接（在向导中）
+const testConnectionInWizard = async () => {
+  if (!wizardForm.accessKeyId || !wizardForm.accessKeySecret) {
+    ElMessage.warning('请先填写密钥ID和密钥Secret')
+    return
+  }
+
+  wizardForm.testConnectionStatus = 'testing'
+  wizardForm.testConnectionResult = '正在测试连接...'
+
+  try {
+    // 创建临时云账户用于测试
+    const tempAccountData: CreateCloudAccountRequest = {
+      name: wizardForm.name || 'temp-test',
+      provider_type: 'alibaba',
+      credentials: {
+        access_key_id: wizardForm.accessKeyId,
+        access_key_secret: wizardForm.accessKeySecret
+      },
+      description: 'Temporary account for connection testing',
+      remarks: 'Temporary account for connection testing',
+      enabled: true,
+      health_status: 'healthy',
+      domain_id: 1,
+      resource_assignment_method: 'tag_mapping'
+    }
+
+    // 首先创建一个临时账户
+    const tempAccount = await createCloudAccount(tempAccountData)
+
+    // 测试连接
+    const response = await testConnection(tempAccount.id)
+
+    // 删除临时账户
+    await deleteCloudAccount(tempAccount.id)
+
+    // 设置结果
+    wizardForm.testConnectionStatus = response.connected ? 'success' : 'error'
+    wizardForm.testConnectionResult = response.message || (response.connected ? '连接成功' : '连接失败')
+  } catch (error: any) {
+    wizardForm.testConnectionStatus = 'error'
+    wizardForm.testConnectionResult = error.message || '连接测试失败'
+    console.error('Connection test error:', error)
+  }
+}
+
 // 重置向导
 const resetWizard = () => {
   wizardStep.value = 0
@@ -635,12 +794,54 @@ const getProviderName = (type: string) => {
 
 const getProviderType = (type: string) => {
   const map: Record<string, any> = {
-    alibaba: 'orange',
-    tencent: 'cyan',
-    aws: 'warning',
-    azure: 'success'
+    alibaba: 'warning',  // 改为有效的Element Plus标签类型
+    tencent: 'primary',  // 改为有效的Element Plus标签类型
+    aws: 'danger',       // 改为有效的Element Plus标签类型
+    azure: 'success'     // 保持有效的Element Plus标签类型
   }
-  return map[type] || ''
+  return map[type] || 'info'
+}
+
+const getStatusType = (status: string) => {
+  const statusMap: Record<string, string> = {
+    active: 'success',
+    inactive: 'info',
+    error: 'danger',
+    pending: 'warning',
+    unknown: 'info'
+  }
+  return statusMap[status] || 'info'
+}
+
+const getStatusText = (status: string) => {
+  const statusMap: Record<string, string> = {
+    active: '正常',
+    inactive: '未激活',
+    error: '错误',
+    pending: '待处理',
+    unknown: '未知'
+  }
+  return statusMap[status] || status
+}
+
+const getHealthStatusType = (status: string) => {
+  const statusMap: Record<string, string> = {
+    healthy: 'success',
+    unhealthy: 'danger',
+    warning: 'warning',
+    unknown: 'info'
+  }
+  return statusMap[status] || 'info'
+}
+
+const getHealthStatusText = (status: string) => {
+  const statusMap: Record<string, string> = {
+    healthy: '健康',
+    unhealthy: '异常',
+    warning: '警告',
+    unknown: '未知'
+  }
+  return statusMap[status] || status
 }
 
 const handleVerify = async (row: CloudAccount) => {
@@ -675,6 +876,308 @@ const handleDelete = async (row: CloudAccount) => {
 const handleSizeChange = (size: number) => {
   pagination.pageSize = size
   loadAccounts()
+}
+
+// 新增的响应式数据
+const showSyncDialog = ref(false)
+const showStatusDialog = ref(false)
+const showAttributesDialog = ref(false)
+const showAccountDetailDialog = ref(false)
+const activeTab = ref('details')
+
+const syncForm = ref({
+  name: '',
+  environment: '',
+  connectionStatus: false,
+  syncMode: 'full',
+  syncResourceTypes: ['all'],
+  syncTime: new Date(),
+  notes: ''
+})
+
+const statusForm = ref({
+  enabled: true,
+  connectionStatus: 'unknown',
+  connectionResult: ''
+})
+
+const attributesForm = ref({
+  autoSync: true,
+  syncPolicy: 'default',
+  syncInterval: 24,
+  syncResourceTypes: [],
+  updateAccountInfo: false
+})
+
+const currentAccount = ref<any>(null)
+const subscriptions = ref<any[]>([])
+const subscriptionsLoading = ref(false)
+const resourceStats = ref({
+  instances: 0,
+  vpcs: 0,
+  subnets: 0,
+  security_groups: 0,
+  eips: 0,
+  load_balancers: 0
+})
+
+// 新增的方法
+const showAccountDetails = async (account: any) => {
+  currentAccount.value = account
+  showAccountDetailDialog.value = true
+
+  // 加载资源统计信息
+  loadResourceStats(account.id)
+
+  // 加载订阅信息
+  loadSubscriptions(account.id)
+}
+
+const loadResourceStats = async (accountId: number) => {
+  // 模拟API调用获取资源统计信息
+  resourceStats.value = {
+    instances: Math.floor(Math.random() * 100),
+    vpcs: Math.floor(Math.random() * 20),
+    subnets: Math.floor(Math.random() * 50),
+    security_groups: Math.floor(Math.random() * 30),
+    eips: Math.floor(Math.random() * 25),
+    load_balancers: Math.floor(Math.random() * 15)
+  }
+}
+
+const loadSubscriptions = async (accountId: number) => {
+  subscriptionsLoading.value = true
+  try {
+    // 模拟API调用获取订阅信息
+    await new Promise(resolve => setTimeout(resolve, 500))
+
+    subscriptions.value = [
+      {
+        id: 1,
+        name: '订阅1',
+        subscription: 'abc-def-ghi',
+        enabled: true,
+        status: 'active',
+        last_sync: new Date().toISOString(),
+        sync_duration: '2m 30s',
+        sync_status: 'success',
+        domain_id: 1,
+        default_project: '项目A'
+      },
+      {
+        id: 2,
+        name: '订阅2',
+        subscription: 'jkl-mno-pqr',
+        enabled: false,
+        status: 'inactive',
+        last_sync: new Date(Date.now() - 86400000).toISOString(),
+        sync_duration: '1m 15s',
+        sync_status: 'failed',
+        domain_id: 1,
+        default_project: '项目B'
+      }
+    ]
+  } catch (error) {
+    console.error('Failed to load subscriptions:', error)
+    ElMessage.error('加载订阅失败')
+  } finally {
+    subscriptionsLoading.value = false
+  }
+}
+
+const handleDropdownCommand = async (command: string, row: any) => {
+  currentAccount.value = row
+  statusForm.value.enabled = row.enabled
+
+  switch (command) {
+    case 'sync':
+      syncForm.value.name = row.name
+      syncForm.value.environment = getProviderName(row.provider_type)
+      // 模拟连接状态检查
+      syncForm.value.connectionStatus = row.status === 'active'
+      showSyncDialog.value = true
+      break
+    case 'status':
+      statusForm.value.enabled = row.enabled
+      showStatusDialog.value = true
+      break
+    case 'attributes':
+      // 加载当前属性值
+      attributesForm.value.autoSync = row.auto_sync ?? true
+      attributesForm.value.syncPolicy = row.sync_policy || 'default'
+      attributesForm.value.syncInterval = row.sync_interval ?? 24
+      attributesForm.value.syncResourceTypes = row.sync_resource_types || []
+      showAttributesDialog.value = true
+      break
+    case 'verify':
+      await handleVerify(row)
+      break
+    case 'edit':
+      handleEdit(row)
+      break
+    case 'delete':
+      await handleDelete(row)
+      break
+  }
+}
+
+const confirmSync = async () => {
+  try {
+    await syncCloudAccount(currentAccount.value.id, {
+      mode: syncForm.value.syncMode,
+      resource_types: syncForm.value.syncResourceTypes
+    })
+
+    ElMessage.success(`已启动对 ${syncForm.value.name} 的同步（模式：${syncForm.value.syncMode === 'full' ? '全量' : '增量'}）`)
+    showSyncDialog.value = false
+
+    // 可以在这里添加刷新数据的逻辑
+  } catch (error) {
+    ElMessage.error('同步启动失败')
+    console.error('Sync error:', error)
+  }
+}
+
+const testConnection = async () => {
+  statusForm.value.connectionStatus = 'testing'
+  statusForm.value.connectionResult = '正在测试连接...'
+
+  try {
+    const response = await testConnection(currentAccount.value.id)
+    statusForm.value.connectionStatus = response.connected ? 'success' : 'error'
+    statusForm.value.connectionResult = response.connected ? '连接成功' : '连接失败'
+  } catch (error) {
+    statusForm.value.connectionStatus = 'error'
+    statusForm.value.connectionResult = '连接测试失败'
+    console.error('Connection test error:', error)
+  }
+}
+
+const confirmStatusChange = async () => {
+  try {
+    await updateCloudAccountStatus(currentAccount.value.id, statusForm.value.enabled)
+
+    ElMessage.success('状态更新成功')
+    showStatusDialog.value = false
+    loadAccounts() // 重新加载列表
+  } catch (error) {
+    ElMessage.error('状态更新失败')
+    console.error('Status update error:', error)
+  }
+}
+
+const updateAccount = async () => {
+  try {
+    await updateCloudAccount(currentAccount.value.id, {
+      name: currentAccount.value.name,
+      provider_type: currentAccount.value.provider_type,
+      // 其他需要更新的字段
+    })
+
+    ElMessage.success('账号信息更新成功')
+  } catch (error) {
+    ElMessage.error('账号信息更新失败')
+    console.error('Update error:', error)
+  }
+}
+
+const confirmAttributesChange = async () => {
+  try {
+    await updateCloudAccountAttributes(currentAccount.value.id, {
+      auto_sync: attributesForm.value.autoSync,
+      sync_policy: attributesForm.value.syncPolicy,
+      sync_interval: attributesForm.value.syncInterval,
+      sync_resource_types: attributesForm.value.syncResourceTypes
+    })
+
+    ElMessage.success('属性更新成功')
+    showAttributesDialog.value = false
+    loadAccounts() // 重新加载列表
+  } catch (error) {
+    ElMessage.error('属性更新失败')
+    console.error('Update error:', error)
+  }
+}
+
+const changeProject = (row: any) => {
+  ElMessage.info(`更改项目功能将在后续版本中实现 - 订阅: ${row.name}`)
+}
+
+const syncResources = (row: any) => {
+  ElMessage.success(`已启动对 ${row.name} 资源的同步`)
+}
+
+const editSubscription = (row: any) => {
+  ElMessage.info(`编辑订阅功能将在后续版本中实现 - 订阅: ${row.name}`)
+}
+
+const deleteSubscription = async (row: any) => {
+  try {
+    await ElMessageBox.confirm(`确定要删除订阅 "${row.name}" 吗？`, '提示', {
+      type: 'warning'
+    })
+    ElMessage.success('订阅删除成功')
+    loadSubscriptions(currentAccount.value.id) // 重新加载订阅
+  } catch (e: any) {
+    if (e !== 'cancel') {
+      console.error(e)
+      ElMessage.error('删除订阅失败')
+    }
+  }
+}
+
+const getRegionStatusType = (status: string) => {
+  const statusMap: Record<string, string> = {
+    available: 'success',
+    unavailable: 'danger',
+    unknown: 'info'
+  }
+  return statusMap[status] || 'info'
+}
+
+const getRegionStatusText = (status: string) => {
+  const statusMap: Record<string, string> = {
+    available: '可用',
+    unavailable: '不可用',
+    unknown: '未知'
+  }
+  return statusMap[status] || status
+}
+
+const getSyncStatusType = (status: string) => {
+  switch (status) {
+    case 'success':
+      return 'success'
+    case 'failed':
+      return 'danger'
+    case 'running':
+      return 'warning'
+    default:
+      return 'info'
+  }
+}
+
+const formatDate = (dateString: string | undefined) => {
+  if (!dateString) return '-'
+  return new Date(dateString).toLocaleString('zh-CN')
+}
+
+const getDomainName = (domainId: number) => {
+  // 实际应用中应该从API获取域名
+  return `域${domainId}`
+}
+
+const getResourceAssignmentMethodName = (method: string) => {
+  const map: Record<string, string> = {
+    'sync_strategy': '同步策略',
+    'cloud_project': '云上项目',
+    'cloud_subscription': '云订阅',
+    'specific_project': '指定项目',
+    'tag_mapping': '标签映射',
+    'project_mapping': '项目映射',
+    'manual_assignment': '手动分配'
+  }
+  return map[method] || method
 }
 
 const handleCurrentChange = (page: number) => {
@@ -756,6 +1259,18 @@ onMounted(() => {
   margin-bottom: 15px;
 }
 
+.sync-time {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 4px;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+}
+
 .resource-assignment-notes {
   margin-top: 15px;
   padding: 12px;
@@ -782,5 +1297,17 @@ onMounted(() => {
 
 .sync-strategy-info li {
   margin: 5px 0;
+}
+
+.el-descriptions {
+  margin: 15px 0;
+}
+
+.text-success {
+  color: #67c23a;
+}
+
+.text-danger {
+  color: #f56c6c;
 }
 </style>

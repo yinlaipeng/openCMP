@@ -21,11 +21,11 @@ func TestRobotService(t *testing.T) {
 
 	// Create a test robot
 	robot := &model.Robot{
-		Name:        "Test Robot",
-		Type:        "dingtalk",
-		WebhookURL:  "https://oapi.dingtalk.com/robot/send?access_token=test",
-		Description: "Test dingtalk robot",
-		Enabled:     true,
+		Name:         "Test Robot",
+		Type:         "dingtalk",
+		WebhookURL:   "https://oapi.dingtalk.com/robot/send?access_token=test",
+		Description:  "Test dingtalk robot",
+		Enabled:      true,
 		MessageTypes: json.RawMessage(`["alert", "notification"]`),
 	}
 

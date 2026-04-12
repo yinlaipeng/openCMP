@@ -82,7 +82,7 @@ func main() {
 		fmt.Printf("❌ 认证功能测试失败: %v\n", err)
 	} else {
 		fmt.Printf("✅ 认证功能测试成功，获取到令牌: %s\n", token)
-		
+
 		// 使用有效令牌测试授权
 		fmt.Println("\n🔍 使用有效令牌测试授权...")
 		if err := testAuthorizationWithValidToken(token); err != nil {
@@ -135,7 +135,7 @@ func testInvalidTokenAccess() error {
 // testBruteForceProtection 测试暴力破解防护
 func testBruteForceProtection() error {
 	client := &http.Client{Timeout: 10 * time.Second}
-	
+
 	// 尝试多次无效登录
 	for i := 0; i < 5; i++ {
 		reqBody, _ := json.Marshal(LoginRequest{
@@ -184,11 +184,11 @@ func testPrivilegeEscalation() error {
 	// 尝试执行管理员操作（例如创建用户）
 	client := &http.Client{Timeout: 10 * time.Second}
 	userData := map[string]interface{}{
-		"name":      "privilege_test",
+		"name":         "privilege_test",
 		"display_name": "Privilege Escalation Test",
-		"email":     "privilege_test@example.com",
-		"password":  "Password123!",
-		"domain_id": 1,
+		"email":        "privilege_test@example.com",
+		"password":     "Password123!",
+		"domain_id":    1,
 	}
 	reqBody, _ := json.Marshal(userData)
 
@@ -304,7 +304,7 @@ func testSQLInjection() error {
 	}
 
 	client := &http.Client{Timeout: 10 * time.Second}
-	
+
 	// 尝试在用户名参数中注入SQL
 	maliciousUsername := "admin' OR '1'='1"
 	req, _ := http.NewRequest("GET", fmt.Sprintf("%s/users?name=%s", baseURL, maliciousUsername), nil)
@@ -325,7 +325,7 @@ func testSQLInjection() error {
 	// 检查响应是否异常（例如返回过多数据）
 	var result map[string]interface{}
 	json.Unmarshal(body, &result)
-	
+
 	if items, ok := result["items"].([]interface{}); ok {
 		if len(items) > 100 { // 假设正常情况下不会有这么多用户
 			return fmt.Errorf("可能存在SQL注入漏洞：返回了异常多的数据项")
@@ -365,7 +365,7 @@ func testAuthenticationFlow() (string, error) {
 // testAuthorizationWithValidToken 使用有效令牌测试授权
 func testAuthorizationWithValidToken(token string) error {
 	client := &http.Client{Timeout: 10 * time.Second}
-	
+
 	// 尝试访问用户列表（需要适当权限）
 	req, _ := http.NewRequest("GET", baseURL+"/users", nil)
 	req.Header.Set("Authorization", "Bearer "+token)

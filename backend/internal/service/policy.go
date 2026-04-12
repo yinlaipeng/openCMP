@@ -231,18 +231,18 @@ func (s *PolicyService) RevokePolicyFromRole(ctx context.Context, roleID uint, p
 func (s *PolicyService) CheckUserPermission(ctx context.Context, userID uint, resource, action string) (bool, error) {
 	// 获取用户的所有策略（通过角色）
 	var policyIDs []string
-	
+
 	// 从用户直接拥有的角色获取策略
 	err := s.db.WithContext(ctx).
 		Model(&model.RolePolicy{}).
 		Joins("JOIN user_roles ON role_policies.role_id = user_roles.role_id").
 		Where("user_roles.user_id = ?", userID).
 		Pluck("role_policies.policy_id", &policyIDs).Error
-	
+
 	if err != nil {
 		return false, err
 	}
-	
+
 	// 从用户在项目级别拥有的角色获取策略
 	var projectPolicyIDs []string
 	err = s.db.WithContext(ctx).
@@ -250,13 +250,13 @@ func (s *PolicyService) CheckUserPermission(ctx context.Context, userID uint, re
 		Joins("JOIN project_user_roles ON role_policies.role_id = project_user_roles.role_id").
 		Where("project_user_roles.user_id = ?", userID).
 		Pluck("role_policies.policy_id", &projectPolicyIDs).Error
-	
+
 	if err != nil {
 		return false, err
 	}
-	
+
 	policyIDs = append(policyIDs, projectPolicyIDs...)
-	
+
 	// 从用户所属组拥有的角色获取策略
 	var groupPolicyIDs []string
 	err = s.db.WithContext(ctx).
@@ -265,34 +265,34 @@ func (s *PolicyService) CheckUserPermission(ctx context.Context, userID uint, re
 		Joins("JOIN user_groups ON group_roles.group_id = user_groups.group_id").
 		Where("user_groups.user_id = ?", userID).
 		Pluck("role_policies.policy_id", &groupPolicyIDs).Error
-	
+
 	if err != nil {
 		return false, err
 	}
-	
+
 	policyIDs = append(policyIDs, groupPolicyIDs...)
-	
+
 	if len(policyIDs) == 0 {
 		return false, nil
 	}
-	
+
 	// 检查这些策略是否允许指定的资源和动作
 	var policies []model.Policy
 	err = s.db.WithContext(ctx).
 		Where("id IN ?", policyIDs).
 		Find(&policies).Error
-	
+
 	if err != nil {
 		return false, err
 	}
-	
+
 	// 检查每个策略是否允许请求的操作
 	for _, policy := range policies {
 		if s.evaluatePolicy(policy, resource, action) {
 			return true, nil
 		}
 	}
-	
+
 	return false, nil
 }
 
@@ -392,16 +392,16 @@ func matchResource(policyResource, requestedResource string) bool {
 	if policyResource == "*" || policyResource == requestedResource {
 		return true
 	}
-	
+
 	// 检查通配符模式，如 "user:*"
 	if len(policyResource) > 2 && policyResource[len(policyResource)-2:] == ":*" {
 		prefix := policyResource[:len(policyResource)-2]
-		if requestedResource == prefix || len(requestedResource) > len(prefix) && 
-		   requestedResource[:len(prefix)] == prefix && requestedResource[len(prefix)] == ':' {
+		if requestedResource == prefix || len(requestedResource) > len(prefix) &&
+			requestedResource[:len(prefix)] == prefix && requestedResource[len(prefix)] == ':' {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
@@ -411,15 +411,15 @@ func matchAction(policyAction, requestedAction string) bool {
 	if policyAction == "*" || policyAction == requestedAction {
 		return true
 	}
-	
+
 	// 检查通配符模式，如 "user:*"
 	if len(policyAction) > 2 && policyAction[len(policyAction)-2:] == ":*" {
 		prefix := policyAction[:len(policyAction)-2]
-		if requestedAction == prefix || len(requestedAction) > len(prefix) && 
-		   requestedAction[:len(prefix)] == prefix && requestedAction[len(prefix)] == ':' {
+		if requestedAction == prefix || len(requestedAction) > len(prefix) &&
+			requestedAction[:len(prefix)] == prefix && requestedAction[len(prefix)] == ':' {
 			return true
 		}
 	}
-	
+
 	return false
 }

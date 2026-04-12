@@ -366,6 +366,64 @@ func (p *AWSProvider) ListCacheInstances(ctx context.Context, filter cloudprovid
 	return nil, cloudprovider.NewCloudError(cloudprovider.ErrUnsupportedOperation, "not implemented", "")
 }
 
+// Geography methods
+func (p *AWSProvider) ListRegions() ([]*cloudprovider.Region, error) {
+	return nil, cloudprovider.NewCloudError(cloudprovider.ErrUnsupportedOperation, "not implemented", "")
+}
+
+func (p *AWSProvider) ListZones(regionID string) ([]*cloudprovider.Zone, error) {
+	return nil, cloudprovider.NewCloudError(cloudprovider.ErrUnsupportedOperation, "not implemented", "")
+}
+
+// Advanced network methods
+func (p *AWSProvider) CreateVPCInterconnect(ctx context.Context, config cloudprovider.VPCInterconnectConfig) (*cloudprovider.VPCInterconnect, error) {
+	return nil, cloudprovider.NewCloudError(cloudprovider.ErrUnsupportedOperation, "not implemented", "")
+}
+
+func (p *AWSProvider) DeleteVPCInterconnect(ctx context.Context, interconnectID string) error {
+	return cloudprovider.NewCloudError(cloudprovider.ErrUnsupportedOperation, "not implemented", "")
+}
+
+func (p *AWSProvider) ListVPCInterconnects(ctx context.Context, filter cloudprovider.VPCInterconnectFilter) ([]*cloudprovider.VPCInterconnect, error) {
+	return nil, cloudprovider.NewCloudError(cloudprovider.ErrUnsupportedOperation, "not implemented", "")
+}
+
+func (p *AWSProvider) CreateVPCPeering(ctx context.Context, config cloudprovider.VPCPeeringConfig) (*cloudprovider.VPCPeering, error) {
+	return nil, cloudprovider.NewCloudError(cloudprovider.ErrUnsupportedOperation, "not implemented", "")
+}
+
+func (p *AWSProvider) DeleteVPCPeering(ctx context.Context, peeringID string) error {
+	return cloudprovider.NewCloudError(cloudprovider.ErrUnsupportedOperation, "not implemented", "")
+}
+
+func (p *AWSProvider) ListVPCPeerings(ctx context.Context, filter cloudprovider.VPCPeeringFilter) ([]*cloudprovider.VPCPeering, error) {
+	return nil, cloudprovider.NewCloudError(cloudprovider.ErrUnsupportedOperation, "not implemented", "")
+}
+
+func (p *AWSProvider) CreateRouteTable(ctx context.Context, config cloudprovider.RouteTableConfig) (*cloudprovider.RouteTable, error) {
+	return nil, cloudprovider.NewCloudError(cloudprovider.ErrUnsupportedOperation, "not implemented", "")
+}
+
+func (p *AWSProvider) DeleteRouteTable(ctx context.Context, routeTableID string) error {
+	return cloudprovider.NewCloudError(cloudprovider.ErrUnsupportedOperation, "not implemented", "")
+}
+
+func (p *AWSProvider) ListRouteTables(ctx context.Context, filter cloudprovider.RouteTableFilter) ([]*cloudprovider.RouteTable, error) {
+	return nil, cloudprovider.NewCloudError(cloudprovider.ErrUnsupportedOperation, "not implemented", "")
+}
+
+func (p *AWSProvider) CreateL2Network(ctx context.Context, config cloudprovider.L2NetworkConfig) (*cloudprovider.L2Network, error) {
+	return nil, cloudprovider.NewCloudError(cloudprovider.ErrUnsupportedOperation, "not implemented", "")
+}
+
+func (p *AWSProvider) DeleteL2Network(ctx context.Context, l2NetworkID string) error {
+	return cloudprovider.NewCloudError(cloudprovider.ErrUnsupportedOperation, "not implemented", "")
+}
+
+func (p *AWSProvider) ListL2Networks(ctx context.Context, filter cloudprovider.L2NetworkFilter) ([]*cloudprovider.L2Network, error) {
+	return nil, cloudprovider.NewCloudError(cloudprovider.ErrUnsupportedOperation, "not implemented", "")
+}
+
 func init() {
 	cloudprovider.RegisterProvider("aws", NewAWSProvider)
 }

@@ -29,12 +29,12 @@ func TestMessageSubscriptionService(t *testing.T) {
 
 	// Create a test subscription
 	subscription := &model.MessageSubscription{
-		UserID:         1,
-		MessageTypeID:  messageType.ID,
-		Email:          true,
-		SMS:            false,
-		Webhook:        true,
-		Station:        true,
+		UserID:        1,
+		MessageTypeID: messageType.ID,
+		Email:         true,
+		SMS:           false,
+		Webhook:       true,
+		Station:       true,
 	}
 
 	// Test CreateSubscription
@@ -156,16 +156,16 @@ func TestMessageSubscriptionService_ListMessageTypeSubscriptions(t *testing.T) {
 
 	// Create multiple subscriptions for the same message type
 	sub1 := &model.MessageSubscription{
-		UserID:         3,
-		MessageTypeID:  messageType.ID,
-		Email:          true,
-		Station:        true,
+		UserID:        3,
+		MessageTypeID: messageType.ID,
+		Email:         true,
+		Station:       true,
 	}
 	sub2 := &model.MessageSubscription{
-		UserID:         4,
-		MessageTypeID:  messageType.ID,
-		Email:          false,
-		Station:        true,
+		UserID:        4,
+		MessageTypeID: messageType.ID,
+		Email:         false,
+		Station:       true,
 	}
 
 	service.CreateSubscription(ctx, sub1)
@@ -203,27 +203,27 @@ func TestMessageSubscriptionService_GetSubscribersByChannel(t *testing.T) {
 
 	// Create subscriptions with different channel settings
 	emailSub := &model.MessageSubscription{
-		UserID:         5,
-		MessageTypeID:  messageType.ID,
-		Email:          true,
-		SMS:            false,
-		Station:        true,
+		UserID:        5,
+		MessageTypeID: messageType.ID,
+		Email:         true,
+		SMS:           false,
+		Station:       true,
 	}
 	webhookSub := &model.MessageSubscription{
-		UserID:         6,
-		MessageTypeID:  messageType.ID,
-		Email:          false,
-		SMS:            false,
-		Webhook:        true,
-		Station:        false,
+		UserID:        6,
+		MessageTypeID: messageType.ID,
+		Email:         false,
+		SMS:           false,
+		Webhook:       true,
+		Station:       false,
 	}
 	bothSub := &model.MessageSubscription{
-		UserID:         7,
-		MessageTypeID:  messageType.ID,
-		Email:          true,
-		SMS:            false,
-		Webhook:        true,
-		Station:        true,
+		UserID:        7,
+		MessageTypeID: messageType.ID,
+		Email:         true,
+		SMS:           false,
+		Webhook:       true,
+		Station:       true,
 	}
 
 	service.CreateSubscription(ctx, emailSub)

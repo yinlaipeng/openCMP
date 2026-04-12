@@ -9,11 +9,11 @@ import (
 // Rule 同步规则定义
 type Rule struct {
 	ID                uint           `gorm:"primaryKey" json:"id"`
-	SyncPolicyID      uint           `gorm:"index" json:"sync_policy_id"` // 关联同步策略
-	ConditionType     string         `gorm:"size:50;not null" json:"condition_type"` // 条件类型: all_match, any_match, key_match
+	SyncPolicyID      uint           `gorm:"index" json:"sync_policy_id"`              // 关联同步策略
+	ConditionType     string         `gorm:"size:50;not null" json:"condition_type"`   // 条件类型: all_match, any_match, key_match
 	ResourceMapping   string         `gorm:"size:50;not null" json:"resource_mapping"` // 资源映射: specify_project, specify_name
-	TargetProjectID   *uint          `json:"target_project_id,omitempty"` // 目标项目ID
-	TargetProjectName string         `gorm:"size:100" json:"target_project_name"` // 目标项目名称
+	TargetProjectID   *uint          `json:"target_project_id,omitempty"`              // 目标项目ID
+	TargetProjectName string         `gorm:"size:100" json:"target_project_name"`      // 目标项目名称
 	CreatedAt         time.Time      `json:"created_at"`
 	UpdatedAt         time.Time      `json:"updated_at"`
 	DeletedAt         gorm.DeletedAt `gorm:"index" json:"-"`
@@ -24,27 +24,27 @@ type Rule struct {
 
 // RuleTag 规则标签关联表
 type RuleTag struct {
-	ID         uint           `gorm:"primaryKey" json:"id"`
-	RuleID     uint           `gorm:"index" json:"rule_id"`       // 关联规则
-	TagKey     string         `gorm:"size:100;not null" json:"tag_key"` // 标签键
-	TagValue   string         `gorm:"size:100;not null" json:"tag_value"` // 标签值
-	CreatedAt  time.Time      `json:"created_at"`
-	UpdatedAt  time.Time      `json:"updated_at"`
-	DeletedAt  gorm.DeletedAt `gorm:"index" json:"-"`
+	ID        uint           `gorm:"primaryKey" json:"id"`
+	RuleID    uint           `gorm:"index" json:"rule_id"`               // 关联规则
+	TagKey    string         `gorm:"size:100;not null" json:"tag_key"`   // 标签键
+	TagValue  string         `gorm:"size:100;not null" json:"tag_value"` // 标签值
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 // SyncPolicy 同步策略配置
 type SyncPolicy struct {
-	ID          uint           `gorm:"primaryKey" json:"id"`
-	Name        string         `gorm:"size:200;not null" json:"name"`
-	Remarks     string         `gorm:"size:500" json:"remarks"`
-	Status      string         `gorm:"size:20;default:active" json:"status"` // active/inactive
-	Enabled     bool           `gorm:"default:true" json:"enabled"`
-	Scope       string         `gorm:"size:100" json:"scope"`      // 应用范围
-	DomainID    uint           `gorm:"index" json:"domain_id"`     // 所属域
-	CreatedAt   time.Time      `json:"created_at"`
-	UpdatedAt   time.Time      `json:"updated_at"`
-	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
+	ID        uint           `gorm:"primaryKey" json:"id"`
+	Name      string         `gorm:"size:200;not null" json:"name"`
+	Remarks   string         `gorm:"size:500" json:"remarks"`
+	Status    string         `gorm:"size:20;default:active" json:"status"` // active/inactive
+	Enabled   bool           `gorm:"default:true" json:"enabled"`
+	Scope     string         `gorm:"size:100" json:"scope"`  // 应用范围
+	DomainID  uint           `gorm:"index" json:"domain_id"` // 所属域
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 
 	// 关联关系
 	Rules []Rule `gorm:"foreignKey:SyncPolicyID" json:"rules,omitempty"` // 策略对应规则
@@ -77,9 +77,9 @@ const (
 type RuleConditionType string
 
 const (
-	RuleConditionTypeAllMatch   RuleConditionType = "all_match"
-	RuleConditionTypeAnyMatch   RuleConditionType = "any_match"
-	RuleConditionTypeKeyMatch   RuleConditionType = "key_match"
+	RuleConditionTypeAllMatch RuleConditionType = "all_match"
+	RuleConditionTypeAnyMatch RuleConditionType = "any_match"
+	RuleConditionTypeKeyMatch RuleConditionType = "key_match"
 )
 
 // RuleResourceMapping 资源映射类型

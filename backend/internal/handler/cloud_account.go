@@ -100,9 +100,9 @@ func (h *CloudAccountHandler) List(c *gin.Context) {
 			}
 
 			c.JSON(http.StatusOK, gin.H{
-				"items": accounts,
-				"total": total,
-				"page":  calculatedPage,
+				"items":     accounts,
+				"total":     total,
+				"page":      calculatedPage,
 				"page_size": pageSize,
 			})
 			return
@@ -120,7 +120,7 @@ func (h *CloudAccountHandler) List(c *gin.Context) {
 	// 转换为 offset
 	offset := (page - 1) * pageSize
 
-	accounts, total, err := h.service.ListCloudAccounts(c.Request.Context(), pageSize, offset)  // pageSize作为limit，offset作为offset
+	accounts, total, err := h.service.ListCloudAccounts(c.Request.Context(), pageSize, offset) // pageSize作为limit，offset作为offset
 	if err != nil {
 		h.logger.Error("failed to list cloud accounts", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -128,9 +128,9 @@ func (h *CloudAccountHandler) List(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"items": accounts,
-		"total": total,
-		"page":  page,
+		"items":     accounts,
+		"total":     total,
+		"page":      page,
 		"page_size": pageSize,
 	})
 }
@@ -262,4 +262,45 @@ func (h *CloudAccountHandler) Verify(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"valid": true, "message": "verification succeeded"})
+}
+
+// TestConnection 测试云账户连接
+func (h *CloudAccountHandler) TestConnection(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	account, err := h.service.GetCloudAccount(c.Request.Context(), uint(id))
+	if err != nil {
+		h.logger.Error("failed to get cloud account", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if account == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "account not found"})
+		return
+	}
+
+	valid, err := h.service.TestConnection(c.Request.Context(), account)
+	if err != nil {
+		h.logger.Error("failed to test cloud account connection", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if !valid {
+		c.JSON(http.StatusOK, gin.H{
+			"connected": false,
+			"message":   "connection test failed",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"connected": true,
+		"message":   "connection test succeeded",
+	})
 }

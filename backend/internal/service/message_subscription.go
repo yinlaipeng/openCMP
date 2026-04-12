@@ -80,12 +80,12 @@ func (s *MessageSubscriptionService) SetSubscriptionChannels(ctx context.Context
 	if sub == nil {
 		// 创建新订阅
 		sub = &model.MessageSubscription{
-			UserID:         userID,
-			MessageTypeID:  messageTypeID,
-			Email:          channels["email"],
-			SMS:            channels["sms"],
-			Webhook:        channels["webhook"],
-			Station:        channels["station"],
+			UserID:        userID,
+			MessageTypeID: messageTypeID,
+			Email:         channels["email"],
+			SMS:           channels["sms"],
+			Webhook:       channels["webhook"],
+			Station:       channels["station"],
 		}
 		return s.CreateSubscription(ctx, sub)
 	}

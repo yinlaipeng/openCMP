@@ -27,22 +27,27 @@ const (
 
 // VirtualMachine 虚拟机
 type VirtualMachine struct {
-	ID             string            `json:"id"`
-	Name           string            `json:"name"`
-	Status         VMStatus          `json:"status"`
-	InstanceType   string            `json:"instance_type"`
-	ImageID        string            `json:"image_id"`
-	VPCID          string            `json:"vpc_id"`
-	SubnetID       string            `json:"subnet_id"`
-	PrivateIP      string            `json:"private_ip"`
-	PublicIP       string            `json:"public_ip"`
-	DiskIDs        []string          `json:"disk_ids"`
-	SecurityGroups []string          `json:"security_groups"`
-	Keypair        string            `json:"keypair"`
-	Tags           map[string]string `json:"tags"`
-	CreatedAt      time.Time         `json:"created_at"`
-	RegionID       string            `json:"region_id"`
-	ZoneID         string            `json:"zone_id"`
+	ID                string            `json:"id"`
+	Name              string            `json:"name"`
+	Status            VMStatus          `json:"status"`
+	InstanceType      string            `json:"instance_type"`
+	ImageID           string            `json:"image_id"`
+	OSName            string            `json:"os_name"`            // Operating system name
+	BillingMethod     string            `json:"billing_method"`   // Billing method (pay-as-you-go, subscription, etc.)
+	Platform          string            `json:"platform"`         // Cloud platform (alibaba, tencent, aws, azure)
+	ProjectID         string            `json:"project_id"`       // Associated project ID
+	VPCID             string            `json:"vpc_id"`
+	SubnetID          string            `json:"subnet_id"`
+	PrivateIP         string            `json:"private_ip"`
+	PublicIP          string            `json:"public_ip"`
+	DiskIDs           []string          `json:"disk_ids"`
+	SecurityGroups    []string          `json:"security_groups"`
+	SecurityGroupNames []string         `json:"security_group_names"` // Names of security groups
+	Keypair           string            `json:"keypair"`
+	Tags              map[string]string `json:"tags"`
+	CreatedAt         time.Time         `json:"created_at"`
+	RegionID          string            `json:"region_id"`
+	ZoneID            string            `json:"zone_id"`
 }
 
 // VMCreateConfig 虚拟机创建配置
@@ -295,4 +300,69 @@ type DNSRecordConfig struct {
 	Type  string `json:"type"`
 	Value string `json:"value"`
 	TTL   int    `json:"ttl"`
+}
+
+// HostTemplateStatus 主机模版状态
+type HostTemplateStatus string
+
+const (
+	HostTemplateStatusActive   HostTemplateStatus = "Active"
+	HostTemplateStatusInactive HostTemplateStatus = "Inactive"
+	HostTemplateStatusDraft    HostTemplateStatus = "Draft"
+)
+
+// HostTemplate 主机模版
+type HostTemplate struct {
+	ID             string            `json:"id"`
+	Name           string            `json:"name"`
+	Description    string            `json:"description"`
+	Status         HostTemplateStatus `json:"status"`            // 模版状态
+	InstanceType   string            `json:"instance_type"`      // 实例规格
+	CPUArch        string            `json:"cpu_arch"`          // CPU架构
+	MemorySize     int               `json:"memory_size"`       // 内存大小(MB)
+	CPUCount       int               `json:"cpu_count"`         // CPU核心数
+	DiskSize       int               `json:"disk_size"`         // 磁盘大小(GB)
+	ImageID        string            `json:"image_id"`          // 镜像ID
+	OSName         string            `json:"os_name"`           // 操作系统名称
+	OSVersion      string            `json:"os_version"`        // 操作系统版本
+	VPCID          string            `json:"vpc_id"`            // VPC ID
+	SubnetID       string            `json:"subnet_id"`         // 子网ID
+	BillingMethod  string            `json:"billing_method"`    // 计费方式
+	Platform       string            `json:"platform"`          // 平台
+	ProjectID      string            `json:"project_id"`        // 项目ID
+	RegionID       string            `json:"region_id"`         // 区域ID
+	ZoneID         string            `json:"zone_id"`           // 可用区ID
+	Tags           map[string]string `json:"tags"`              // 标签
+	CreatedAt      time.Time         `json:"created_at"`        // 创建时间
+	UpdatedAt      time.Time         `json:"updated_at"`        // 更新时间
+}
+
+// ASGStatus 弹性伸缩组状态
+type ASGStatus string
+
+const (
+	ASGStatusActive    ASGStatus = "Active"
+	ASGStatusInactive  ASGStatus = "Inactive"
+	ASGStatusDeleting  ASGStatus = "Deleting"
+	ASGStatusError     ASGStatus = "Error"
+)
+
+// AutoscalingGroup 弹性伸缩组
+type AutoscalingGroup struct {
+	ID              string            `json:"id"`
+	Name            string            `json:"name"`                      // 弹性伸缩组名称
+	Description     string            `json:"description"`               // 描述
+	Status          ASGStatus         `json:"status"`                    // 伸缩组状态
+	HostTemplateID  string            `json:"host_template_id"`          // 主机模版ID
+	CurrentCapacity int               `json:"current_capacity"`          // 当前实例数
+	DesiredCapacity int               `json:"desired_capacity"`          // 期望实例数
+	MinSize         int               `json:"min_size"`                  // 最小实例数
+	MaxSize         int               `json:"max_size"`                  // 最大实例数
+	Platform        string            `json:"platform"`                  // 平台
+	ProjectID       string            `json:"project_id"`                // 项目ID
+	RegionID        string            `json:"region_id"`                 // 区域ID
+	ZoneID          string            `json:"zone_id"`                   // 可用区ID
+	Tags            map[string]string `json:"tags"`                      // 标签
+	CreatedAt       time.Time         `json:"created_at"`                // 创建时间
+	UpdatedAt       time.Time         `json:"updated_at"`                // 更新时间
 }

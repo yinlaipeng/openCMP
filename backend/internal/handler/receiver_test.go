@@ -26,10 +26,10 @@ func TestReceiverHandler(t *testing.T) {
 
 	// Create a test receiver
 	receiver := &model.Receiver{
-		Name:      "Test Receiver",
-		Email:     "test@example.com",
-		Phone:     "1234567890",
-		Enabled:   true,
+		Name:    "Test Receiver",
+		Email:   "test@example.com",
+		Phone:   "1234567890",
+		Enabled: true,
 	}
 	db.Create(receiver)
 
@@ -65,10 +65,10 @@ func TestReceiverHandler(t *testing.T) {
 
 	t.Run("Create", func(t *testing.T) {
 		newReceiver := &model.Receiver{
-			Name:      "New Receiver",
-			Email:     "new@example.com",
-			Phone:     "0987654321",
-			Enabled:   true,
+			Name:    "New Receiver",
+			Email:   "new@example.com",
+			Phone:   "0987654321",
+			Enabled: true,
 		}
 
 		jsonBytes, _ := json.Marshal(newReceiver)
@@ -84,10 +84,10 @@ func TestReceiverHandler(t *testing.T) {
 
 	t.Run("Update", func(t *testing.T) {
 		updateData := &model.Receiver{
-			Name:      "Updated Receiver",
-			Email:     "updated@example.com",
-			Phone:     "1111111111",
-			Enabled:   false,
+			Name:    "Updated Receiver",
+			Email:   "updated@example.com",
+			Phone:   "1111111111",
+			Enabled: false,
 		}
 
 		jsonBytes, _ := json.Marshal(updateData)
@@ -105,10 +105,10 @@ func TestReceiverHandler(t *testing.T) {
 	t.Run("Delete", func(t *testing.T) {
 		// Create another receiver to delete
 		deleteReceiver := &model.Receiver{
-			Name:      "Delete Receiver",
-			Email:     "delete@example.com",
-			Phone:     "2222222222",
-			Enabled:   true,
+			Name:    "Delete Receiver",
+			Email:   "delete@example.com",
+			Phone:   "2222222222",
+			Enabled: true,
 		}
 		db.Create(deleteReceiver)
 

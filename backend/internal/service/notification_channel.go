@@ -150,20 +150,21 @@ func UnmarshalWebhookConfig(configJSON json.RawMessage) (*WebhookConfig, error) 
 	err := json.Unmarshal(configJSON, &cfg)
 	return &cfg, err
 }
+
 // SMSConfig 短信配置
 type SMSConfig struct {
-	Provider         string             `json:"provider"` // aliyun, huawei
-	AccessKeyID      string             `json:"access_key_id"`
-	AccessKeySecret  string             `json:"access_key_secret"`
-	Signature        string             `json:"signature"`
+	Provider          string             `json:"provider"` // aliyun, huawei
+	AccessKeyID       string             `json:"access_key_id"`
+	AccessKeySecret   string             `json:"access_key_secret"`
+	Signature         string             `json:"signature"`
 	DomesticTemplates SMSTemplatesConfig `json:"domestic_templates"`
-	IntlTemplates    SMSTemplatesConfig `json:"intl_templates"`
+	IntlTemplates     SMSTemplatesConfig `json:"intl_templates"`
 }
 
 // SMSTemplatesConfig 短信模板配置
 type SMSTemplatesConfig struct {
-	VerifyCode   string `json:"verify_code"`     // 验证码
-	Alert        string `json:"alert"`           // 告警
+	VerifyCode    string `json:"verify_code"`    // 验证码
+	Alert         string `json:"alert"`          // 告警
 	AbnormalLogin string `json:"abnormal_login"` // 异常登录
 }
 

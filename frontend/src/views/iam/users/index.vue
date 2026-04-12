@@ -67,7 +67,7 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="domain_id" label="所属域" width="120">
+        <el-table-column label="所属域" width="120">
           <template #default="{ row }">
             <span>{{ getDomainName(row.domain_id) }}</span>
           </template>

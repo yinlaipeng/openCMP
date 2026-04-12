@@ -31,7 +31,6 @@ type CreateDomainRequest struct {
 	Name        string `json:"name" binding:"required"`
 	Description string `json:"description"`
 	Enabled     bool   `json:"enabled"`
-	ParentID    *uint  `json:"parent_id"`
 }
 
 // List 列出域
@@ -39,20 +38,18 @@ func (h *DomainHandler) List(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 
-	// 获取筛选参数
-	keyword := c.Query("keyword")
-	enabledStr := c.Query("enabled")
-
-	var enabled *bool
-	if enabledStr != "" {
-		if enabledStr == "true" {
-			enabled = func() *bool { b := true; return &b }()
-		} else if enabledStr == "false" {
-			enabled = func() *bool { b := false; return &b }()
+	// Get filter parameters
+	filters := make(map[string]interface{})
+	if keyword := c.Query("keyword"); keyword != "" {
+		filters["keyword"] = keyword
+	}
+	if enabledStr := c.Query("enabled"); enabledStr != "" {
+		if enabled, err := strconv.ParseBool(enabledStr); err == nil {
+			filters["enabled"] = enabled
 		}
 	}
 
-	domains, total, err := h.service.ListDomains(c.Request.Context(), keyword, enabled, limit, offset)
+	domains, total, err := h.service.ListDomainsWithFilters(c.Request.Context(), filters, limit, offset)
 	if err != nil {
 		h.logger.Error("failed to list domains", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -100,7 +97,6 @@ func (h *DomainHandler) Create(c *gin.Context) {
 		Name:        req.Name,
 		Description: req.Description,
 		Enabled:     req.Enabled,
-		ParentID:    req.ParentID,
 	}
 
 	if err := h.service.CreateDomain(c.Request.Context(), domain); err != nil {
@@ -141,7 +137,6 @@ func (h *DomainHandler) Update(c *gin.Context) {
 	domain.Name = req.Name
 	domain.Description = req.Description
 	domain.Enabled = req.Enabled
-	domain.ParentID = req.ParentID
 
 	if err := h.service.UpdateDomain(c.Request.Context(), domain); err != nil {
 		h.logger.Error("failed to update domain", zap.Error(err))
@@ -207,7 +202,15 @@ func (h *DomainHandler) Disable(c *gin.Context) {
 func (h *DomainHandler) GetUsers(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid domain id"})
+		return
+	}
+
+	// 检查域是否存在
+	_, err = h.service.GetDomain(c.Request.Context(), uint(id))
+	if err != nil {
+		h.logger.Error("failed to get domain", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -227,35 +230,19 @@ func (h *DomainHandler) GetUsers(c *gin.Context) {
 	})
 }
 
-// GetGroups 获取域的用户组列表
-func (h *DomainHandler) GetGroups(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
-		return
-	}
-
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-
-	groups, total, err := h.service.GetDomainGroups(c.Request.Context(), uint(id), limit, offset)
-	if err != nil {
-		h.logger.Error("failed to get domain groups", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"items": groups,
-		"total": total,
-	})
-}
-
 // GetProjects 获取域的项目列表
 func (h *DomainHandler) GetProjects(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid domain id"})
+		return
+	}
+
+	// 检查域是否存在
+	_, err = h.service.GetDomain(c.Request.Context(), uint(id))
+	if err != nil {
+		h.logger.Error("failed to get domain", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -279,7 +266,15 @@ func (h *DomainHandler) GetProjects(c *gin.Context) {
 func (h *DomainHandler) GetRoles(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid domain id"})
+		return
+	}
+
+	// 检查域是否存在
+	_, err = h.service.GetDomain(c.Request.Context(), uint(id))
+	if err != nil {
+		h.logger.Error("failed to get domain", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -295,6 +290,66 @@ func (h *DomainHandler) GetRoles(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"items": roles,
+		"total": total,
+	})
+}
+
+// GetCloudAccounts 获取域的云账号列表
+func (h *DomainHandler) GetCloudAccounts(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid domain id"})
+		return
+	}
+
+	// 检查域是否存在
+	_, err = h.service.GetDomain(c.Request.Context(), uint(id))
+	if err != nil {
+		h.logger.Error("failed to get domain", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 当前云账号表没有直接关联到域的字段
+	// 可能通过项目间接关联，或需要扩展云账号模型增加域字段
+	// 暂时返回空列表，可根据实际需求调整
+	var cloudAccounts []*model.CloudAccount
+
+	c.JSON(http.StatusOK, gin.H{
+		"items": cloudAccounts,
+		"total": len(cloudAccounts),
+	})
+}
+
+// GetOperationLogs 获取域的操作日志列表
+func (h *DomainHandler) GetOperationLogs(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid domain id"})
+		return
+	}
+
+	// 检查域是否存在
+	_, err = h.service.GetDomain(c.Request.Context(), uint(id))
+	if err != nil {
+		h.logger.Error("failed to get domain", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 获取与该域相关的操作日志
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+
+	operationLogs, total, err := h.service.GetDomainOperationLogs(c.Request.Context(), uint(id), limit, offset)
+	if err != nil {
+		h.logger.Error("failed to get operation logs", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"items": operationLogs,
 		"total": total,
 	})
 }

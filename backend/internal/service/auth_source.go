@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-ldap/ldap/v3"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 
@@ -29,6 +30,43 @@ func NewAuthSourceService(db *gorm.DB) *AuthSourceService {
 
 // CreateAuthSource 创建认证源
 func (s *AuthSourceService) CreateAuthSource(ctx context.Context, source *model.AuthSource) error {
+	// 如果是LDAP类型并且配置了目标域，则尝试自动创建域
+	if source.Type == "ldap" && source.Config != nil {
+		cfg, err := UnmarshalLDAPConfig(json.RawMessage(source.Config))
+		if err != nil {
+			return fmt.Errorf("failed to parse ldap config: %w", err)
+		}
+
+		if cfg.TargetDomain != "" {
+			// 检查域是否存在
+			var existingDomain model.Domain
+			if err := s.db.Where("name = ?", cfg.TargetDomain).First(&existingDomain).Error; err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					// 域不存在，自动创建
+					newDomain := &model.Domain{
+						Name:        cfg.TargetDomain,
+						Description: fmt.Sprintf("Domain for %s authentication source", source.Name),
+						Enabled:     true,
+					}
+					if err := s.db.Create(newDomain).Error; err != nil {
+						return fmt.Errorf("failed to auto-create domain: %w", err)
+					}
+					// 更新source的DomainID为新创建的域ID
+					if source.Scope == "domain" {
+						source.DomainID = &newDomain.ID
+					}
+				} else {
+					return fmt.Errorf("failed to check domain existence: %w", err)
+				}
+			} else {
+				// 域已存在，检查是否需要更新source的DomainID
+				if source.Scope == "domain" {
+					source.DomainID = &existingDomain.ID
+				}
+			}
+		}
+	}
+
 	return s.db.WithContext(ctx).Create(source).Error
 }
 
@@ -135,6 +173,43 @@ func (s *AuthSourceService) isSystemAuthSource(source *model.AuthSource) bool {
 
 // UpdateAuthSource 更新认证源
 func (s *AuthSourceService) UpdateAuthSource(ctx context.Context, source *model.AuthSource) error {
+	// 如果是LDAP类型并且配置了目标域，则尝试自动创建域
+	if source.Type == "ldap" && source.Config != nil {
+		cfg, err := UnmarshalLDAPConfig(json.RawMessage(source.Config))
+		if err != nil {
+			return fmt.Errorf("failed to parse ldap config: %w", err)
+		}
+
+		if cfg.TargetDomain != "" {
+			// 检查域是否存在
+			var existingDomain model.Domain
+			if err := s.db.Where("name = ?", cfg.TargetDomain).First(&existingDomain).Error; err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					// 域不存在，自动创建
+					newDomain := &model.Domain{
+						Name:        cfg.TargetDomain,
+						Description: fmt.Sprintf("Domain for %s authentication source", source.Name),
+						Enabled:     true,
+					}
+					if err := s.db.Create(newDomain).Error; err != nil {
+						return fmt.Errorf("failed to auto-create domain: %w", err)
+					}
+					// 更新source的DomainID为新创建的域ID
+					if source.Scope == "domain" {
+						source.DomainID = &newDomain.ID
+					}
+				} else {
+					return fmt.Errorf("failed to check domain existence: %w", err)
+				}
+			} else {
+				// 域已存在，检查是否需要更新source的DomainID
+				if source.Scope == "domain" {
+					source.DomainID = &existingDomain.ID
+				}
+			}
+		}
+	}
+
 	return s.db.WithContext(ctx).Save(source).Error
 }
 
@@ -291,7 +366,65 @@ func (s *AuthSourceService) SyncAuthSource(ctx context.Context, id uint) error {
 	return err
 }
 
+// TestLDAPUsers 测试 LDAP 用户查询
+func (s *AuthSourceService) TestLDAPUsers(ctx context.Context, source *model.AuthSource) ([]LDAPUserInfo, error) {
+	cfg, err := UnmarshalLDAPConfig(json.RawMessage(source.Config))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse ldap config: %w", err)
+	}
+
+	// 建立连接到LDAP服务器
+	conn, err := ldap.DialURL(cfg.URL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to LDAP server: %w", err)
+	}
+	defer conn.Close()
+
+	// 首先使用BindDN和BindPassword进行管理员绑定
+	if cfg.BindDN != "" && cfg.BindPassword != "" {
+		if err := conn.Bind(cfg.BindDN, cfg.BindPassword); err != nil {
+			return nil, fmt.Errorf("failed to bind with admin credentials: %w", err)
+		}
+	}
+
+	// 搜索基础DN，优先使用UserSearchBase，否则使用BaseDN
+	searchBase := cfg.UserSearchBase
+	if searchBase == "" {
+		searchBase = cfg.BaseDN
+	}
+
+	// 构建搜索请求 - 搜索前10个用户
+	searchRequest := ldap.NewSearchRequest(
+		searchBase,
+		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 10, 0, false,
+		cfg.UserFilter, // 使用用户过滤器
+		[]string{cfg.UserIDAttr, cfg.UserNameAttr, "mail", "displayName", "dn", cfg.UserEnabledAttribute},
+		nil,
+	)
+
+	searchResult, err := conn.Search(searchRequest)
+	if err != nil {
+		return nil, fmt.Errorf("failed to search users in LDAP: %w", err)
+	}
+
+	var users []LDAPUserInfo
+	for _, entry := range searchResult.Entries {
+		user := LDAPUserInfo{
+			Username:    entry.GetAttributeValue(cfg.UserIDAttr),
+			DisplayName: entry.GetAttributeValue(cfg.UserNameAttr),
+			Email:       entry.GetAttributeValue("mail"),
+			DN:          entry.DN,
+		}
+		users = append(users, user)
+	}
+
+	return users, nil
+}
+
 // GetAuthSourcesByScope 按范围查询认证源
+// 业务场景说明：
+// - scope="system": 获取所有系统级认证源（全局可用）
+// - scope="domain" 且 domainID!=nil: 获取指定域的域级认证源
 func (s *AuthSourceService) GetAuthSourcesByScope(ctx context.Context, scope string, domainID *uint) ([]*model.AuthSource, error) {
 	var sources []*model.AuthSource
 	query := s.db.WithContext(ctx).Where("scope = ? AND enabled = ?", scope, true)
@@ -311,26 +444,73 @@ type LDAPUserInfo struct {
 }
 
 // authenticateWithLDAP 使用 LDAP 认证用户
-// TODO: 安装 github.com/go-ldap/ldap/v3 后实现完整的 LDAP bind 认证
 func (s *AuthSourceService) authenticateWithLDAP(source *model.AuthSource, username, password string) (*LDAPUserInfo, error) {
-	// TODO: 实现真实 LDAP 认证
-	// 步骤：
-	// 1. 解析 LDAP 配置（URL, BaseDN, BindDN, BindPassword, UserFilter）
-	// 2. 用 BindDN/BindPassword 建立管理员连接
-	// 3. 用 UserFilter 搜索用户 DN（例：(&(objectClass=person)(uid=%s))）
-	// 4. 用找到的用户 DN 和传入的 password 尝试 bind
-	// 5. bind 成功表示认证通过，返回用户信息
-	// 示例代码（需要 go-ldap/ldap/v3）：
-	//   l, err := ldap.DialURL(cfg.URL)
-	//   l.Bind(cfg.BindDN, cfg.BindPassword)
-	//   result, _ := l.Search(searchRequest)
-	//   userDN := result.Entries[0].DN
-	//   l.Bind(userDN, password)
-	return nil, errors.New("ldap authentication not implemented: install github.com/go-ldap/ldap/v3")
+	cfg, err := UnmarshalLDAPConfig(json.RawMessage(source.Config))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse ldap config: %w", err)
+	}
+
+	// 建立连接到LDAP服务器
+	conn, err := ldap.DialURL(cfg.URL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to LDAP server: %w", err)
+	}
+	defer conn.Close()
+
+	// 首先使用BindDN和BindPassword进行管理员绑定
+	if cfg.BindDN != "" && cfg.BindPassword != "" {
+		if err := conn.Bind(cfg.BindDN, cfg.BindPassword); err != nil {
+			return nil, fmt.Errorf("failed to bind with admin credentials: %w", err)
+		}
+	}
+
+	// 搜索用户
+	searchRequest := ldap.NewSearchRequest(
+		cfg.BaseDN,
+		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
+		fmt.Sprintf("(&(%s=%s)%s)", cfg.UserIDAttr, username, cfg.UserFilter), // 构建搜索过滤器
+		[]string{cfg.UserNameAttr, cfg.UserIDAttr, "mail", "displayName", "dn"},
+		nil,
+	)
+
+	searchResult, err := conn.Search(searchRequest)
+	if err != nil {
+		return nil, fmt.Errorf("failed to search user in LDAP: %w", err)
+	}
+
+	if len(searchResult.Entries) == 0 {
+		return nil, errors.New("user not found in LDAP")
+	}
+
+	if len(searchResult.Entries) > 1 {
+		return nil, errors.New("multiple users found in LDAP with the same username")
+	}
+
+	userEntry := searchResult.Entries[0]
+	userDN := userEntry.DN
+
+	// 尝试使用找到的用户DN和密码进行绑定（认证）
+	if err := conn.Bind(userDN, password); err != nil {
+		return nil, fmt.Errorf("LDAP authentication failed for user %s: %w", username, err)
+	}
+
+	// 构建用户信息并返回
+	userInfo := &LDAPUserInfo{
+		Username:    username,
+		DisplayName: userEntry.GetAttributeValue(cfg.UserNameAttr),
+		Email:       userEntry.GetAttributeValue("mail"),
+		DN:          userDN,
+	}
+
+	return userInfo, nil
 }
 
 // AuthenticateUser 统一用户认证入口
-// 先尝试本地认证，再尝试 LDAP 认证
+// 认证逻辑说明：
+// - 系统级认证源：全局可用，所有域/所有用户都可以使用
+// - 域级认证源：只属于某个域，其他域完全看不到
+// - 对于登录页面：系统级认证源对所有用户可见，可用于登录任何域
+// - 对于特定域：域级认证源仅在进入域后可见
 func (s *AuthSourceService) AuthenticateUser(ctx context.Context, username, password string, domainID *uint) (*model.User, *model.AuthSource, error) {
 	// 1. 从数据库查找本地用户
 	var localUser model.User
@@ -355,9 +535,11 @@ func (s *AuthSourceService) AuthenticateUser(ctx context.Context, username, pass
 	}
 
 	// 3. 查找可用的 LDAP 认证源
+	// 根据认证场景：系统级认证源对所有域可见，域级认证源仅对特定域可见
 	var ldapSources []*model.AuthSource
 	ldapQuery := s.db.WithContext(ctx).
 		Where("type = ? AND enabled = ?", "ldap", true).
+		// 系统级认证源：对所有域可见；域级认证源：仅对特定域可见
 		Where("scope = ? OR (scope = ? AND domain_id = ?)", "system", "domain", domainID)
 	if err := ldapQuery.Find(&ldapSources).Error; err != nil {
 		return nil, nil, fmt.Errorf("failed to query ldap auth sources: %w", err)
@@ -439,13 +621,19 @@ func (s *AuthSourceService) DisableAuthSource(ctx context.Context, id uint) erro
 
 // LDAPConfig LDAP 配置
 type LDAPConfig struct {
-	URL          string `json:"url"`
-	BaseDN       string `json:"base_dn"`
-	BindDN       string `json:"bind_dn"`
-	BindPassword string `json:"bind_password"`
-	UserFilter   string `json:"user_filter"`
-	UserIDAttr   string `json:"user_id_attr"`   // 用于标识用户唯一性的属性，默认为 uid
-	UserNameAttr string `json:"user_name_attr"` // 用于显示用户名的属性，默认为 cn
+	URL                  string `json:"url"`
+	BaseDN               string `json:"base_dn"`
+	BindDN               string `json:"bind_dn"`
+	BindPassword         string `json:"bind_password"`
+	UserFilter           string `json:"user_filter"`
+	UserIDAttr           string `json:"user_id_attr"`           // 用于标识用户唯一性的属性，默认为 uid
+	UserNameAttr         string `json:"user_name_attr"`         // 用于显示用户名的属性，默认为 cn
+	UserSearchBase       string `json:"user_search_base"`       // 用户搜索基础DN
+	GroupSearchBase      string `json:"group_search_base"`      // 组搜索基础DN
+	UserEnabledAttribute string `json:"user_enabled_attribute"` // 用户启用状态属性
+	Protocol             string `json:"protocol"`               // 认证协议，如 ldap, ldaps
+	AuthType             string `json:"auth_type"`              // 认证类型，如 openldap, ad
+	TargetDomain         string `json:"target_domain"`          // 用户归属目标域名称
 }
 
 // OIDCConfig OIDC 配置

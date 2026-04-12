@@ -119,14 +119,14 @@ func (h *UserHandler) Create(c *gin.Context) {
 	}
 
 	user := &model.User{
-		Name:        req.Name,
-		DisplayName: req.DisplayName,
-		Remark:      req.Remark,
-		Email:       req.Email,
-		Phone:       req.Phone,
-		Password:    req.Password, // TODO: 加密
-		DomainID:    req.DomainID,
-		Enabled:     true,
+		Name:         req.Name,
+		DisplayName:  req.DisplayName,
+		Remark:       req.Remark,
+		Email:        req.Email,
+		Phone:        req.Phone,
+		Password:     req.Password, // TODO: 加密
+		DomainID:     req.DomainID,
+		Enabled:      true,
 		ConsoleLogin: true, // Default to allowing console login
 	}
 

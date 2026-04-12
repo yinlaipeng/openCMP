@@ -146,3 +146,143 @@ func (s *NetworkService) ListEIPs(ctx context.Context, accountID uint, filter cl
 
 	return provider.ListEIPs(ctx, filter)
 }
+
+// ListRegions 列出区域
+func (s *NetworkService) ListRegions(ctx context.Context, accountID uint) ([]*cloudprovider.Region, error) {
+	provider, err := s.getProvider(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+
+	return provider.ListRegions()
+}
+
+// ListZones 列出可用区
+func (s *NetworkService) ListZones(ctx context.Context, accountID uint, regionID string) ([]*cloudprovider.Zone, error) {
+	provider, err := s.getProvider(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+
+	return provider.ListZones(regionID)
+}
+
+// CreateVPCInterconnect 创建 VPC 互联
+func (s *NetworkService) CreateVPCInterconnect(ctx context.Context, accountID uint, config cloudprovider.VPCInterconnectConfig) (*cloudprovider.VPCInterconnect, error) {
+	provider, err := s.getProvider(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+
+	return provider.CreateVPCInterconnect(ctx, config)
+}
+
+// ListVPCInterconnects 列出 VPC 互联
+func (s *NetworkService) ListVPCInterconnects(ctx context.Context, accountID uint, filter cloudprovider.VPCInterconnectFilter) ([]*cloudprovider.VPCInterconnect, error) {
+	provider, err := s.getProvider(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+
+	return provider.ListVPCInterconnects(ctx, filter)
+}
+
+// DeleteVPCInterconnect 删除 VPC 互联
+func (s *NetworkService) DeleteVPCInterconnect(ctx context.Context, accountID uint, interconnectID string) error {
+	provider, err := s.getProvider(ctx, accountID)
+	if err != nil {
+		return err
+	}
+
+	return provider.DeleteVPCInterconnect(ctx, interconnectID)
+}
+
+// CreateVPCPeering 创建 VPC 对等连接
+func (s *NetworkService) CreateVPCPeering(ctx context.Context, accountID uint, config cloudprovider.VPCPeeringConfig) (*cloudprovider.VPCPeering, error) {
+	provider, err := s.getProvider(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+
+	return provider.CreateVPCPeering(ctx, config)
+}
+
+// ListVPCPeerings 列出 VPC 对等连接
+func (s *NetworkService) ListVPCPeerings(ctx context.Context, accountID uint, filter cloudprovider.VPCPeeringFilter) ([]*cloudprovider.VPCPeering, error) {
+	provider, err := s.getProvider(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+
+	return provider.ListVPCPeerings(ctx, filter)
+}
+
+// DeleteVPCPeering 删除 VPC 对等连接
+func (s *NetworkService) DeleteVPCPeering(ctx context.Context, accountID uint, peeringID string) error {
+	provider, err := s.getProvider(ctx, accountID)
+	if err != nil {
+		return err
+	}
+
+	return provider.DeleteVPCPeering(ctx, peeringID)
+}
+
+// CreateRouteTable 创建路由表
+func (s *NetworkService) CreateRouteTable(ctx context.Context, accountID uint, config cloudprovider.RouteTableConfig) (*cloudprovider.RouteTable, error) {
+	provider, err := s.getProvider(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+
+	return provider.CreateRouteTable(ctx, config)
+}
+
+// ListRouteTables 列出路由表
+func (s *NetworkService) ListRouteTables(ctx context.Context, accountID uint, filter cloudprovider.RouteTableFilter) ([]*cloudprovider.RouteTable, error) {
+	provider, err := s.getProvider(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+
+	return provider.ListRouteTables(ctx, filter)
+}
+
+// DeleteRouteTable 删除路由表
+func (s *NetworkService) DeleteRouteTable(ctx context.Context, accountID uint, routeTableID string) error {
+	provider, err := s.getProvider(ctx, accountID)
+	if err != nil {
+		return err
+	}
+
+	return provider.DeleteRouteTable(ctx, routeTableID)
+}
+
+// CreateL2Network 创建二层网络
+func (s *NetworkService) CreateL2Network(ctx context.Context, accountID uint, config cloudprovider.L2NetworkConfig) (*cloudprovider.L2Network, error) {
+	provider, err := s.getProvider(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+
+	return provider.CreateL2Network(ctx, config)
+}
+
+// ListL2Networks 列出二层网络
+func (s *NetworkService) ListL2Networks(ctx context.Context, accountID uint, filter cloudprovider.L2NetworkFilter) ([]*cloudprovider.L2Network, error) {
+	provider, err := s.getProvider(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+
+	return provider.ListL2Networks(ctx, filter)
+}
+
+// DeleteL2Network 删除二层网络
+func (s *NetworkService) DeleteL2Network(ctx context.Context, accountID uint, l2NetworkID string) error {
+	provider, err := s.getProvider(ctx, accountID)
+	if err != nil {
+		return err
+	}
+
+	return provider.DeleteL2Network(ctx, l2NetworkID)
+}

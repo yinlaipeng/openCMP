@@ -28,7 +28,7 @@ func (s *UserService) CreateUser(ctx context.Context, user *model.User) error {
 		return err
 	}
 	user.Password = hashedPassword
-	
+
 	return s.db.WithContext(ctx).Create(user).Error
 }
 
@@ -126,7 +126,7 @@ func (s *UserService) UpdatePassword(ctx context.Context, id uint, newPassword s
 	if err != nil {
 		return err
 	}
-	
+
 	return s.db.WithContext(ctx).Model(&model.User{}).Where("id = ?", id).Update("password", hashedPassword).Error
 }
 
@@ -134,8 +134,8 @@ func (s *UserService) UpdatePassword(ctx context.Context, id uint, newPassword s
 func (s *UserService) UpdateLastLogin(ctx context.Context, id uint, ip string) error {
 	now := time.Now()
 	return s.db.WithContext(ctx).Model(&model.User{}).Where("id = ?", id).Updates(map[string]interface{}{
-		"last_login_at":  now,
-		"last_login_ip":  ip,
+		"last_login_at": now,
+		"last_login_ip": ip,
 	}).Error
 }
 
@@ -152,7 +152,7 @@ func (s *UserService) ResetUserPassword(ctx context.Context, id uint, newPasswor
 	if err != nil {
 		return err
 	}
-	
+
 	return s.db.WithContext(ctx).Model(&model.User{}).Where("id = ?", id).Update("password", hashedPassword).Error
 }
 

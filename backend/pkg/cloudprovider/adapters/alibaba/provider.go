@@ -23,6 +23,16 @@ func NewAlibabaProvider(config cloudprovider.CloudAccountConfig) (cloudprovider.
 	accessKeySecret := config.Credentials["access_key_secret"]
 	regionID := config.Region
 
+	// 如果没有指定区域，使用默认值
+	if regionID == "" {
+		regionID = "cn-hangzhou"
+	}
+
+	// 验证必要参数
+	if accessKeyID == "" || accessKeySecret == "" {
+		return nil, cloudprovider.NewCloudError(cloudprovider.ErrInvalidCredentials, "access_key_id and access_key_secret are required", "")
+	}
+
 	ecsClient, err := ecs.NewClientWithAccessKey(regionID, accessKeyID, accessKeySecret)
 	if err != nil {
 		return nil, err
@@ -43,6 +53,20 @@ func NewAlibabaProvider(config cloudprovider.CloudAccountConfig) (cloudprovider.
 
 // GetCloudInfo 获取云厂商信息
 func (p *AlibabaProvider) GetCloudInfo() cloudprovider.CloudInfo {
+	// 尝试调用阿里云API验证连接
+	request := ecs.CreateDescribeRegionsRequest()
+	request.Scheme = "https"
+
+	_, err := p.ecsClient.DescribeRegions(request)
+	if err != nil {
+		// 连接失败，返回空的Provider表示失败
+		return cloudprovider.CloudInfo{
+			Provider: "",
+			Version:  "",
+		}
+	}
+
+	// 连接成功，返回云厂商信息
 	return cloudprovider.CloudInfo{
 		Provider: "alibaba",
 		Version:  "1.0.0",
@@ -419,6 +443,103 @@ func (p *AlibabaProvider) ListDNSRecords(ctx context.Context, zoneID string) ([]
 	return nil, cloudprovider.NewCloudError(
 		cloudprovider.ErrUnsupportedOperation,
 		"ListDNSRecords not implemented",
+		"",
+	)
+}
+
+// Advanced network methods
+func (p *AlibabaProvider) CreateVPCInterconnect(ctx context.Context, config cloudprovider.VPCInterconnectConfig) (*cloudprovider.VPCInterconnect, error) {
+	return nil, cloudprovider.NewCloudError(
+		cloudprovider.ErrUnsupportedOperation,
+		"CreateVPCInterconnect not implemented",
+		"",
+	)
+}
+
+func (p *AlibabaProvider) DeleteVPCInterconnect(ctx context.Context, interconnectID string) error {
+	return cloudprovider.NewCloudError(
+		cloudprovider.ErrUnsupportedOperation,
+		"DeleteVPCInterconnect not implemented",
+		"",
+	)
+}
+
+func (p *AlibabaProvider) ListVPCInterconnects(ctx context.Context, filter cloudprovider.VPCInterconnectFilter) ([]*cloudprovider.VPCInterconnect, error) {
+	return nil, cloudprovider.NewCloudError(
+		cloudprovider.ErrUnsupportedOperation,
+		"ListVPCInterconnects not implemented",
+		"",
+	)
+}
+
+func (p *AlibabaProvider) CreateVPCPeering(ctx context.Context, config cloudprovider.VPCPeeringConfig) (*cloudprovider.VPCPeering, error) {
+	return nil, cloudprovider.NewCloudError(
+		cloudprovider.ErrUnsupportedOperation,
+		"CreateVPCPeering not implemented",
+		"",
+	)
+}
+
+func (p *AlibabaProvider) DeleteVPCPeering(ctx context.Context, peeringID string) error {
+	return cloudprovider.NewCloudError(
+		cloudprovider.ErrUnsupportedOperation,
+		"DeleteVPCPeering not implemented",
+		"",
+	)
+}
+
+func (p *AlibabaProvider) ListVPCPeerings(ctx context.Context, filter cloudprovider.VPCPeeringFilter) ([]*cloudprovider.VPCPeering, error) {
+	return nil, cloudprovider.NewCloudError(
+		cloudprovider.ErrUnsupportedOperation,
+		"ListVPCPeerings not implemented",
+		"",
+	)
+}
+
+func (p *AlibabaProvider) CreateRouteTable(ctx context.Context, config cloudprovider.RouteTableConfig) (*cloudprovider.RouteTable, error) {
+	return nil, cloudprovider.NewCloudError(
+		cloudprovider.ErrUnsupportedOperation,
+		"CreateRouteTable not implemented",
+		"",
+	)
+}
+
+func (p *AlibabaProvider) DeleteRouteTable(ctx context.Context, routeTableID string) error {
+	return cloudprovider.NewCloudError(
+		cloudprovider.ErrUnsupportedOperation,
+		"DeleteRouteTable not implemented",
+		"",
+	)
+}
+
+func (p *AlibabaProvider) ListRouteTables(ctx context.Context, filter cloudprovider.RouteTableFilter) ([]*cloudprovider.RouteTable, error) {
+	return nil, cloudprovider.NewCloudError(
+		cloudprovider.ErrUnsupportedOperation,
+		"ListRouteTables not implemented",
+		"",
+	)
+}
+
+func (p *AlibabaProvider) CreateL2Network(ctx context.Context, config cloudprovider.L2NetworkConfig) (*cloudprovider.L2Network, error) {
+	return nil, cloudprovider.NewCloudError(
+		cloudprovider.ErrUnsupportedOperation,
+		"CreateL2Network not implemented",
+		"",
+	)
+}
+
+func (p *AlibabaProvider) DeleteL2Network(ctx context.Context, l2NetworkID string) error {
+	return cloudprovider.NewCloudError(
+		cloudprovider.ErrUnsupportedOperation,
+		"DeleteL2Network not implemented",
+		"",
+	)
+}
+
+func (p *AlibabaProvider) ListL2Networks(ctx context.Context, filter cloudprovider.L2NetworkFilter) ([]*cloudprovider.L2Network, error) {
+	return nil, cloudprovider.NewCloudError(
+		cloudprovider.ErrUnsupportedOperation,
+		"ListL2Networks not implemented",
 		"",
 	)
 }

@@ -31,26 +31,26 @@
       <!-- 域列表 -->
       <el-table :data="domains" v-loading="loading" border stripe>
         <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="name" label="名称" min-width="180" show-overflow-tooltip>
+        <el-table-column prop="name" label="名称" min-width="150" show-overflow-tooltip>
           <template #default="{ row }">
             <el-button link @click="handleView(row)" class="name-link">
               {{ row.name }}
             </el-button>
           </template>
         </el-table-column>
-        <el-table-column prop="enabled" label="启用状态" width="100">
+        <el-table-column prop="enabled" label="启用状态" width="120">
           <template #default="{ row }">
             <el-tag :type="row.enabled ? 'success' : 'info'">
               {{ row.enabled ? '启用' : '禁用' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="auth_source_count" label="认证源" width="100">
+        <el-table-column prop="auth_source_count" label="认证源" width="120">
           <template #default="{ row }">
             {{ row.auth_source_count || 0 }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="100" fixed="right">
+        <el-table-column label="操作" width="120" fixed="right">
           <template #default="{ row }">
             <el-dropdown trigger="click" @command="(cmd) => handleCommand(cmd, row)">
               <el-button size="small" type="primary" link>
@@ -109,70 +109,104 @@
 
     <!-- 域详情对话框 -->
     <el-dialog v-model="detailDialogVisible" title="域详情" width="900px">
-      <el-descriptions :column="2" border v-if="currentDomain">
-        <el-descriptions-item label="ID">{{ currentDomain.id }}</el-descriptions-item>
-        <el-descriptions-item label="域名称">{{ currentDomain.name }}</el-descriptions-item>
-        <el-descriptions-item label="描述" :span="2">{{ currentDomain.description || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="状态">
-          <el-tag :type="currentDomain.enabled ? 'success' : 'info'" size="small">
-            {{ currentDomain.enabled ? '启用' : '禁用' }}
-          </el-tag>
-        </el-descriptions-item>
-        <el-descriptions-item label="创建时间">{{ formatDate(currentDomain.created_at) }}</el-descriptions-item>
-        <el-descriptions-item label="更新时间">{{ formatDate(currentDomain.updated_at) }}</el-descriptions-item>
-      </el-descriptions>
 
       <el-tabs v-model="detailTab" style="margin-top: 20px">
+        <el-tab-pane label="基本详情" name="basic_info">
+          <el-descriptions :column="2" border>
+            <el-descriptions-item label="ID">{{ currentDomain?.id }}</el-descriptions-item>
+            <el-descriptions-item label="域名称">{{ currentDomain?.name }}</el-descriptions-item>
+            <el-descriptions-item label="描述" :span="2">{{ currentDomain?.description || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="状态">
+              <el-tag :type="currentDomain?.enabled ? 'success' : 'info'" size="small">
+                {{ currentDomain?.enabled ? '启用' : '禁用' }}
+              </el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="认证源数量">{{ currentDomain?.auth_source_count || 0 }}</el-descriptions-item>
+            <el-descriptions-item label="创建时间">{{ formatDate(currentDomain?.created_at) }}</el-descriptions-item>
+            <el-descriptions-item label="更新时间">{{ formatDate(currentDomain?.updated_at) }}</el-descriptions-item>
+          </el-descriptions>
+        </el-tab-pane>
         <el-tab-pane label="用户" name="users">
-          <el-table :data="domainUsers" v-loading="usersLoading">
+          <el-table :data="domainUsers" v-loading="usersLoading" border stripe>
             <el-table-column prop="id" label="ID" width="80" />
-            <el-table-column prop="name" label="用户名" />
-            <el-table-column prop="display_name" label="显示名" />
-            <el-table-column prop="email" label="邮箱" />
-          </el-table>
-        </el-tab-pane>
-        <el-tab-pane label="用户组" name="groups">
-          <el-table :data="domainGroups" v-loading="groupsLoading">
-            <el-table-column prop="id" label="ID" width="80" />
-            <el-table-column prop="name" label="用户组名" />
-            <el-table-column prop="description" label="描述" />
-          </el-table>
-        </el-tab-pane>
-        <el-tab-pane label="项目" name="projects">
-          <el-table :data="domainProjects" v-loading="projectsLoading">
-            <el-table-column prop="id" label="ID" width="80" />
-            <el-table-column prop="name" label="项目名" />
-            <el-table-column prop="description" label="描述" />
-          </el-table>
-        </el-tab-pane>
-        <el-tab-pane label="角色" name="roles">
-          <el-table :data="domainRoles" v-loading="rolesLoading">
-            <el-table-column prop="id" label="ID" width="80" />
-            <el-table-column prop="name" label="角色名" />
-            <el-table-column prop="display_name" label="显示名" />
-            <el-table-column prop="type" label="类型" width="100">
+            <el-table-column prop="name" label="用户名" min-width="120" />
+            <el-table-column prop="display_name" label="显示名" min-width="120" />
+            <el-table-column prop="email" label="邮箱" min-width="180" />
+            <el-table-column prop="phone" label="手机号" width="150" />
+            <el-table-column prop="enabled" label="启用状态" width="100">
               <template #default="{ row }">
-                <el-tag size="small" :type="row.type === 'system' ? 'warning' : 'success'">
-                  {{ row.type === 'system' ? '系统' : '自定义' }}
+                <el-tag :type="row.enabled ? 'success' : 'info'">
+                  {{ row.enabled ? '启用' : '禁用' }}
                 </el-tag>
               </template>
             </el-table-column>
+            <el-table-column prop="created_at" label="创建时间" width="180" />
+          </el-table>
+        </el-tab-pane>
+        <el-tab-pane label="项目" name="projects">
+          <el-table :data="domainProjects" v-loading="projectsLoading" border stripe>
+            <el-table-column prop="id" label="ID" width="80" />
+            <el-table-column prop="name" label="项目名称" min-width="150" />
+            <el-table-column prop="description" label="项目描述" min-width="200" show-overflow-tooltip />
+            <el-table-column prop="enabled" label="启用状态" width="100">
+              <template #default="{ row }">
+                <el-tag :type="row.enabled ? 'success' : 'info'">
+                  {{ row.enabled ? '启用' : '禁用' }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="created_at" label="创建时间" width="180" />
+          </el-table>
+        </el-tab-pane>
+        <el-tab-pane label="角色" name="roles">
+          <el-table :data="domainRoles" v-loading="rolesLoading" border stripe>
+            <el-table-column prop="id" label="ID" width="80" />
+            <el-table-column prop="name" label="角色名称" min-width="150" />
+            <el-table-column prop="display_name" label="显示名" min-width="120" />
+            <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
+            <el-table-column prop="type" label="角色类型" width="100" />
+            <el-table-column prop="enabled" label="启用状态" width="100">
+              <template #default="{ row }">
+                <el-tag :type="row.enabled ? 'success' : 'info'">
+                  {{ row.enabled ? '启用' : '禁用' }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="created_at" label="创建时间" width="180" />
           </el-table>
         </el-tab-pane>
         <el-tab-pane label="云账号" name="cloud_accounts">
-          <el-table :data="domainCloudAccounts" v-loading="cloudAccountsLoading">
+          <el-table :data="domainCloudAccounts" v-loading="cloudAccountsLoading" border stripe>
             <el-table-column prop="id" label="ID" width="80" />
-            <el-table-column prop="name" label="云账号名" />
-            <el-table-column prop="provider" label="提供商" />
-            <el-table-column prop="status" label="状态" />
+            <el-table-column prop="name" label="云账号名称" min-width="150" />
+            <el-table-column prop="provider_type" label="云服务商" width="120" />
+            <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
+            <el-table-column prop="status" label="状态" width="100">
+              <template #default="{ row }">
+                <el-tag :type="row.status === 'active' ? 'success' : 'info'">
+                  {{ row.status === 'active' ? '活跃' : '非活跃' }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="created_at" label="创建时间" width="180" />
           </el-table>
         </el-tab-pane>
         <el-tab-pane label="操作日志" name="operation_logs">
-          <el-table :data="domainOperationLogs" v-loading="logsLoading">
+          <el-table :data="domainOperationLogs" v-loading="logsLoading" border stripe>
             <el-table-column prop="id" label="ID" width="80" />
-            <el-table-column prop="operation" label="操作" />
-            <el-table-column prop="user" label="操作人" />
-            <el-table-column prop="timestamp" label="时间" />
+            <el-table-column prop="resource_name" label="资源名称" min-width="150" />
+            <el-table-column prop="resource_type" label="资源类型" width="120" />
+            <el-table-column prop="operation_type" label="操作类型" width="120" />
+            <el-table-column prop="service_type" label="服务类型" width="120" />
+            <el-table-column prop="operator" label="操作人" width="120" />
+            <el-table-column prop="result" label="结果" width="100">
+              <template #default="{ row }">
+                <el-tag :type="row.result === 'success' ? 'success' : 'danger'">
+                  {{ row.result === 'success' ? '成功' : '失败' }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="created_at" label="创建时间" width="180" />
           </el-table>
         </el-tab-pane>
       </el-tabs>
@@ -189,7 +223,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { Plus, ArrowDown } from '@element-plus/icons-vue'
-import { Domain } from '@/types/iam'
+import { Domain, User, Project, Role, AuthSource, OperationLog } from '@/types/iam'
 import {
   getDomains,
   createDomain,
@@ -200,25 +234,25 @@ import {
   getDomainUsers,
   getDomainGroups,
   getDomainProjects,
-  getDomainRoles
+  getDomainRoles,
+  getDomainCloudAccounts,
+  getDomainOperationLogs
 } from '@/api/iam'
 
 const domains = ref<Domain[]>([])
 const loading = ref(false)
 const dialogVisible = ref(false)
 const detailDialogVisible = ref(false)
-const detailTab = ref('users')
+const detailTab = ref('basic_info')
 const isEdit = ref(false)
 const submitting = ref(false)
 const currentDomain = ref<Domain | null>(null)
-const domainUsers = ref<Domain[]>([])
-const domainGroups = ref<Domain[]>([])
-const domainProjects = ref<Domain[]>([])
-const domainRoles = ref<Domain[]>([])
-const domainCloudAccounts = ref<Domain[]>([])
-const domainOperationLogs = ref<Domain[]>([])
+const domainUsers = ref<User[]>([])
+const domainProjects = ref<Project[]>([])
+const domainRoles = ref<Role[]>([])
+const domainCloudAccounts = ref<AuthSource[]>([])
+const domainOperationLogs = ref<OperationLog[]>([])
 const usersLoading = ref(false)
-const groupsLoading = ref(false)
 const projectsLoading = ref(false)
 const rolesLoading = ref(false)
 const cloudAccountsLoading = ref(false)
@@ -295,18 +329,6 @@ const loadDomainUsers = async (domainId: number) => {
   }
 }
 
-const loadDomainGroups = async (domainId: number) => {
-  groupsLoading.value = true
-  try {
-    const res = await getDomainGroups(domainId)
-    domainGroups.value = res.items || []
-  } catch (e: any) {
-    console.error(e)
-  } finally {
-    groupsLoading.value = false
-  }
-}
-
 const loadDomainProjects = async (domainId: number) => {
   projectsLoading.value = true
   try {
@@ -334,11 +356,9 @@ const loadDomainRoles = async (domainId: number) => {
 const loadDomainCloudAccounts = async (domainId: number) => {
   cloudAccountsLoading.value = true
   try {
-    // Note: This assumes there's a function to get domain cloud accounts
     const res = await getDomainCloudAccounts(domainId)
     domainCloudAccounts.value = res.items || []
   } catch (e: any) {
-    // If the endpoint doesn't exist or fails, just return an empty array
     console.warn("Could not load domain cloud accounts:", e.message)
     domainCloudAccounts.value = []
   } finally {
@@ -349,11 +369,9 @@ const loadDomainCloudAccounts = async (domainId: number) => {
 const loadDomainOperationLogs = async (domainId: number) => {
   logsLoading.value = true
   try {
-    // Note: This assumes there's a function to get domain operation logs
     const res = await getDomainOperationLogs(domainId)
     domainOperationLogs.value = res.items || []
   } catch (e: any) {
-    // If the endpoint doesn't exist or fails, just return an empty array
     console.warn("Could not load domain operation logs:", e.message)
     domainOperationLogs.value = []
   } finally {
@@ -387,10 +405,9 @@ const handleEdit = (row: Domain) => {
 
 const handleView = async (row: Domain) => {
   currentDomain.value = row
-  detailTab.value = 'users'
+  detailTab.value = 'basic_info' // Start with basic info tab
   await Promise.all([
     loadDomainUsers(row.id),
-    loadDomainGroups(row.id),
     loadDomainProjects(row.id),
     loadDomainRoles(row.id),
     loadDomainCloudAccounts(row.id),

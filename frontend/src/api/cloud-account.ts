@@ -45,3 +45,50 @@ export function verifyCloudAccount(id: number) {
     method: 'post'
   })
 }
+
+// 同步云账号
+export interface SyncCloudAccountOptions {
+  mode: 'full' | 'incremental'
+  resource_types: string[]
+}
+
+export function syncCloudAccount(id: number, options: SyncCloudAccountOptions) {
+  return request({
+    url: `/cloud-accounts/${id}/sync`,
+    method: 'post',
+    data: options
+  })
+}
+
+// 测试连接
+export function testConnection(id: number) {
+  return request<{ connected: boolean; message: string }>({
+    url: `/cloud-accounts/${id}/test-connection`,
+    method: 'post'
+  })
+}
+
+// 更新云账号状态
+export function updateCloudAccountStatus(id: number, enabled: boolean) {
+  return request<CloudAccount>({
+    url: `/cloud-accounts/${id}/status`,
+    method: 'patch',
+    data: { enabled }
+  })
+}
+
+// 更新云账号属性
+export interface UpdateCloudAccountAttributes {
+  auto_sync?: boolean
+  sync_policy?: string
+  sync_interval?: number
+  sync_resource_types?: string[]
+}
+
+export function updateCloudAccountAttributes(id: number, attrs: UpdateCloudAccountAttributes) {
+  return request<CloudAccount>({
+    url: `/cloud-accounts/${id}/attributes`,
+    method: 'patch',
+    data: attrs
+  })
+}

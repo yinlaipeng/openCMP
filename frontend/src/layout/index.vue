@@ -17,21 +17,271 @@
         <el-sub-menu index="compute">
           <template #title>
             <el-icon><Cpu /></el-icon>
-            <span>计算资源</span>
+            <span>主机</span>
           </template>
-          <el-menu-item index="/compute/vms">虚拟机管理</el-menu-item>
-          <el-menu-item index="/compute/images">镜像管理</el-menu-item>
+          <el-sub-menu index="compute-host">
+            <template #title>
+              <span>主机</span>
+            </template>
+            <el-menu-item index="/compute/vms">虚拟机</el-menu-item>
+            <el-menu-item index="/compute/host-templates">主机模版</el-menu-item>
+            <el-menu-item index="/compute/autoscaling-groups">弹性伸缩组</el-menu-item>
+          </el-sub-menu>
+          <el-sub-menu index="compute-images">
+            <template #title>
+              <span>镜像</span>
+            </template>
+            <el-menu-item index="/compute/images">系统镜像</el-menu-item>
+          </el-sub-menu>
+          <el-sub-menu index="compute-storage">
+            <template #title>
+              <span>存储</span>
+            </template>
+            <el-menu-item index="/compute/disks">硬盘</el-menu-item>
+            <el-menu-item index="/compute/disk-snapshots">硬盘快照</el-menu-item>
+            <el-menu-item index="/compute/host-snapshots">主机快照</el-menu-item>
+            <el-menu-item index="/compute/snapshot-policies">自动快照策略</el-menu-item>
+          </el-sub-menu>
+          <el-sub-menu index="compute-network">
+            <template #title>
+              <span>网络</span>
+            </template>
+            <el-menu-item index="/compute/security-groups">安全组</el-menu-item>
+            <el-menu-item index="/compute/subnets">IP子网</el-menu-item>
+            <el-menu-item index="/compute/eips">弹性公网IP</el-menu-item>
+          </el-sub-menu>
+          <el-sub-menu index="compute-keys">
+            <template #title>
+              <span>密钥</span>
+            </template>
+            <el-menu-item index="/compute/keys">密钥</el-menu-item>
+          </el-sub-menu>
         </el-sub-menu>
 
         <el-sub-menu index="network">
           <template #title>
             <el-icon><Connection /></el-icon>
-            <span>网络资源</span>
+            <span>网络</span>
           </template>
-          <el-menu-item index="/network/vpcs">VPC 管理</el-menu-item>
-          <el-menu-item index="/network/subnets">子网管理</el-menu-item>
-          <el-menu-item index="/network/security-groups">安全组管理</el-menu-item>
-          <el-menu-item index="/network/eips">弹性 IP</el-menu-item>
+
+          <!-- 地域子菜单 -->
+          <el-sub-menu index="network-geography">
+            <template #title>
+              <span>地域</span>
+            </template>
+            <el-menu-item index="/network/geography/regions">区域</el-menu-item>
+            <el-menu-item index="/network/geography/zones">可用区</el-menu-item>
+          </el-sub-menu>
+
+          <!-- 基础网络子菜单 -->
+          <el-sub-menu index="network-basic">
+            <template #title>
+              <span>基础网络</span>
+            </template>
+            <el-menu-item index="/network/basic/vpc-interconnect">vpc互联</el-menu-item>
+            <el-menu-item index="/network/basic/vpc-peering">vpc对等连接</el-menu-item>
+            <el-menu-item index="/network/basic/global-vpc">全局vpc</el-menu-item>
+            <el-menu-item index="/network/basic/vpcs">vpc</el-menu-item>
+            <el-menu-item index="/network/basic/route-tables">路由表</el-menu-item>
+            <el-menu-item index="/network/basic/l2-networks">二层网络</el-menu-item>
+            <el-menu-item index="/network/basic/subnets">ip子网</el-menu-item>
+          </el-sub-menu>
+
+          <!-- 网络服务子菜单 -->
+          <el-sub-menu index="network-services">
+            <template #title>
+              <span>网络服务</span>
+            </template>
+            <el-menu-item index="/network/services/eips">弹性公网ip</el-menu-item>
+            <el-menu-item index="/network/services/nat-gateways">nat网关</el-menu-item>
+            <el-menu-item index="/network/services/dns">dns解析</el-menu-item>
+            <el-menu-item index="/network/services/ipv6-gateways">ipv6网关</el-menu-item>
+          </el-sub-menu>
+
+          <!-- 网络安全子菜单 -->
+          <el-sub-menu index="network-security">
+            <template #title>
+              <span>网络安全</span>
+            </template>
+            <el-menu-item index="/network/security/waf-policies">waf策略</el-menu-item>
+            <el-menu-item index="/network/security/app-services">应用程序服务</el-menu-item>
+          </el-sub-menu>
+
+          <!-- 负载均衡子菜单 -->
+          <el-sub-menu index="network-loadbalancer">
+            <template #title>
+              <span>负载均衡</span>
+            </template>
+            <el-menu-item index="/network/loadbalancer/instances">实例</el-menu-item>
+            <el-menu-item index="/network/loadbalancer/acls">访问控制</el-menu-item>
+            <el-menu-item index="/network/loadbalancer/certificates">证书</el-menu-item>
+          </el-sub-menu>
+
+          <!-- 内容分发网络子菜单 -->
+          <el-sub-menu index="network-cdn">
+            <template #title>
+              <span>内容分发网络</span>
+            </template>
+            <el-menu-item index="/network/cdn/domains">cdn域名</el-menu-item>
+          </el-sub-menu>
+        </el-sub-menu>
+
+        <!-- 存储一级菜单 -->
+        <el-sub-menu index="storage">
+          <template #title>
+            <el-icon><Folder /></el-icon>
+            <span>存储</span>
+          </template>
+
+          <!-- 块存储子菜单 -->
+          <el-sub-menu index="storage-block">
+            <template #title>
+              <span>块存储</span>
+            </template>
+            <el-menu-item index="/storage/block/block-storage">块存储</el-menu-item>
+          </el-sub-menu>
+
+          <!-- 对象存储子菜单 -->
+          <el-sub-menu index="storage-object">
+            <template #title>
+              <span>对象存储</span>
+            </template>
+            <el-menu-item index="/storage/object/buckets">存储桶</el-menu-item>
+          </el-sub-menu>
+
+          <!-- 表格存储子菜单 -->
+          <el-sub-menu index="storage-table">
+            <template #title>
+              <span>表格存储</span>
+            </template>
+            <el-menu-item index="/storage/table/table-storage">表格存储</el-menu-item>
+          </el-sub-menu>
+
+          <!-- 文件存储子菜单 -->
+          <el-sub-menu index="storage-file">
+            <template #title>
+              <span>文件存储</span>
+            </template>
+            <el-menu-item index="/storage/file/file-systems">文件系统</el-menu-item>
+            <el-menu-item index="/storage/file/nas-groups">NAS权限组</el-menu-item>
+          </el-sub-menu>
+        </el-sub-menu>
+
+        <!-- 数据库一级菜单 -->
+        <el-sub-menu index="database">
+          <template #title>
+            <el-icon><Coin /></el-icon>
+            <span>数据库</span>
+          </template>
+
+          <!-- RDS子菜单 -->
+          <el-sub-menu index="database-rds">
+            <template #title>
+              <span>RDS</span>
+            </template>
+            <el-menu-item index="/database/rds/instances">RDS实例</el-menu-item>
+          </el-sub-menu>
+
+          <!-- Redis子菜单 -->
+          <el-sub-menu index="database-redis">
+            <template #title>
+              <span>Redis</span>
+            </template>
+            <el-menu-item index="/database/redis/instances">Redis实例</el-menu-item>
+          </el-sub-menu>
+
+          <!-- MongoDB子菜单 -->
+          <el-sub-menu index="database-mongodb">
+            <template #title>
+              <span>MongoDB</span>
+            </template>
+            <el-menu-item index="/database/mongodb/instances">MongoDB实例</el-menu-item>
+          </el-sub-menu>
+        </el-sub-menu>
+
+        <!-- 中间件一级菜单 -->
+        <el-sub-menu index="middleware">
+          <template #title>
+            <el-icon><Promotion /></el-icon>
+            <span>中间件</span>
+          </template>
+
+          <!-- 消息队列子菜单 -->
+          <el-sub-menu index="middleware-message-queue">
+            <template #title>
+              <span>消息队列</span>
+            </template>
+            <el-menu-item index="/middleware/message-queue/kafka">Kafka</el-menu-item>
+          </el-sub-menu>
+
+          <!-- 数据分析子菜单 -->
+          <el-sub-menu index="middleware-data-analysis">
+            <template #title>
+              <span>数据分析</span>
+            </template>
+            <el-menu-item index="/middleware/data-analysis/elasticsearch">Elasticsearch</el-menu-item>
+          </el-sub-menu>
+        </el-sub-menu>
+
+        <!-- 容器一级菜单 -->
+        <el-sub-menu index="container">
+          <template #title>
+            <el-icon><Box /></el-icon>
+            <span>容器</span>
+          </template>
+
+          <!-- 容器服务子菜单 -->
+          <el-sub-menu index="container-service">
+            <template #title>
+              <span>容器服务</span>
+            </template>
+            <el-menu-item index="/container/service/kubernetes">Kubernetes</el-menu-item>
+            <el-menu-item index="/container/service/image-repositories">镜像仓库</el-menu-item>
+          </el-sub-menu>
+        </el-sub-menu>
+
+        <!-- 监控一级菜单 -->
+        <el-sub-menu index="monitoring">
+          <template #title>
+            <el-icon><DataLine /></el-icon>
+            <span>监控</span>
+          </template>
+
+          <!-- 纵览子菜单 -->
+          <el-sub-menu index="monitoring-overview">
+            <template #title>
+              <span>纵览</span>
+            </template>
+            <el-menu-item index="/monitoring/overview/dashboard">大盘</el-menu-item>
+          </el-sub-menu>
+
+          <!-- 资源子菜单 -->
+          <el-sub-menu index="monitoring-resources">
+            <template #title>
+              <span>资源</span>
+            </template>
+            <el-menu-item index="/monitoring/resources/vms">虚拟机</el-menu-item>
+          </el-sub-menu>
+
+          <!-- 监控子菜单 -->
+          <el-sub-menu index="monitoring-monitor">
+            <template #title>
+              <span>监控</span>
+            </template>
+            <el-menu-item index="/monitoring/monitor/dashboards">监控面板</el-menu-item>
+            <el-menu-item index="/monitoring/monitor/query">监控查询</el-menu-item>
+          </el-sub-menu>
+
+          <!-- 告警子菜单 -->
+          <el-sub-menu index="monitoring-alerts">
+            <template #title>
+              <span>告警</span>
+            </template>
+            <el-menu-item index="/monitoring/alerts/policies">告警策略</el-menu-item>
+            <el-menu-item index="/monitoring/alerts/resources">告警资源</el-menu-item>
+            <el-menu-item index="/monitoring/alerts/history">告警历史</el-menu-item>
+            <el-menu-item index="/monitoring/alerts/blocked">屏蔽资源</el-menu-item>
+          </el-sub-menu>
         </el-sub-menu>
 
         <el-sub-menu index="cloud-management">
@@ -56,9 +306,8 @@
           <el-menu-item index="/iam/groups">用户组</el-menu-item>
           <el-menu-item index="/iam/roles">角色</el-menu-item>
           <el-menu-item index="/iam/permissions">权限</el-menu-item>
-          <!-- 根据环境显示不同的安全告警选项 -->
-          <el-menu-item v-if="currentEnvironment.type === 'management_console'" index="/iam/alerts">安全告警</el-menu-item>
-          <el-menu-item v-else index="/iam/project-alerts">项目安全告警</el-menu-item>
+          <!-- 安全告警选项 -->
+          <el-menu-item index="/iam/alerts">安全告警</el-menu-item>
         </el-sub-menu>
 
         <el-sub-menu index="message-center">
@@ -157,7 +406,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import {
   User, ArrowDown, SwitchButton, Lock, Bell, Cloudy, Cpu, Connection,
-  Grid, Monitor, FolderOpened, ArrowDown as IconArrowDown
+  Grid, Monitor, FolderOpened, ArrowDown as IconArrowDown, Folder, Coin, Promotion, Box, DataLine
 } from '@element-plus/icons-vue'
 import { getProjects } from '@/api/iam' // 使用iam中的项目API
 import { initializeProjectContext, setProjectContext, getCurrentProjectId, getCurrentProjectName, isInProjectMode, clearProjectContext } from '@/utils/projectContext'
@@ -238,6 +487,11 @@ const activeMenu = computed(() => {
   const path = route.path
   if (path.startsWith('/compute')) return 'compute'
   if (path.startsWith('/network')) return 'network'
+  if (path.startsWith('/storage')) return 'storage'
+  if (path.startsWith('/database')) return 'database'
+  if (path.startsWith('/middleware')) return 'middleware'
+  if (path.startsWith('/container')) return 'container'
+  if (path.startsWith('/monitoring')) return 'monitoring'
   if (path.startsWith('/iam')) {
     // 根据路径判断是否为项目相关页面来返回正确的菜单项
     if (path.includes('/project-alerts')) {

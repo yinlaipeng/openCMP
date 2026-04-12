@@ -308,3 +308,407 @@ func (h *NetworkHandler) ListEIPs(c *gin.Context) {
 		"total": len(eips),
 	})
 }
+
+// ListRegions 获取区域列表
+func (h *NetworkHandler) ListRegions(c *gin.Context) {
+	accountIDStr := c.Query("account_id")
+	if accountIDStr == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "account_id is required"})
+		return
+	}
+
+	accountID, err := strconv.ParseUint(accountIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid account_id"})
+		return
+	}
+
+	regions, err := h.service.ListRegions(c.Request.Context(), uint(accountID))
+	if err != nil {
+		h.logger.Error("failed to list regions", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"items": regions,
+		"total": len(regions),
+	})
+}
+
+// ListZones 获取可用区列表
+func (h *NetworkHandler) ListZones(c *gin.Context) {
+	accountIDStr := c.Query("account_id")
+	regionID := c.Query("region_id")
+
+	if accountIDStr == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "account_id is required"})
+		return
+	}
+
+	accountID, err := strconv.ParseUint(accountIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid account_id"})
+		return
+	}
+
+	zones, err := h.service.ListZones(c.Request.Context(), uint(accountID), regionID)
+	if err != nil {
+		h.logger.Error("failed to list zones", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"items": zones,
+		"total": len(zones),
+	})
+}
+
+// CreateVPCInterconnectRequest 创建 VPC 互联请求
+type CreateVPCInterconnectRequest struct {
+	AccountID uint              `json:"account_id" binding:"required"`
+	Name      string            `json:"name" binding:"required"`
+	Type      string            `json:"type" binding:"required"`
+	Bandwidth int               `json:"bandwidth" binding:"required"`
+	RegionID  string            `json:"region_id" binding:"required"`
+	PeerRegion string           `json:"peer_region" binding:"required"`
+	Tags      map[string]string `json:"tags"`
+}
+
+// CreateVPCInterconnect 创建 VPC 互联
+func (h *NetworkHandler) CreateVPCInterconnect(c *gin.Context) {
+	var req CreateVPCInterconnectRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	config := cloudprovider.VPCInterconnectConfig{
+		Name:       req.Name,
+		Type:       req.Type,
+		Bandwidth:  req.Bandwidth,
+		RegionID:   req.RegionID,
+		PeerRegion: req.PeerRegion,
+		Tags:       req.Tags,
+	}
+
+	interconnect, err := h.service.CreateVPCInterconnect(c.Request.Context(), req.AccountID, config)
+	if err != nil {
+		h.logger.Error("failed to create vpc interconnect", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, interconnect)
+}
+
+// ListVPCInterconnects 列出 VPC 互联
+func (h *NetworkHandler) ListVPCInterconnects(c *gin.Context) {
+	accountIDStr := c.Query("account_id")
+	if accountIDStr == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "account_id is required"})
+		return
+	}
+
+	accountID, err := strconv.ParseUint(accountIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid account_id"})
+		return
+	}
+
+	filter := cloudprovider.VPCInterconnectFilter{
+		RegionID: c.Query("region_id"),
+	}
+
+	interconnects, err := h.service.ListVPCInterconnects(c.Request.Context(), uint(accountID), filter)
+	if err != nil {
+		h.logger.Error("failed to list vpc interconnects", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"items": interconnects,
+		"total": len(interconnects),
+	})
+}
+
+// CreateVPCPeeringRequest 创建 VPC 对等连接请求
+type CreateVPCPeeringRequest struct {
+	AccountID   uint              `json:"account_id" binding:"required"`
+	Name        string            `json:"name" binding:"required"`
+	LocalVPCID  string            `json:"local_vpc_id" binding:"required"`
+	PeerVPCID   string            `json:"peer_vpc_id" binding:"required"`
+	PeerAccount string            `json:"peer_account" binding:"required"`
+	Tags        map[string]string `json:"tags"`
+}
+
+// CreateVPCPeering 创建 VPC 对等连接
+func (h *NetworkHandler) CreateVPCPeering(c *gin.Context) {
+	var req CreateVPCPeeringRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	config := cloudprovider.VPCPeeringConfig{
+		Name:         req.Name,
+		LocalVPCID:   req.LocalVPCID,
+		PeerVPCID:    req.PeerVPCID,
+		PeerAccount:  req.PeerAccount,
+		Tags:         req.Tags,
+	}
+
+	peering, err := h.service.CreateVPCPeering(c.Request.Context(), req.AccountID, config)
+	if err != nil {
+		h.logger.Error("failed to create vpc peering", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, peering)
+}
+
+// ListVPCPeerings 列出 VPC 对等连接
+func (h *NetworkHandler) ListVPCPeerings(c *gin.Context) {
+	accountIDStr := c.Query("account_id")
+	if accountIDStr == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "account_id is required"})
+		return
+	}
+
+	accountID, err := strconv.ParseUint(accountIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid account_id"})
+		return
+	}
+
+	filter := cloudprovider.VPCPeeringFilter{
+		LocalVPCID: c.Query("local_vpc_id"),
+	}
+
+	peerings, err := h.service.ListVPCPeerings(c.Request.Context(), uint(accountID), filter)
+	if err != nil {
+		h.logger.Error("failed to list vpc peerings", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"items": peerings,
+		"total": len(peerings),
+	})
+}
+
+// CreateRouteTableRequest 创建路由表请求
+type CreateRouteTableRequest struct {
+	AccountID uint              `json:"account_id" binding:"required"`
+	Name      string            `json:"name" binding:"required"`
+	VPCID     string            `json:"vpc_id" binding:"required"`
+	Routes    []cloudprovider.Route `json:"routes"`
+	Tags      map[string]string `json:"tags"`
+}
+
+// CreateRouteTable 创建路由表
+func (h *NetworkHandler) CreateRouteTable(c *gin.Context) {
+	var req CreateRouteTableRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	config := cloudprovider.RouteTableConfig{
+		Name:   req.Name,
+		VPCID:  req.VPCID,
+		Routes: req.Routes,
+		Tags:   req.Tags,
+	}
+
+	routeTable, err := h.service.CreateRouteTable(c.Request.Context(), req.AccountID, config)
+	if err != nil {
+		h.logger.Error("failed to create route table", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, routeTable)
+}
+
+// ListRouteTables 列出路由表
+func (h *NetworkHandler) ListRouteTables(c *gin.Context) {
+	accountIDStr := c.Query("account_id")
+	if accountIDStr == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "account_id is required"})
+		return
+	}
+
+	accountID, err := strconv.ParseUint(accountIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid account_id"})
+		return
+	}
+
+	filter := cloudprovider.RouteTableFilter{
+		VPCID: c.Query("vpc_id"),
+	}
+
+	routeTables, err := h.service.ListRouteTables(c.Request.Context(), uint(accountID), filter)
+	if err != nil {
+		h.logger.Error("failed to list route tables", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"items": routeTables,
+		"total": len(routeTables),
+	})
+}
+
+// CreateL2NetworkRequest 创建二层网络请求
+type CreateL2NetworkRequest struct {
+	AccountID uint              `json:"account_id" binding:"required"`
+	Name      string            `json:"name" binding:"required"`
+	VLANID    int               `json:"vlan_id" binding:"required"`
+	VPCID     string            `json:"vpc_id" binding:"required"`
+	Subnets   []string          `json:"subnets"`
+	Tags      map[string]string `json:"tags"`
+}
+
+// CreateL2Network 创建二层网络
+func (h *NetworkHandler) CreateL2Network(c *gin.Context) {
+	var req CreateL2NetworkRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	config := cloudprovider.L2NetworkConfig{
+		Name:    req.Name,
+		VLANID:  req.VLANID,
+		VPCID:   req.VPCID,
+		Subnets: req.Subnets,
+		Tags:    req.Tags,
+	}
+
+	l2Network, err := h.service.CreateL2Network(c.Request.Context(), req.AccountID, config)
+	if err != nil {
+		h.logger.Error("failed to create l2 network", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, l2Network)
+}
+
+// ListL2Networks 列出二层网络
+func (h *NetworkHandler) ListL2Networks(c *gin.Context) {
+	accountIDStr := c.Query("account_id")
+	if accountIDStr == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "account_id is required"})
+		return
+	}
+
+	accountID, err := strconv.ParseUint(accountIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid account_id"})
+		return
+	}
+
+	filter := cloudprovider.L2NetworkFilter{
+		VPCID: c.Query("vpc_id"),
+	}
+
+	l2Networks, err := h.service.ListL2Networks(c.Request.Context(), uint(accountID), filter)
+	if err != nil {
+		h.logger.Error("failed to list l2 networks", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"items": l2Networks,
+		"total": len(l2Networks),
+	})
+}
+
+// DeleteVPCInterconnect 删除 VPC 互联
+func (h *NetworkHandler) DeleteVPCInterconnect(c *gin.Context) {
+	accountIDStr := c.Query("account_id")
+	interconnectID := c.Param("id")
+
+	accountID, err := strconv.ParseUint(accountIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid account_id"})
+		return
+	}
+
+	if err := h.service.DeleteVPCInterconnect(c.Request.Context(), uint(accountID), interconnectID); err != nil {
+		h.logger.Error("failed to delete vpc interconnect", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "vpc interconnect deleted"})
+}
+
+// DeleteVPCPeering 删除 VPC 对等连接
+func (h *NetworkHandler) DeleteVPCPeering(c *gin.Context) {
+	accountIDStr := c.Query("account_id")
+	peeringID := c.Param("id")
+
+	accountID, err := strconv.ParseUint(accountIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid account_id"})
+		return
+	}
+
+	if err := h.service.DeleteVPCPeering(c.Request.Context(), uint(accountID), peeringID); err != nil {
+		h.logger.Error("failed to delete vpc peering", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "vpc peering deleted"})
+}
+
+// DeleteRouteTable 删除路由表
+func (h *NetworkHandler) DeleteRouteTable(c *gin.Context) {
+	accountIDStr := c.Query("account_id")
+	routeTableID := c.Param("id")
+
+	accountID, err := strconv.ParseUint(accountIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid account_id"})
+		return
+	}
+
+	if err := h.service.DeleteRouteTable(c.Request.Context(), uint(accountID), routeTableID); err != nil {
+		h.logger.Error("failed to delete route table", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "route table deleted"})
+}
+
+// DeleteL2Network 删除二层网络
+func (h *NetworkHandler) DeleteL2Network(c *gin.Context) {
+	accountIDStr := c.Query("account_id")
+	l2NetworkID := c.Param("id")
+
+	accountID, err := strconv.ParseUint(accountIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid account_id"})
+		return
+	}
+
+	if err := h.service.DeleteL2Network(c.Request.Context(), uint(accountID), l2NetworkID); err != nil {
+		h.logger.Error("failed to delete l2 network", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "l2 network deleted"})
+}

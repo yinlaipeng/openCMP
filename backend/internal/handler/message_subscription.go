@@ -70,9 +70,9 @@ func (h *MessageSubscriptionHandler) List(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"items": subs,
-		"total": total,
-		"page":  page,
+		"items":     subs,
+		"total":     total,
+		"page":      page,
 		"page_size": pageSize,
 	})
 }

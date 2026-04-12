@@ -176,6 +176,15 @@ export function testAuthSource(id: number) {
   })
 }
 
+// 测试 LDAP 用户查询
+export function testLdapUsers(config: any) {
+  return request({
+    url: '/auth-sources/test-ldap-users',
+    method: 'post',
+    data: config
+  })
+}
+
 // 启用认证源
 export function enableAuthSource(id: number) {
   return request({
@@ -275,14 +284,6 @@ export function getDomainUsers(domainId: number, params?: { limit?: number; offs
   })
 }
 
-// 获取域的用户组列表
-export function getDomainGroups(domainId: number, params?: { limit?: number; offset?: number }) {
-  return request({
-    url: `/domains/${domainId}/groups`,
-    method: 'get',
-    params
-  })
-}
 
 // 获取域的项目列表
 export function getDomainProjects(domainId: number, params?: { limit?: number; offset?: number }) {
@@ -754,5 +755,23 @@ export function getProjectSubscriptions(projectId: number, params?: any) {
     url: '/subscriptions',
     method: 'get',
     params: { ...params, project_id: projectId }
+  })
+}
+
+// Get operation logs
+export function getOperationLogs(params?: any) {
+  return request({
+    url: '/operation-logs',
+    method: 'get',
+    params
+  })
+}
+
+// Get operation logs for specific resource
+export function getResourceOperationLogs(resourceType: string, resourceId: number, params?: any) {
+  return request({
+    url: `/operation-logs/${resourceType}/${resourceId}`,
+    method: 'get',
+    params
   })
 }

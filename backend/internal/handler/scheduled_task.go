@@ -29,26 +29,26 @@ func NewScheduledTaskHandler(db *gorm.DB, logger *zap.Logger) *ScheduledTaskHand
 
 // CreateScheduledTaskRequest 创建定时同步任务请求
 type CreateScheduledTaskRequest struct {
-	Name         string     `json:"name" binding:"required"`
-	Type         string     `json:"type" binding:"required"`
-	Frequency    string     `json:"frequency" binding:"required"`
-	TriggerTime  string     `json:"trigger_time" binding:"required"`
-	ValidFrom    *string    `json:"valid_from"`
-	ValidUntil   *string    `json:"valid_until"`
-	Status       string     `json:"status"`
-	CloudAccountID *uint    `json:"cloud_account_id"`
+	Name           string  `json:"name" binding:"required"`
+	Type           string  `json:"type" binding:"required"`
+	Frequency      string  `json:"frequency" binding:"required"`
+	TriggerTime    string  `json:"trigger_time" binding:"required"`
+	ValidFrom      *string `json:"valid_from"`
+	ValidUntil     *string `json:"valid_until"`
+	Status         string  `json:"status"`
+	CloudAccountID *uint   `json:"cloud_account_id"`
 }
 
 // UpdateScheduledTaskRequest 更新定时同步任务请求
 type UpdateScheduledTaskRequest struct {
-	Name         string     `json:"name"`
-	Type         string     `json:"type"`
-	Frequency    string     `json:"frequency"`
-	TriggerTime  string     `json:"trigger_time"`
-	ValidFrom    *string    `json:"valid_from"`
-	ValidUntil   *string    `json:"valid_until"`
-	Status       string     `json:"status"`
-	CloudAccountID *uint    `json:"cloud_account_id"`
+	Name           string  `json:"name"`
+	Type           string  `json:"type"`
+	Frequency      string  `json:"frequency"`
+	TriggerTime    string  `json:"trigger_time"`
+	ValidFrom      *string `json:"valid_from"`
+	ValidUntil     *string `json:"valid_until"`
+	Status         string  `json:"status"`
+	CloudAccountID *uint   `json:"cloud_account_id"`
 }
 
 // ConvertStringToTime 将字符串转换为 *time.Time
@@ -73,11 +73,11 @@ func (h *ScheduledTaskHandler) Create(c *gin.Context) {
 	}
 
 	task := &model.ScheduledTask{
-		Name:         req.Name,
-		Type:         req.Type,
-		Frequency:    req.Frequency,
-		TriggerTime:  req.TriggerTime,
-		Status:       req.Status,
+		Name:           req.Name,
+		Type:           req.Type,
+		Frequency:      req.Frequency,
+		TriggerTime:    req.TriggerTime,
+		Status:         req.Status,
 		CloudAccountID: req.CloudAccountID,
 	}
 
@@ -129,9 +129,9 @@ func (h *ScheduledTaskHandler) List(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"items": tasks,
-		"total": total,
-		"page":  page,
+		"items":     tasks,
+		"total":     total,
+		"page":      page,
 		"page_size": pageSize,
 	})
 }

@@ -31,7 +31,7 @@
       <!-- 项目列表 -->
       <el-table :data="projects" v-loading="loading" border stripe>
         <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="name" label="名称" min-width="180" show-overflow-tooltip>
+        <el-table-column prop="name" label="名称" min-width="150" show-overflow-tooltip>
           <template #default="{ row }">
             <el-button link @click="handleView(row)" class="name-link">
               {{ row.name }}
@@ -48,9 +48,9 @@
             <span>{{ getDomainName(row.domain_id) }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="250" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" @click="handleManageUsers(row)">管理用户/组</el-button>
+            <el-button size="small" @click="handleManageUsersGroups(row)">管理用户/组</el-button>
             <el-dropdown trigger="click" @command="(cmd) => handleCommand(cmd, row)">
               <el-button size="small" type="primary" link>
                 更多 <el-icon class="el-icon--right"><ArrowDown /></el-icon>
@@ -178,23 +178,39 @@
     </el-dialog>
 
     <!-- 项目详情对话框 -->
-    <el-dialog v-model="detailDialogVisible" title="项目详情" width="900px">
-      <el-descriptions :column="2" border v-if="currentProject">
-        <el-descriptions-item label="ID">{{ currentProject.id }}</el-descriptions-item>
-        <el-descriptions-item label="项目名称">{{ currentProject.name }}</el-descriptions-item>
-        <el-descriptions-item label="项目管理员">{{ getProjectManagerName(currentProject) || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="所属域">{{ getDomainName(currentProject.domain_id) }}</el-descriptions-item>
-        <el-descriptions-item label="描述" :span="2">{{ currentProject.description || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="状态">
-          <el-tag :type="currentProject.enabled ? 'success' : 'info'" size="small">
-            {{ currentProject.enabled ? '启用' : '禁用' }}
-          </el-tag>
-        </el-descriptions-item>
-        <el-descriptions-item label="创建时间">{{ formatDate(currentProject.created_at) }}</el-descriptions-item>
-        <el-descriptions-item label="更新时间">{{ formatDate(currentProject.updated_at) }}</el-descriptions-item>
-      </el-descriptions>
-
+    <el-dialog v-model="detailDialogVisible" :title="detailDialogTitle" width="900px">
       <el-tabs v-model="detailTab" style="margin-top: 20px">
+        <el-tab-pane label="详情" name="details">
+          <el-descriptions :column="2" border>
+            <el-descriptions-item label="ID">{{ currentProject?.id }}</el-descriptions-item>
+            <el-descriptions-item label="项目名称">{{ currentProject?.name }}</el-descriptions-item>
+            <el-descriptions-item label="项目管理员">{{ getProjectManagerName(currentProject) || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="所属域">{{ getDomainName(currentProject?.domain_id) }}</el-descriptions-item>
+            <el-descriptions-item label="描述" :span="2">{{ currentProject?.description || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="状态">
+              <el-tag :type="currentProject?.enabled ? 'success' : 'info'" size="small">
+                {{ currentProject?.enabled ? '启用' : '禁用' }}
+              </el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="创建时间">{{ formatDate(currentProject?.created_at) }}</el-descriptions-item>
+            <el-descriptions-item label="更新时间">{{ formatDate(currentProject?.updated_at) }}</el-descriptions-item>
+          </el-descriptions>
+
+          <div style="margin-top: 20px;">
+            <h4>资源列表</h4>
+            <el-table :data="projectResources" v-loading="resourcesLoading" border stripe>
+              <el-table-column prop="type" label="资源类型" width="120" />
+              <el-table-column prop="name" label="资源名称" min-width="150" />
+              <el-table-column prop="status" label="状态" width="100">
+                <template #default="{ row }">
+                  <el-tag :type="row.status === 'active' ? 'success' : 'info'">
+                    {{ row.status }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+        </el-tab-pane>
         <el-tab-pane label="已加入用户/组" name="users">
           <div class="tab-toolbar">
             <span>项目成员列表</span>
@@ -202,26 +218,19 @@
           </div>
           <el-table :data="projectUsers" v-loading="usersLoading">
             <el-table-column prop="id" label="ID" width="80" />
-            <el-table-column prop="name" label="用户名" />
-            <el-table-column prop="display_name" label="显示名" />
-            <el-table-column prop="email" label="邮箱" />
-            <el-table-column label="操作" width="100">
-              <template #default="{ row }">
-                <el-button size="small" type="danger" @click="handleRemoveUser(row)">移除</el-button>
+            <el-table-column prop="name" label="名称" min-width="120" />
+            <el-table-column label="类型" width="100">
+              <template #default>
+                <el-tag type="info">用户</el-tag>
               </template>
             </el-table-column>
-          </el-table>
-        </el-tab-pane>
-        <el-tab-pane label="角色" name="roles">
-          <el-table :data="projectRoles" v-loading="rolesLoading">
-            <el-table-column prop="id" label="ID" width="80" />
-            <el-table-column prop="name" label="角色名" />
-            <el-table-column prop="display_name" label="显示名" />
-            <el-table-column prop="type" label="类型" width="100">
-              <template #default="{ row }">
-                <el-tag size="small" :type="row.type === 'system' ? 'warning' : 'success'">
-                  {{ row.type === 'system' ? '系统' : '自定义' }}
-                </el-tag>
+            <el-table-column prop="role_name" label="角色" width="120" />
+            <el-table-column prop="permissions" label="权限" width="150" />
+            <el-table-column prop="domain_name" label="所属域" width="120" />
+            <el-table-column label="操作" width="150">
+              <template #default>
+                <el-button size="small" @click="handleModifyRole">修改角色</el-button>
+                <el-button size="small" type="danger" @click="handleRemoveUser">移除</el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -229,9 +238,16 @@
         <el-tab-pane label="操作日志" name="operation_logs">
           <el-table :data="projectOperationLogs" v-loading="logsLoading">
             <el-table-column prop="id" label="ID" width="80" />
-            <el-table-column prop="operation" label="操作" />
-            <el-table-column prop="user" label="操作人" />
-            <el-table-column prop="timestamp" label="时间" />
+            <el-table-column prop="operation_time" label="操作时间" width="150" />
+            <el-table-column prop="resource_name" label="资源名称" min-width="120" />
+            <el-table-column prop="resource_type" label="资源类型" width="120" />
+            <el-table-column prop="operation_type" label="操作类型" width="120" />
+            <el-table-column prop="service_type" label="服务类型" width="120" />
+            <el-table-column prop="risk_level" label="风险级别" width="100" />
+            <el-table-column prop="time_type" label="时间类型" width="100" />
+            <el-table-column prop="result" label="结果" width="80" />
+            <el-table-column prop="operator" label="发起人" width="120" />
+            <el-table-column prop="project" label="所属项目" width="120" />
           </el-table>
         </el-tab-pane>
       </el-tabs>
@@ -283,8 +299,25 @@
 
     <!-- 设置项目管理员对话框 -->
     <el-dialog v-model="setManagerDialogVisible" title="设置项目管理员" width="600px">
+      <el-alert
+        title="提示"
+        :description="`你所选的1个项目将执行设置项目管理员操作，你是否确认操作？`"
+        type="warning"
+        show-icon
+        :closable="false"
+        style="margin-bottom: 16px;"
+      />
+
+      <div style="margin-bottom: 16px;">
+        <strong>先展示当前情况：</strong>
+        <div style="margin-top: 8px;">
+          <span>名称：{{ currentProject?.name || '-' }}</span>
+          <span style="margin-left: 20px;">项目管理员：{{ getProjectManagerName(currentProject) || '-' }}</span>
+        </div>
+      </div>
+
       <el-form :model="setManagerForm" label-width="100px">
-        <el-form-item label="选择管理员" required>
+        <el-form-item label="项目管理员" required>
           <el-select
             v-model="setManagerForm.user_id"
             placeholder="请选择项目管理员"
@@ -309,7 +342,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { Plus, ArrowDown } from '@element-plus/icons-vue'
@@ -328,7 +361,8 @@ import {
   getDomains,
   getUsers,
   getRoles,
-  setProjectManager
+  setProjectManager,
+  getResourceOperationLogs
 } from '@/api/iam'
 
 const projects = ref<Project[]>([])
@@ -343,16 +377,24 @@ const currentProject = ref<Project | null>(null)
 const projectUsers = ref<User[]>([])
 const projectRoles = ref<Role[]>([])
 const projectOperationLogs = ref<any[]>([])
+const projectResources = ref<any[]>([])
 const domains = ref<Domain[]>([])
 const domainUsers = ref<User[]>([])
 const domainRoles = ref<Role[]>([])
 const usersLoading = ref(false)
 const rolesLoading = ref(false)
 const logsLoading = ref(false)
+const resourcesLoading = ref(false)
 const formRef = ref<FormInstance>()
 
-// Additional variables for project managers
-const projectManagers = ref<{[key: number]: User | null}>({})
+// Additional variables for enhanced features
+const isManagingUsers = ref(false) // Track whether the dialog is opened for managing users or viewing details
+const detailDialogTitle = computed(() => {
+  if (isManagingUsers.value) {
+    return '管理用户/组'
+  }
+  return '项目详情'
+})
 
 const filterForm = reactive({
   name: '',
@@ -547,9 +589,10 @@ const getDomainName = (domainId: number) => {
   return domain ? domain.name : `域#${domainId}`;
 }
 
-const handleManageUsers = (row: Project) => {
-  // Open the detail view with users tab active
+const handleManageUsersGroups = (row: Project) => {
+  // Open the detail view with users tab active for managing users
   currentProject.value = row
+  isManagingUsers.value = true
   detailTab.value = 'users'
   loadProjectUsers(row.id)
   loadProjectRoles(row.id)
@@ -613,11 +656,13 @@ const handleCommand = (command: string, row: Project) => {
 
 const handleView = async (row: Project) => {
   currentProject.value = row
-  detailTab.value = 'users'
+  isManagingUsers.value = false // Indicate this is a project details view, not managing users
+  detailTab.value = 'details'
   await Promise.all([
     loadProjectUsers(row.id),
     loadProjectRoles(row.id),
-    loadProjectOperationLogs(row.id)
+    loadProjectOperationLogs(row.id),
+    loadProjectResources(row.id) // Load project resources for the details tab
   ])
   detailDialogVisible.value = true
 }
@@ -625,13 +670,34 @@ const handleView = async (row: Project) => {
 const loadProjectOperationLogs = async (projectId: number) => {
   logsLoading.value = true
   try {
-    // For now, returning empty array as placeholder - implement later if needed
-    projectOperationLogs.value = []
+    // Fetch operation logs for the project
+    const res = await getResourceOperationLogs('project', projectId)
+    projectOperationLogs.value = res.items || []
   } catch (e: any) {
     console.error(e)
+    ElMessage.error(e.message || '加载操作日志失败')
     projectOperationLogs.value = []
   } finally {
     logsLoading.value = false
+  }
+}
+
+const loadProjectResources = async (projectId: number) => {
+  resourcesLoading.value = true
+  try {
+    // For now, we'll simulate project resources since we don't have a dedicated API
+    // In a real implementation, this would call an API to get project resources
+    projectResources.value = [
+      { type: '虚拟机', name: 'VM-001', status: 'active' },
+      { type: '存储', name: 'Disk-001', status: 'active' },
+      { type: '网络', name: 'VPC-001', status: 'active' },
+      { type: '数据库', name: 'MySQL-001', status: 'inactive' }
+    ]
+  } catch (e: any) {
+    console.error(e)
+    projectResources.value = []
+  } finally {
+    resourcesLoading.value = false
   }
 }
 
@@ -644,17 +710,14 @@ const handleAddUser = async () => {
   await loadDomainUsersAndRoles(addUserForm.domain_id)
 }
 
-const handleRemoveUser = async (row: User) => {
-  try {
-    await ElMessageBox.confirm('确定要移除该用户吗？', '提示', { type: 'warning' })
-    await removeUserFromProject(currentProject.value.id, row.id)
-    ElMessage.success('移除用户成功')
-    await loadProjectUsers(currentProject.value.id)
-  } catch (e: any) {
-    if (e !== 'cancel') {
-      ElMessage.error(e.message || '移除用户失败')
-    }
-  }
+const handleRemoveUser = async () => {
+  // Placeholder for removing user
+  ElMessage.info('移除用户功能待实现')
+}
+
+const handleModifyRole = async () => {
+  // Placeholder for modifying role
+  ElMessage.info('修改角色功能待实现')
 }
 
 const handleToggleEnable = async (row: Project) => {

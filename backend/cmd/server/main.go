@@ -21,6 +21,7 @@ import (
 	"github.com/opencmp/opencmp/internal/model"
 	"github.com/opencmp/opencmp/internal/service"
 	initutils "github.com/opencmp/opencmp/internal/utils"
+	_ "github.com/opencmp/opencmp/pkg/cloudprovider/adapters/alibaba" // 引入阿里云适配器以注册
 	pkgutils "github.com/opencmp/opencmp/pkg/utils"
 )
 
@@ -100,8 +101,9 @@ func main() {
 		&model.Robot{},
 		&model.Receiver{},
 		&model.ReceiverChannel{},
-		&model.SyncPolicy{}, // 添加同步策略模型
+		&model.SyncPolicy{},    // 添加同步策略模型
 		&model.ScheduledTask{}, // 添加定时任务模型
+		&model.OperationLog{},  // 添加操作日志模型
 	); err != nil {
 		log.Fatalf("failed to migrate database: %v", err)
 	}
@@ -147,6 +149,7 @@ func main() {
 			cloudAccountGroup.PUT("/:id", cloudAccountHandler.Update)
 			cloudAccountGroup.DELETE("/:id", cloudAccountHandler.Delete)
 			cloudAccountGroup.POST("/:id/verify", cloudAccountHandler.Verify)
+			cloudAccountGroup.POST("/:id/test-connection", cloudAccountHandler.TestConnection)
 		}
 
 		// 计算资源路由
@@ -158,8 +161,42 @@ func main() {
 			computeGroup.GET("/vms/:id", computeHandler.GetVM)
 			computeGroup.DELETE("/vms/:id", computeHandler.DeleteVM)
 			computeGroup.POST("/vms/:id/action", computeHandler.VMAction)
+
+			// 详细的 VM 信息和操作端点
+			computeGroup.GET("/vms/:id/details", computeHandler.GetVMDetails)
+			computeGroup.GET("/vms/:id/security-groups", computeHandler.GetVMSecurityGroups)
+			computeGroup.GET("/vms/:id/networks", computeHandler.GetVMNetworkInfo)
+			computeGroup.GET("/vms/:id/disks", computeHandler.GetVMDisks)
+			computeGroup.GET("/vms/:id/snapshots", computeHandler.GetVMSnapshots)
+			computeGroup.GET("/vms/:id/logs", computeHandler.GetVMOperationLogs)
+			computeGroup.GET("/vms/:id/vnc", computeHandler.GetVNCInfo)
+
 			computeGroup.GET("/images", computeHandler.ListImages)
 		}
+
+		// 主机模版路由
+		hostTemplateService := service.NewHostTemplateService(db)
+		hostTemplateHandler := handler.NewHostTemplateHandler(hostTemplateService)
+		hostTemplateGroup := v1.Group("/host-templates")
+		{
+			hostTemplateGroup.POST("", hostTemplateHandler.CreateHostTemplate)
+			hostTemplateGroup.GET("", hostTemplateHandler.ListHostTemplates)
+			hostTemplateGroup.GET("/:id", hostTemplateHandler.GetHostTemplate)
+			hostTemplateGroup.PUT("/:id", hostTemplateHandler.UpdateHostTemplate)
+			hostTemplateGroup.DELETE("/:id", hostTemplateHandler.DeleteHostTemplate)
+		}
+
+			// 弹性伸缩组路由
+			autoscalingGroupService := service.NewAutoscalingGroupService(db)
+			autoscalingGroupHandler := handler.NewAutoscalingGroupHandler(autoscalingGroupService)
+			autoscalingGroupGroup := v1.Group("/autoscaling-groups")
+			{
+				autoscalingGroupGroup.POST("", autoscalingGroupHandler.CreateAutoscalingGroup)
+				autoscalingGroupGroup.GET("", autoscalingGroupHandler.ListAutoscalingGroups)
+				autoscalingGroupGroup.GET("/:id", autoscalingGroupHandler.GetAutoscalingGroup)
+				autoscalingGroupGroup.PUT("/:id", autoscalingGroupHandler.UpdateAutoscalingGroup)
+				autoscalingGroupGroup.DELETE("/:id", autoscalingGroupHandler.DeleteAutoscalingGroup)
+			}
 
 		// 网络资源路由
 		networkHandler := handler.NewNetworkHandler(db, logger)
@@ -177,6 +214,27 @@ func main() {
 
 			networkGroup.POST("/eips", networkHandler.CreateEIP)
 			networkGroup.GET("/eips", networkHandler.ListEIPs)
+
+				// 地理资源路由
+				networkGroup.GET("/regions", networkHandler.ListRegions)
+				networkGroup.GET("/zones", networkHandler.ListZones)
+
+				// 高级网络资源路由
+				networkGroup.POST("/vpc-interconnects", networkHandler.CreateVPCInterconnect)
+				networkGroup.GET("/vpc-interconnects", networkHandler.ListVPCInterconnects)
+				networkGroup.DELETE("/vpc-interconnects/:id", networkHandler.DeleteVPCInterconnect)
+
+				networkGroup.POST("/vpc-peerings", networkHandler.CreateVPCPeering)
+				networkGroup.GET("/vpc-peerings", networkHandler.ListVPCPeerings)
+				networkGroup.DELETE("/vpc-peerings/:id", networkHandler.DeleteVPCPeering)
+
+				networkGroup.POST("/route-tables", networkHandler.CreateRouteTable)
+				networkGroup.GET("/route-tables", networkHandler.ListRouteTables)
+				networkGroup.DELETE("/route-tables/:id", networkHandler.DeleteRouteTable)
+
+				networkGroup.POST("/l2-networks", networkHandler.CreateL2Network)
+				networkGroup.GET("/l2-networks", networkHandler.ListL2Networks)
+				networkGroup.DELETE("/l2-networks/:id", networkHandler.DeleteL2Network)
 		}
 
 		// IAM 认证与安全路由
@@ -192,6 +250,7 @@ func main() {
 			authSourceGroup.POST("/:id/enable", authSourceHandler.Enable)
 			authSourceGroup.POST("/:id/disable", authSourceHandler.Disable)
 			authSourceGroup.POST("/:id/sync", authSourceHandler.Sync)
+			authSourceGroup.POST("/test-ldap-users", authSourceHandler.TestLDAPUsers)
 		}
 
 		// 域管理路由
@@ -206,9 +265,10 @@ func main() {
 			domainGroup.POST("/:id/enable", domainHandler.Enable)
 			domainGroup.POST("/:id/disable", domainHandler.Disable)
 			domainGroup.GET("/:id/users", domainHandler.GetUsers)
-			domainGroup.GET("/:id/groups", domainHandler.GetGroups)
 			domainGroup.GET("/:id/projects", domainHandler.GetProjects)
 			domainGroup.GET("/:id/roles", domainHandler.GetRoles)
+			domainGroup.GET("/:id/cloud-accounts", domainHandler.GetCloudAccounts)
+			domainGroup.GET("/:id/operation-logs", domainHandler.GetOperationLogs)
 		}
 
 		// 项目管理路由
@@ -399,6 +459,14 @@ func main() {
 			scheduledTaskGroup.DELETE("/:id", scheduledTaskHandler.Delete)
 			scheduledTaskGroup.POST("/:id/status", scheduledTaskHandler.UpdateStatus)
 		}
+
+		// 操作日志路由
+		operationLogHandler := handler.NewOperationLogHandler(service.NewOperationLogService(db))
+		operationLogGroup := v1.Group("/operation-logs")
+		{
+			operationLogGroup.GET("", operationLogHandler.GetOperationLogs)
+			operationLogGroup.GET("/:resource_type/:resource_id", operationLogHandler.GetResourceOperationLogs)
+		}
 	}
 
 	// 健康检查（不需要认证）
@@ -490,7 +558,7 @@ func initDefaultData(db *gorm.DB) error {
 		Description: "默认域",
 		Enabled:     true,
 	}
-	
+
 	var existingDomain model.Domain
 	if err := db.Where("name = ?", "Default").First(&existingDomain).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -513,7 +581,7 @@ func initDefaultData(db *gorm.DB) error {
 		Enabled:     true,
 		IsPublic:    true,
 	}
-	
+
 	var existingRole model.Role
 	if err := db.Where("name = ?", "admin").First(&existingRole).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -536,7 +604,7 @@ func initDefaultData(db *gorm.DB) error {
 		DomainID:    defaultDomain.ID,
 		Enabled:     true,
 	}
-	
+
 	var existingUser model.User
 	if err := db.Where("name = ?", "admin").First(&existingUser).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {

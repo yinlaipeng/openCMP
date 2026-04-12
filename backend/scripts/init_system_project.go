@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"log"
 
+	"gopkg.in/yaml.v3"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
-	"gopkg.in/yaml.v3"
 	"os"
 
 	"github.com/opencmp/opencmp/internal/model"

@@ -14,6 +14,9 @@ type IVirtualMachine interface {
 	RebootVM(ctx context.Context, vmID string) error
 	GetVMStatus(ctx context.Context, vmID string) (*VMStatus, error)
 	ListVMs(ctx context.Context, filter VMListFilter) ([]*VirtualMachine, error)
+	GetVM(ctx context.Context, vmID string) (*VirtualMachine, error) // Added this method
+	ResetVMPassword(ctx context.Context, vmID, username, newPassword string) error // Added for password reset
+	UpdateVMConfig(ctx context.Context, vmID, instanceType, name string) error // Added for config update
 }
 
 // VMListFilter 虚拟机列表过滤条件

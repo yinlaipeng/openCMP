@@ -33,7 +33,7 @@ type CreatePermissionRequest struct {
 	Resource    string `json:"resource" binding:"required"`
 	Action      string `json:"action" binding:"required"`
 	Scope       string `json:"scope" binding:"required,oneof=system domain project"` // system/domain/project
-	DomainID    *uint  `json:"domain_id"`                                           // 仅当 scope=domain 时需要
+	DomainID    *uint  `json:"domain_id"`                                            // 仅当 scope=domain 时需要
 	Enabled     bool   `json:"enabled"`
 }
 

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -36,7 +37,6 @@ type CreateAuthSourceRequest struct {
 	DomainID    *uint                  `json:"domain_id"`
 	Config      map[string]interface{} `json:"config"`
 	Enabled     bool                   `json:"enabled"`
-	AutoCreate  bool                   `json:"auto_create"`
 }
 
 // List 列出认证源
@@ -127,7 +127,6 @@ func (h *AuthSourceHandler) Create(c *gin.Context) {
 		Scope:       req.Scope,
 		DomainID:    req.DomainID,
 		Enabled:     req.Enabled,
-		AutoCreate:  req.AutoCreate,
 	}
 
 	// 解析并存储 config JSON
@@ -234,7 +233,6 @@ func (h *AuthSourceHandler) Update(c *gin.Context) {
 	source.Scope = req.Scope
 	source.DomainID = req.DomainID
 	source.Enabled = req.Enabled
-	source.AutoCreate = req.AutoCreate
 	if req.Config != nil {
 		configData, err := json.Marshal(req.Config)
 		if err != nil {
@@ -305,3 +303,60 @@ func (h *AuthSourceHandler) Disable(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "disabled"})
 }
 
+// TestLDAPUsers 测试 LDAP 用户查询
+func (h *AuthSourceHandler) TestLDAPUsers(c *gin.Context) {
+	var req struct {
+		URL                  string `json:"url"`
+		BaseDN               string `json:"base_dn"`
+		BindDN               string `json:"bind_dn"`
+		BindPassword         string `json:"bind_password"`
+		UserFilter           string `json:"user_filter"`
+		UserIDAttr           string `json:"user_id_attr"`
+		UserNameAttr         string `json:"user_name_attr"`
+		UserSearchBase       string `json:"user_search_base"`
+		GroupSearchBase      string `json:"group_search_base"`
+		UserEnabledAttribute string `json:"user_enabled_attribute"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 构造临时的LDAP配置对象
+	configObj := map[string]string{
+		"url":                    req.URL,
+		"base_dn":                req.BaseDN,
+		"bind_dn":                req.BindDN,
+		"bind_password":          req.BindPassword,
+		"user_filter":            req.UserFilter,
+		"user_id_attr":           req.UserIDAttr,
+		"user_name_attr":         req.UserNameAttr,
+		"user_search_base":       req.UserSearchBase,
+		"group_search_base":      req.GroupSearchBase,
+		"user_enabled_attribute": req.UserEnabledAttribute,
+	}
+
+	configJSON, err := json.Marshal(configObj)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "failed to marshal config"})
+		return
+	}
+
+	tempConfig := model.AuthSource{
+		Config: configJSON,
+	}
+
+	users, err := h.service.TestLDAPUsers(c.Request.Context(), &tempConfig)
+	if err != nil {
+		h.logger.Error("failed to test ldap users", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error(), "success": false})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"users":   users,
+		"message": fmt.Sprintf("成功查询到 %d 个用户", len(users)),
+	})
+}

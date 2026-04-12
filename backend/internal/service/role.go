@@ -132,16 +132,6 @@ func (s *RoleService) GetGroupRoles(ctx context.Context, groupID, domainID uint)
 	return roles, err
 }
 
-
-
-
-
-
-
-
-
-
-
 // EnableRole 启用角色
 func (s *RoleService) EnableRole(ctx context.Context, id uint) error {
 	return s.db.WithContext(ctx).Model(&model.Role{}).Where("id = ?", id).Update("enabled", true).Error

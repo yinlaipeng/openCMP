@@ -181,16 +181,6 @@ func (h *RoleHandler) Delete(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
 }
 
-
-
-
-
-
-
-
-
-
-
 // Enable 启用角色
 func (h *RoleHandler) Enable(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
