@@ -460,6 +460,7 @@ func main() {
 			scheduledTaskGroup.PUT("/:id", scheduledTaskHandler.Update)
 			scheduledTaskGroup.DELETE("/:id", scheduledTaskHandler.Delete)
 			scheduledTaskGroup.POST("/:id/status", scheduledTaskHandler.UpdateStatus)
+			scheduledTaskGroup.POST("/:id/execute", scheduledTaskHandler.Execute)
 		}
 
 		// 操作日志路由

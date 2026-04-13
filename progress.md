@@ -21,9 +21,28 @@
   - backend/pkg/cloudprovider/adapters/azure/vm.go
   - backend/pkg/cloudprovider/adapters/azure/vpc.go
   - backend/go.mod, go.sum (Azure SDK 依赖)
+- Commit: b519d3d
+
+### Phase 9: 云账号流程完善
+- **Status:** in_progress
+- **Started:** 2026-04-12
+- Actions:
+  - 分析云账号服务现状：已有基本 CRUD 和验证
+  - 添加 SyncResources 服务方法 (同步 VM/VPC/Subnet/SG/EIP/Image)
+  - 添加 VerifyCredentials 服务方法 (通过实际 API 调用验证凭证)
+  - 添加 /cloud-accounts/:id/sync 端点
+  - 添加 /cloud-accounts/:id/verify-credentials 端点
+  - 前端添加 verifyCredentials API 函数
+  - 前端已有 sync 功能，确认已正确对接
+- Files modified:
+  - backend/internal/service/cloud_account.go
+  - backend/internal/handler/cloud_account.go
+  - backend/cmd/server/main.go
+  - frontend/src/api/cloud-account.ts
+- Commit: 691d7c6
 - Next steps:
-  - Phase 9: 云账号流程完善
-  - Phase 10: 资源管理业务流
+  - 添加同步任务执行逻辑（定时触发）
+  - 添加资源缓存模型（可选）
 
 ## Previous Sessions
 

@@ -15,15 +15,17 @@ import (
 
 // ScheduledTaskHandler 定时同步任务 Handler
 type ScheduledTaskHandler struct {
-	service *service.ScheduledTaskService
-	logger  *zap.Logger
+	taskService    *service.ScheduledTaskService
+	accountService *service.CloudAccountService
+	logger         *zap.Logger
 }
 
 // NewScheduledTaskHandler 创建定时同步任务 Handler
 func NewScheduledTaskHandler(db *gorm.DB, logger *zap.Logger) *ScheduledTaskHandler {
 	return &ScheduledTaskHandler{
-		service: service.NewScheduledTaskService(db),
-		logger:  logger,
+		taskService:    service.NewScheduledTaskService(db),
+		accountService: service.NewCloudAccountService(db),
+		logger:         logger,
 	}
 }
 
@@ -98,7 +100,7 @@ func (h *ScheduledTaskHandler) Create(c *gin.Context) {
 		task.Status = string(model.ScheduledTaskStatusActive)
 	}
 
-	if err := h.service.CreateScheduledTask(c.Request.Context(), task); err != nil {
+	if err := h.taskService.CreateScheduledTask(c.Request.Context(), task); err != nil {
 		h.logger.Error("failed to create scheduled task", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -121,7 +123,7 @@ func (h *ScheduledTaskHandler) List(c *gin.Context) {
 
 	offset := (page - 1) * pageSize
 
-	tasks, total, err := h.service.ListScheduledTasks(c.Request.Context(), pageSize, offset)
+	tasks, total, err := h.taskService.ListScheduledTasks(c.Request.Context(), pageSize, offset)
 	if err != nil {
 		h.logger.Error("failed to list scheduled tasks", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -144,7 +146,7 @@ func (h *ScheduledTaskHandler) Get(c *gin.Context) {
 		return
 	}
 
-	task, err := h.service.GetScheduledTask(c.Request.Context(), uint(id))
+	task, err := h.taskService.GetScheduledTask(c.Request.Context(), uint(id))
 	if err != nil {
 		h.logger.Error("failed to get scheduled task", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -167,7 +169,7 @@ func (h *ScheduledTaskHandler) Update(c *gin.Context) {
 		return
 	}
 
-	task, err := h.service.GetScheduledTask(c.Request.Context(), uint(id))
+	task, err := h.taskService.GetScheduledTask(c.Request.Context(), uint(id))
 	if err != nil {
 		h.logger.Error("failed to get scheduled task", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -218,7 +220,7 @@ func (h *ScheduledTaskHandler) Update(c *gin.Context) {
 		task.CloudAccountID = req.CloudAccountID
 	}
 
-	if err := h.service.UpdateScheduledTask(c.Request.Context(), task); err != nil {
+	if err := h.taskService.UpdateScheduledTask(c.Request.Context(), task); err != nil {
 		h.logger.Error("failed to update scheduled task", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -235,7 +237,7 @@ func (h *ScheduledTaskHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.DeleteScheduledTask(c.Request.Context(), uint(id)); err != nil {
+	if err := h.taskService.DeleteScheduledTask(c.Request.Context(), uint(id)); err != nil {
 		h.logger.Error("failed to delete scheduled task", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -260,11 +262,77 @@ func (h *ScheduledTaskHandler) UpdateStatus(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.UpdateScheduledTaskStatus(c.Request.Context(), uint(id), req.Status); err != nil {
+	if err := h.taskService.UpdateScheduledTaskStatus(c.Request.Context(), uint(id), req.Status); err != nil {
 		h.logger.Error("failed to update scheduled task status", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "status updated"})
+}
+
+// Execute 执行定时任务（手动触发）
+func (h *ScheduledTaskHandler) Execute(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	task, err := h.taskService.GetScheduledTask(c.Request.Context(), uint(id))
+	if err != nil {
+		h.logger.Error("failed to get scheduled task", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if task == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "task not found"})
+		return
+	}
+
+	// 检查任务状态
+	if task.Status != string(model.ScheduledTaskStatusActive) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "task is not active"})
+		return
+	}
+
+	// 检查任务类型
+	switch task.Type {
+	case "sync_cloud_account":
+		// 执行云账号同步
+		if task.CloudAccountID == nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "no cloud account associated"})
+			return
+		}
+
+		account, err := h.accountService.GetCloudAccount(c.Request.Context(), *task.CloudAccountID)
+		if err != nil {
+			h.logger.Error("failed to get cloud account", zap.Error(err))
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		if account == nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "cloud account not found"})
+			return
+		}
+
+		stats, err := h.accountService.SyncResources(c.Request.Context(), account)
+		if err != nil {
+			h.logger.Error("failed to sync cloud account", zap.Error(err))
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"message":    "task executed successfully",
+			"task_id":    task.ID,
+			"task_name":  task.Name,
+			"statistics": stats,
+		})
+
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"error": "unknown task type: " + task.Type})
+	}
 }
