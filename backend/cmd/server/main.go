@@ -152,6 +152,9 @@ func main() {
 			cloudAccountGroup.POST("/:id/test-connection", cloudAccountHandler.TestConnection)
 			cloudAccountGroup.POST("/:id/sync", cloudAccountHandler.Sync)
 			cloudAccountGroup.GET("/:id/verify-credentials", cloudAccountHandler.VerifyCredentials)
+				cloudAccountGroup.PATCH("/:id/status", cloudAccountHandler.UpdateStatus)
+				cloudAccountGroup.PATCH("/:id/attributes", cloudAccountHandler.UpdateAttributes)
+
 		}
 
 		// 计算资源路由

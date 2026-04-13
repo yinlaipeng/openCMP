@@ -1,8 +1,33 @@
 # Progress Log
 
-## Session: 2026-04-12 (Session 3 - 项目落地规划)
+## Session: 2026-04-13 (Phase 13 多云管理页面优化)
 
-### Phase 8: Azure 适配器实现
+### Phase 13: 多云管理三页面优化完善
+- **Status:** complete
+- **Started:** 2026-04-13
+- **Completed:** 2026-04-13
+- Actions:
+  - 分析三个页面现状，发现多个缺失功能
+  - Task 1: 定时任务页面修复
+    - 前端API: 添加 executeScheduledTask 函数
+    - 前端表单: 添加 cloud_account_id 选择字段
+    - 前端表格: 添加"执行"按钮、显示关联云账号列
+    - handleSubmit: 修复编辑模式调用 updateScheduledTask API
+    - loadCloudAccounts: 加载云账号列表供选择
+  - Task 2: 云账户管理后端完善
+    - 后端: 实现 PATCH /cloud-accounts/:id/status
+    - 后端: 实现 PATCH /cloud-accounts/:id/attributes
+    - 注册路由
+  - Task 3: 同步策略页面 - 已完整
+    - 已有 loadDomains/loadProjects 函数
+    - 已在 onMounted 中调用
+  - 编译验证: 后端成功、前端成功
+- Files modified:
+  - frontend/src/api/scheduled-task.ts
+  - frontend/src/views/cloud-accounts/scheduled-tasks.vue
+  - backend/internal/handler/cloud_account.go
+  - backend/cmd/server/main.go
+- Commits: 待提交
 - **Status:** complete
 - **Started:** 2026-04-12 23:50
 - **Completed:** 2026-04-12

@@ -39,8 +39,14 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column prop="cloud_account_id" label="关联云账号" width="150">
           <template #default="{ row }">
+            {{ getCloudAccountName(row.cloud_account_id) }}
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="280" fixed="right">
+          <template #default="{ row }">
+            <el-button size="small" type="success" @click="handleExecute(row)">执行</el-button>
             <el-button size="small" @click="handleEdit(row)">编辑</el-button>
             <el-button size="small" @click="handleToggle(row)">
               {{ row.status === 'active' ? '暂停' : '启用' }}
@@ -76,6 +82,12 @@
         <el-form-item label="类型" prop="type">
           <el-select v-model="form.type" placeholder="请选择任务类型" style="width: 100%">
             <el-option label="同步云账号" value="sync_cloud_account" />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="关联云账号" prop="cloud_account_id" v-if="form.type === 'sync_cloud_account'">
+          <el-select v-model="form.cloud_account_id" placeholder="请选择要同步的云账号" style="width: 100%">
+            <el-option v-for="account in cloudAccounts" :key="account.id" :label="account.name" :value="account.id" />
           </el-select>
         </el-form-item>
 
@@ -135,14 +147,17 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
-import { getScheduledTasks, createScheduledTask, updateScheduledTask, deleteScheduledTask, updateScheduledTaskStatus } from '@/api/scheduled-task'
+import { getScheduledTasks, createScheduledTask, updateScheduledTask, deleteScheduledTask, updateScheduledTaskStatus, executeScheduledTask } from '@/api/scheduled-task'
+import { getCloudAccounts } from '@/api/cloud-account'
 import type { ScheduledTask, CreateScheduledTaskRequest } from '@/types'
 
 const tasks = ref<ScheduledTask[]>([])
+const cloudAccounts = ref<any[]>([])
 const loading = ref(false)
 const showDialog = ref(false)
 const isEdit = ref(false)
 const submitting = ref(false)
+const currentId = ref<number | null>(null)
 const formRef = ref<FormInstance>()
 
 const pagination = reactive({
@@ -151,14 +166,15 @@ const pagination = reactive({
   total: 0
 })
 
-const form = reactive<CreateScheduledTaskRequest>({
+const form = reactive<CreateScheduledTaskRequest & { validRange?: string[], cloud_account_id?: number }>({
   name: '',
   type: 'sync_cloud_account',
   frequency: 'daily',
   triggerTime: '02:00',
   validFrom: undefined,
   validUntil: undefined,
-  status: 'active'
+  status: 'active',
+  cloud_account_id: undefined
 })
 
 const rules = {
@@ -207,16 +223,23 @@ const getFrequencyType = (freq: string) => {
   return map[freq] || 'info'
 }
 
+const getCloudAccountName = (accountId: number | null) => {
+  if (!accountId) return '未关联'
+  const account = cloudAccounts.value.find(a => a.id === accountId)
+  return account?.name || `账号${accountId}`
+}
+
 const handleEdit = (row: ScheduledTask) => {
   isEdit.value = true
+  currentId.value = row.id
   Object.assign(form, {
     name: row.name,
     type: row.type,
     frequency: row.frequency,
     triggerTime: row.triggerTime,
-    validFrom: row.validFrom,
-    validUntil: row.validUntil,
-    status: row.status as 'active' | 'inactive'
+    validRange: row.validFrom && row.validUntil ? [row.validFrom, row.validUntil] : undefined,
+    status: row.status as 'active' | 'inactive',
+    cloud_account_id: row.cloud_account_id
   })
   showDialog.value = true
 }
@@ -255,12 +278,25 @@ const handleSubmit = async () => {
     if (!valid) return
     submitting.value = true
     try {
-      if (isEdit.value) {
+      // 处理有效时间范围
+      const submitData = {
+        name: form.name,
+        type: form.type,
+        frequency: form.frequency,
+        trigger_time: form.triggerTime,
+        valid_from: form.validRange?.[0] || undefined,
+        valid_until: form.validRange?.[1] || undefined,
+        status: form.status,
+        cloud_account_id: form.cloud_account_id
+      }
+
+      if (isEdit.value && currentId.value) {
         // 编辑现有任务
+        await updateScheduledTask(currentId.value, submitData)
         ElMessage.success('更新成功')
       } else {
         // 创建新任务
-        await createScheduledTask(form)
+        await createScheduledTask(submitData)
         ElMessage.success('创建成功')
       }
       showDialog.value = false
@@ -272,6 +308,26 @@ const handleSubmit = async () => {
       submitting.value = false
     }
   })
+}
+
+const handleExecute = async (row: ScheduledTask) => {
+  try {
+    const result = await executeScheduledTask(row.id)
+    ElMessage.success(`任务执行成功: 同步了 ${Object.entries(result.statistics).map(([k, v]) => `${v}个${k}`).join(', ')}`)
+    loadTasks() // 重新加载
+  } catch (e) {
+    console.error(e)
+    ElMessage.error('执行任务失败')
+  }
+}
+
+const loadCloudAccounts = async () => {
+  try {
+    const res = await getCloudAccounts({ page_size: 100 })
+    cloudAccounts.value = res.items || []
+  } catch (e) {
+    console.error(e)
+  }
 }
 
 const handleSizeChange = (size: number) => {
@@ -286,6 +342,7 @@ const handleCurrentChange = (page: number) => {
 
 onMounted(() => {
   loadTasks()
+  loadCloudAccounts()
 })
 </script>
 

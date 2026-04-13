@@ -123,6 +123,76 @@
 }
 ```
 
+## Phase 13: 多云管理页面优化分析 (2026-04-13)
+
+### 云账户管理页面分析 (cloud-accounts/index.vue)
+| 功能 | 前端状态 | 后端API状态 | 问题 |
+|------|---------|------------|------|
+| 列表查询 | ✅ 完整 | ✅ 完整 | 无 |
+| 向导式添加 | ✅ 完整 | ✅ Create | 凭证字段映射需验证 |
+| 同步操作 | ✅ sync对话框 | ✅ /sync | 已对接 |
+| 验证凭证 | ✅ verify按钮 | ✅ /verify | 已对接 |
+| 状态设置 | ✅ status对话框 | ⚠️ PATCH /status | 后端未实现 |
+| 属性设置 | ✅ attributes对话框 | ⚠️ PATCH /attributes | 后端未实现 |
+| 编辑云账号 | ⚠️ 待实现 | ✅ PUT | 前端缺少编辑表单 |
+| 健康状态检测 | ✅ 显示 | ❌ 无字段 | model无health_status字段 |
+| 余额显示 | ✅ 显示 | ❌ 无字段 | model无balance字段 |
+
+**关键发现:**
+- 向导式添加流程完整，但需要验证凭证字段与各云厂商配置匹配
+- status/attributes PATCH API后端未实现
+- health_status/balance字段model中不存在，前端显示占位
+
+### 同步策略页面分析 (sync-policies/index.vue)
+| 功能 | 前端状态 | 后端API状态 | 问题 |
+|------|---------|------------|------|
+| 列表查询 | ✅ 完整 | ✅ 完整 | 无 |
+| 创建策略 | ✅ 完整 | ✅ Create | 无 |
+| 编辑策略 | ✅ 完整 | ✅ PUT | 无 |
+| 状态切换 | ✅ 完整 | ✅ POST /status | 无 |
+| 规则配置 | ✅ 标签配置 | ✅ Rules+Tags | 结构匹配 |
+| 删除策略 | ✅ 完整 | ✅ Delete | 无 |
+| 所属域选择 | ✅ 下拉框 | ⚠️ 需验证 | 需加载域列表 |
+| 项目选择 | ✅ 下拉框 | ⚠️ 需验证 | 需加载项目列表 |
+
+**关键发现:**
+- 前端页面功能完整
+- 需要实现域列表和项目列表的加载API调用
+- 规则标签配置UI完善，与后端结构匹配
+
+### 定时任务页面分析 (scheduled-tasks.vue)
+| 功能 | 前端状态 | 后端API状态 | 问题 |
+|------|---------|------------|------|
+| 列表查询 | ✅ 完整 | ✅ 完整 | 无 |
+| 创建任务 | ✅ 完整 | ✅ Create | 无 |
+| 编辑任务 | ⚠️ 未调用API | ✅ PUT | handleSubmit缺少调用 |
+| 删除任务 | ✅ 完整 | ✅ Delete | 无 |
+| 状态切换 | ✅ 完整 | ✅ POST /status | 无 |
+| **执行任务** | ❌ 缺失 | ✅ POST /execute | **前端API缺失** |
+| **关联云账号** | ❌ 表单无字段 | ⚠️ model有 | **前端表单缺失** |
+
+**关键发现:**
+- executeScheduledTask 前端API函数缺失（后端已实现）
+- 表单缺少 cloud_account_id 字段（选择关联的云账号）
+- handleSubmit 编辑模式未调用API
+
+### 需要完成的任务清单
+
+1. **定时任务页面修复**
+   - 前端API: 添加 executeScheduledTask 函数
+   - 前端表单: 添加 cloud_account_id 选择字段
+   - 前端表格: 添加"执行"按钮
+   - handleSubmit: 修复编辑模式API调用
+
+2. **云账户管理页面完善**
+   - 后端: 实现 PATCH /status 和 PATCH /attributes
+   - 前端: 添加编辑云账号表单/对话框
+   - 向导: 验证凭证字段与云厂商配置匹配
+
+3. **同步策略页面完善**
+   - 前端: 加载域列表 (getDomains API)
+   - 前端: 加载项目列表 (getProjects API)
+
 ## Previous Findings
 
 ## Research Findings

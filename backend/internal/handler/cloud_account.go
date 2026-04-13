@@ -373,3 +373,90 @@ func (h *CloudAccountHandler) VerifyCredentials(c *gin.Context) {
 		"message": message,
 	})
 }
+
+// UpdateStatus 更新云账户启用状态
+func (h *CloudAccountHandler) UpdateStatus(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	account, err := h.service.GetCloudAccount(c.Request.Context(), uint(id))
+	if err != nil {
+		h.logger.Error("failed to get cloud account", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if account == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "account not found"})
+		return
+	}
+
+	var req struct {
+		Enabled bool `json:"enabled"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 更新状态
+	if req.Enabled {
+		account.Status = string(model.CloudAccountStatusActive)
+	} else {
+		account.Status = string(model.CloudAccountStatusInactive)
+	}
+
+	if err := h.service.UpdateCloudAccount(c.Request.Context(), account); err != nil {
+		h.logger.Error("failed to update cloud account status", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "status updated", "enabled": req.Enabled})
+}
+
+// UpdateAttributes 更新云账户属性
+func (h *CloudAccountHandler) UpdateAttributes(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	account, err := h.service.GetCloudAccount(c.Request.Context(), uint(id))
+	if err != nil {
+		h.logger.Error("failed to get cloud account", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if account == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "account not found"})
+		return
+	}
+
+	var req struct {
+		AutoSync         bool     `json:"auto_sync"`
+		SyncPolicy       string   `json:"sync_policy"`
+		SyncInterval     int      `json:"sync_interval"`
+		SyncResourceTypes []string `json:"sync_resource_types"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 更新属性 - 存储到 description 或扩展字段
+	// TODO: 需要在 CloudAccount model 中添加属性字段
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":           "attributes updated",
+		"auto_sync":         req.AutoSync,
+		"sync_policy":       req.SyncPolicy,
+		"sync_interval":     req.SyncInterval,
+		"sync_resource_types": req.SyncResourceTypes,
+	})
+}

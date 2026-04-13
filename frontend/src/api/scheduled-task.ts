@@ -46,3 +46,11 @@ export function updateScheduledTaskStatus(id: number, status: 'active' | 'inacti
     data: { status }
   })
 }
+
+// 执行定时任务（手动触发同步）
+export function executeScheduledTask(id: number) {
+  return request<{ message: string; task_id: number; task_name: string; statistics: Record<string, number> }>({
+    url: `/scheduled-tasks/${id}/execute`,
+    method: 'post'
+  })
+}
