@@ -249,19 +249,21 @@ func (h *CloudAccountHandler) Verify(c *gin.Context) {
 		return
 	}
 
-	valid, err := h.service.VerifyCloudAccount(c.Request.Context(), account)
+	// 使用 VerifyCredentials 进行真实 API 调用验证
+	valid, message, err := h.service.VerifyCredentials(c.Request.Context(), account)
 	if err != nil {
-		h.logger.Error("failed to verify cloud account", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		h.logger.Error("failed to verify cloud account credentials", zap.Error(err))
+		c.JSON(http.StatusOK, gin.H{
+			"valid":   false,
+			"message": message,
+		})
 		return
 	}
 
-	if !valid {
-		c.JSON(http.StatusOK, gin.H{"valid": false, "message": "verification failed"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"valid": true, "message": "verification succeeded"})
+	c.JSON(http.StatusOK, gin.H{
+		"valid":   valid,
+		"message": message,
+	})
 }
 
 // TestConnection 测试云账户连接
@@ -402,7 +404,10 @@ func (h *CloudAccountHandler) UpdateStatus(c *gin.Context) {
 		return
 	}
 
-	// 更新状态
+	// 更新 Enabled 字段（启用状态）
+	account.Enabled = req.Enabled
+
+	// 同时更新 Status 字段（连接状态）
 	if req.Enabled {
 		account.Status = string(model.CloudAccountStatusActive)
 	} else {

@@ -76,8 +76,23 @@ func (p *AlibabaProvider) GetCloudInfo() cloudprovider.CloudInfo {
 
 // ListRegions 列出区域
 func (p *AlibabaProvider) ListRegions() ([]*cloudprovider.Region, error) {
-	// TODO: 实现
-	return []*cloudprovider.Region{}, nil
+	request := ecs.CreateDescribeRegionsRequest()
+	request.Scheme = "https"
+
+	response, err := p.ecsClient.DescribeRegions(request)
+	if err != nil {
+		return nil, err
+	}
+
+	regions := make([]*cloudprovider.Region, 0, len(response.Regions.Region))
+	for _, r := range response.Regions.Region {
+		regions = append(regions, &cloudprovider.Region{
+			ID:   r.RegionId,
+			Name: r.LocalName,
+		})
+	}
+
+	return regions, nil
 }
 
 // ListZones 列出可用区
