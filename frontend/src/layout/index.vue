@@ -327,6 +327,34 @@
           <el-menu-item v-if="currentEnvironment.type === 'management_console'" index="/message-center/subscriptions">消息订阅</el-menu-item>
           <el-menu-item v-else index="/message-center/project-subscriptions">项目消息订阅</el-menu-item>
         </el-sub-menu>
+
+        <!-- 费用中心 -->
+        <el-sub-menu index="finance">
+          <template #title>
+            <el-icon><Wallet /></el-icon>
+            <span>费用中心</span>
+          </template>
+          <!-- 订单管理 -->
+          <el-sub-menu index="finance-orders">
+            <template #title>订单管理</template>
+            <el-menu-item index="/finance/orders/my-orders">我的订单</el-menu-item>
+            <el-menu-item index="/finance/orders/renewals">续费管理</el-menu-item>
+          </el-sub-menu>
+          <!-- 费用账单 -->
+          <el-sub-menu index="finance-bills">
+            <template #title>费用账单</template>
+            <el-menu-item index="/finance/bills/view">账单查看</el-menu-item>
+            <el-menu-item index="/finance/bills/export">账单导出中心</el-menu-item>
+          </el-sub-menu>
+          <!-- 成本管理 -->
+          <el-sub-menu index="finance-cost">
+            <template #title>成本管理</template>
+            <el-menu-item index="/finance/cost/analysis">成本分析</el-menu-item>
+            <el-menu-item index="/finance/cost/reports">成本报告</el-menu-item>
+            <el-menu-item index="/finance/cost/budgets">预算管理</el-menu-item>
+            <el-menu-item index="/finance/cost/anomaly">异常监测</el-menu-item>
+          </el-sub-menu>
+        </el-sub-menu>
       </el-menu>
     </el-aside>
 
@@ -406,7 +434,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import {
   User, ArrowDown, SwitchButton, Lock, Bell, Cloudy, Cpu, Connection,
-  Grid, Monitor, FolderOpened, ArrowDown as IconArrowDown, Folder, Coin, Promotion, Box, DataLine
+  Grid, Monitor, FolderOpened, ArrowDown as IconArrowDown, Folder, Coin, Promotion, Box, DataLine, Wallet
 } from '@element-plus/icons-vue'
 import { getProjects } from '@/api/iam' // 使用iam中的项目API
 import { initializeProjectContext, setProjectContext, getCurrentProjectId, getCurrentProjectName, isInProjectMode, clearProjectContext } from '@/utils/projectContext'
