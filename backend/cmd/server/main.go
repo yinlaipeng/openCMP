@@ -104,6 +104,11 @@ func main() {
 		&model.SyncPolicy{},    // 添加同步策略模型
 		&model.ScheduledTask{}, // 添加定时任务模型
 		&model.OperationLog{},  // 添加操作日志模型
+		&model.Bill{},          // 添加账单模型
+		&model.Order{},         // 添加订单模型
+		&model.Budget{},        // 添加预算模型
+		&model.CostAnomaly{},   // 添加成本异常模型
+		&model.RenewalResource{}, // 添加续费资源模型
 	); err != nil {
 		log.Fatalf("failed to migrate database: %v", err)
 	}
@@ -472,6 +477,38 @@ func main() {
 		{
 			operationLogGroup.GET("", operationLogHandler.GetOperationLogs)
 			operationLogGroup.GET("/:resource_type/:resource_id", operationLogHandler.GetResourceOperationLogs)
+		}
+
+		// 费用中心路由
+		financeHandler := handler.NewFinanceHandler(db, logger)
+		financeGroup := v1.Group("/finance")
+		{
+			// 账单
+			financeGroup.GET("/bills", financeHandler.GetBills)
+			financeGroup.POST("/bills/sync", financeHandler.SyncBills)
+			financeGroup.POST("/bills/export", financeHandler.ExportBills)
+
+			// 订单
+			financeGroup.GET("/orders", financeHandler.GetOrders)
+			financeGroup.POST("/orders/sync", financeHandler.SyncOrders)
+
+			// 续费
+			financeGroup.GET("/renewals", financeHandler.GetRenewals)
+
+			// 成本分析
+			financeGroup.GET("/cost/analysis", financeHandler.GetCostAnalysis)
+			financeGroup.GET("/cost/reports", financeHandler.GetCostReports)
+			financeGroup.POST("/cost/reports/generate", financeHandler.GenerateCostReport)
+
+			// 预算
+			financeGroup.GET("/budgets", financeHandler.GetBudgets)
+			financeGroup.POST("/budgets", financeHandler.CreateBudget)
+			financeGroup.PUT("/budgets/:id", financeHandler.UpdateBudget)
+			financeGroup.DELETE("/budgets/:id", financeHandler.DeleteBudget)
+
+			// 异常
+			financeGroup.GET("/anomalies", financeHandler.GetAnomalies)
+			financeGroup.POST("/anomalies/:id/resolve", financeHandler.ResolveAnomaly)
 		}
 	}
 

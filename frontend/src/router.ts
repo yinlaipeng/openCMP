@@ -550,6 +550,82 @@ const routes = [
             meta: { title: '项目消息订阅' }
           }
         ]
+      },
+      {
+        path: '/finance',
+        name: 'Finance',
+        meta: { title: '费用中心', icon: 'Wallet' },
+        children: [
+          {
+            path: 'orders',
+            name: 'FinanceOrders',
+            meta: { title: '订单管理' },
+            children: [
+              {
+                path: 'my-orders',
+                name: 'FinanceMyOrders',
+                component: () => import('@/views/finance/orders/my-orders/index.vue'),
+                meta: { title: '我的订单' }
+              },
+              {
+                path: 'renewals',
+                name: 'FinanceRenewals',
+                component: () => import('@/views/finance/orders/renewals/index.vue'),
+                meta: { title: '续费管理' }
+              }
+            ]
+          },
+          {
+            path: 'bills',
+            name: 'FinanceBills',
+            meta: { title: '费用账单' },
+            children: [
+              {
+                path: 'view',
+                name: 'FinanceBillView',
+                component: () => import('@/views/finance/bills/view/index.vue'),
+                meta: { title: '账单查看' }
+              },
+              {
+                path: 'export',
+                name: 'FinanceBillExport',
+                component: () => import('@/views/finance/bills/export/index.vue'),
+                meta: { title: '账单导出中心' }
+              }
+            ]
+          },
+          {
+            path: 'cost',
+            name: 'FinanceCost',
+            meta: { title: '成本管理' },
+            children: [
+              {
+                path: 'analysis',
+                name: 'FinanceCostAnalysis',
+                component: () => import('@/views/finance/cost/analysis/index.vue'),
+                meta: { title: '成本分析' }
+              },
+              {
+                path: 'reports',
+                name: 'FinanceCostReports',
+                component: () => import('@/views/finance/cost/reports/index.vue'),
+                meta: { title: '成本报告' }
+              },
+              {
+                path: 'budgets',
+                name: 'FinanceCostBudgets',
+                component: () => import('@/views/finance/cost/budgets/index.vue'),
+                meta: { title: '预算管理' }
+              },
+              {
+                path: 'anomaly',
+                name: 'FinanceCostAnomaly',
+                component: () => import('@/views/finance/cost/anomaly/index.vue'),
+                meta: { title: '异常监测' }
+              }
+            ]
+          }
+        ]
       }
     ]
   }
