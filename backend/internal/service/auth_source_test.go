@@ -8,6 +8,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
+	"gorm.io/datatypes"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 
@@ -550,7 +551,7 @@ func TestAuthSourceService_TestAuthSource(t *testing.T) {
 	t.Run("ldap test success", func(t *testing.T) {
 		source := &model.AuthSource{
 			Type: "ldap",
-			Config: json.RawMessage(`{
+			Config: datatypes.JSON(`{
 				"url": "ldap://localhost:389",
 				"base_dn": "dc=example,dc=com"
 			}`),
@@ -566,7 +567,7 @@ func TestAuthSourceService_TestAuthSource(t *testing.T) {
 	t.Run("mock ldap test", func(t *testing.T) {
 		source := &model.AuthSource{
 			Type: "ldap",
-			Config: json.RawMessage(`{
+			Config: datatypes.JSON(`{
 				"url": "ldap://mock-ldap-server:389",
 				"base_dn": "dc=example,dc=com"
 			}`),
@@ -581,7 +582,7 @@ func TestAuthSourceService_TestAuthSource(t *testing.T) {
 	t.Run("unknown type", func(t *testing.T) {
 		source := &model.AuthSource{
 			Type:   "unknown",
-			Config: json.RawMessage(`{}`),
+			Config: datatypes.JSON(`{}`),
 		}
 
 		valid, err := service.TestAuthSource(context.Background(), source)

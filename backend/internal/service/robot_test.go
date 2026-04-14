@@ -2,11 +2,10 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"gorm.io/gorm"
+	"gorm.io/datatypes"
 
 	"github.com/opencmp/opencmp/internal/model"
 	"github.com/opencmp/opencmp/testutils"
@@ -26,7 +25,7 @@ func TestRobotService(t *testing.T) {
 		WebhookURL:   "https://oapi.dingtalk.com/robot/send?access_token=test",
 		Description:  "Test dingtalk robot",
 		Enabled:      true,
-		MessageTypes: json.RawMessage(`["alert", "notification"]`),
+		MessageTypes: datatypes.JSON(`["alert", "notification"]`),
 	}
 
 	// Test CreateRobot

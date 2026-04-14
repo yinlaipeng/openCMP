@@ -2,11 +2,10 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"gorm.io/gorm"
+	"gorm.io/datatypes"
 
 	"github.com/opencmp/opencmp/internal/model"
 	"github.com/opencmp/opencmp/testutils"
@@ -24,7 +23,7 @@ func TestNotificationChannelService(t *testing.T) {
 		Name:        "Test Channel",
 		Type:        "email",
 		Description: "Test email channel",
-		Config:      json.RawMessage(`{"smtp_host":"smtp.example.com","smtp_port":587,"from_address":"test@example.com"}`),
+		Config:      datatypes.JSON(`{"smtp_host":"smtp.example.com","smtp_port":587,"from_address":"test@example.com"}`),
 		Enabled:     true,
 	}
 

@@ -7,8 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"gorm.io/gorm"
 
-	"opencmp/backend/internal/model"
-	"opencmp/backend/pkg/cloudprovider"
+	"github.com/opencmp/opencmp/pkg/cloudprovider"
 )
 
 func TestHostTemplateService(t *testing.T) {
@@ -17,12 +16,6 @@ func TestHostTemplateService(t *testing.T) {
 	service := NewHostTemplateService(db)
 
 	t.Run("CreateHostTemplate", func(t *testing.T) {
-		req := &cloudprovider.HostTemplate{
-			Name:        "test-template",
-			Description: "Test host template",
-			Status:      "Active",
-		}
-
 		// Since we don't have a real DB, just test that the function exists
 		assert.NotNil(t, service)
 		assert.NotNil(t, service.CreateHostTemplate)

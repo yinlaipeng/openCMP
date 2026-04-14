@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"gorm.io/gorm"
 
 	"github.com/opencmp/opencmp/internal/model"
 	"github.com/opencmp/opencmp/testutils"
