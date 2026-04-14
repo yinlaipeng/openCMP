@@ -1,5 +1,242 @@
 # Progress Log
 
+## Session: 2026-04-13 (费用中心模块骨架实现)
+
+### 费用中心一级菜单及 9 个子页面骨架结构
+- **Status:** complete
+- **Started:** 2026-04-13
+- **Completed:** 2026-04-14
+- Actions:
+  - **菜单结构设计**:
+    - 费用中心 -> 订单管理 (我的订单、续费管理)
+    - 费用中心 -> 费用账单 (账单查看、账单导出中心)
+    - 费用中心 -> 成本管理 (成本分析、成本报告、预算管理、异常监测)
+  - **前端实现**:
+    - 添加三级嵌套路由配置 (router.ts)
+    - 创建 TypeScript 类型定义 (types/finance.ts)
+    - 创建 API 函数文件 (api/finance.ts)
+    - 创建 9 个骨架页面组件 (views/finance/)
+  - **后端实现**:
+    - 创建数据模型: Bill, Order, Budget, CostAnomaly, RenewalResource (model/finance.go)
+    - 创建 Handler: 账单/订单/续费/成本/预算/异常 API (handler/finance.go)
+    - 创建 Service: 业务逻辑服务 (service/finance.go)
+    - 注册路由: 添加 finance API 端点 (main.go)
+    - 自动迁移: 添加 finance 数据表
+  - **编译验证**: 后端成功、前端成功
+  - **Git Commit**: 9cb2650
+- Files created/modified:
+  - frontend/src/router.ts (修改 - 添加费用中心路由)
+  - frontend/src/types/finance.ts (新建)
+  - frontend/src/api/finance.ts (新建)
+  - frontend/src/views/finance/orders/my-orders/index.vue (新建)
+  - frontend/src/views/finance/orders/renewals/index.vue (新建)
+  - frontend/src/views/finance/bills/view/index.vue (新建)
+  - frontend/src/views/finance/bills/export/index.vue (新建)
+  - frontend/src/views/finance/cost/analysis/index.vue (新建)
+  - frontend/src/views/finance/cost/reports/index.vue (新建)
+  - frontend/src/views/finance/cost/budgets/index.vue (新建)
+  - frontend/src/views/finance/cost/anomaly/index.vue (新建)
+  - backend/internal/model/finance.go (新建)
+  - backend/internal/handler/finance.go (新建)
+  - backend/internal/service/finance.go (新建)
+  - backend/cmd/server/main.go (修改 - 注册路由和模型)
+  - docs/superpowers/specs/2026-04-13-cost-center-module-design.md (新建)
+  - docs/superpowers/plans/2026-04-13-cost-center-module-plan.md (新建)
+
+## Session: 2026-04-13 (阿里云风格嵌套下拉菜单)
+
+### 云账户管理操作按钮嵌套下拉菜单实现
+- **Status:** complete
+- **Started:** 2026-04-13
+- **Completed:** 2026-04-13
+- Actions:
+  - **设计**: 参考阿里云 UI 模式，实现嵌套下拉菜单
+  - **尝试方案**:
+    - 方案 1: Element Plus nested el-dropdown - 不正确渲染子菜单
+    - 方案 2: CSS hover + div.submenu - 样式不生效（teleport 问题）
+    - **方案 3（成功）**: el-popover + trigger="hover"
+  - **最终实现**:
+    - 操作列宽度 140px
+    - "同步云账号" 主按钮 + "更多" 下拉按钮
+    - 子菜单使用 `el-popover`:
+      - `placement="right-start"` 向右展开
+      - `trigger="hover"` 鼠标悬停触发
+      - `:show-arrow="false"` 无箭头
+    - 子菜单项 `.submenu-item` 类模拟 Element Plus 样式
+
+### 启用状态与状态设置按钮联动
+- **Status:** complete
+- **Started:** 2026-04-13
+- **Completed:** 2026-04-13
+- Actions:
+  - **需求**: 启用状态列和状态设置-启用/禁用按钮状态绑定
+  - **实现内容**:
+    - 当 `row.enabled === true` 时，"启用"按钮禁用（灰色，显示"启用 (已启用)")
+    - 当 `row.enabled === false` 时，"禁用"按钮禁用（灰色，显示"禁用 (已禁用)")
+    - 使用 `:class="{ 'submenu-item-disabled': row.enabled }"` 动态绑定禁用样式
+    - 使用 `@click="!row.enabled && handleStatusCommand(...)"` 阻止禁用状态点击
+  - **CSS 样式**:
+    - `.submenu-item-disabled` 设置 `cursor: not-allowed` 和 `opacity: 0.6`
+    - hover 状态保持灰色，不变色
+  - 编译验证: 前端成功
+- Files modified:
+  - frontend/src/views/cloud-accounts/index.vue
+
+### 后端 UpdateStatus 修复 - Enabled 字段更新
+- **Status:** complete
+- **Started:** 2026-04-13
+- **Completed:** 2026-04-13
+- Actions:
+  - **发现问题**: 点击状态设置-启用/禁用后，启用状态列不更新
+  - **根本原因**: 后端 UpdateStatus handler 只更新 `Status` 字段，没有更新 `Enabled` 字段
+  - **修复内容**:
+    - 添加 `account.Enabled = req.Enabled` 更新启用状态字段
+    - 保留 `account.Status` 更新连接状态字段（两者关联）
+  - **状态字段说明**:
+    - `Enabled` (bool): 启用状态 - true=启用, false=禁用
+    - `Status` (string): 连接状态 - active=已连接, inactive=未连接
+  - 编译验证: 后端成功
+- Files modified:
+  - backend/internal/handler/cloud_account.go
+
+### 云账户列表列状态值修正
+- **Status:** complete
+- **Started:** 2026-04-13
+- **Completed:** 2026-04-13
+- Actions:
+  - **需求说明**:
+    - 状态列：显示 "已连接/未连接"（表示云账号的连接状态）
+    - 启用状态列：显示 "启用/禁用"（表示云账号是否被启用/禁用）
+    - 健康状态列：显示 "正常/异常/无权限"
+  - **修正内容**:
+    - `getStatusText`: active→已连接, inactive→未连接
+    - `getHealthStatusText`: healthy→正常, unhealthy→异常, no_permission→无权限
+  - **状态设置按钮逻辑确认**:
+    - 状态设置-启用/禁用 针对 `enabled` 字段（启用状态列）✓
+    - 启用状态=启用 → 启用按钮灰色不可点击，禁用按钮黑色可点击 ✓
+    - 启用状态=禁用 → 启用按钮黑色可点击，禁用按钮灰色不可点击 ✓
+  - 编译验证: 前端成功
+- Files modified:
+  - frontend/src/views/cloud-accounts/index.vue
+
+## Session: 2026-04-13 (云账户管理页面重构)
+
+### 云账户管理页面布局和功能重构
+- **Status:** complete
+- **Started:** 2026-04-13
+- **Completed:** 2026-04-13
+- Actions:
+  - **表格列恢复完整列表**:
+    - ID、名称、状态、启用状态、健康状态、余额、平台、账号、上次同步、同步时间、所属域、资源归属方式
+  - **操作列重构**:
+    - "同步云账号"按钮 + "更多"下拉菜单
+    - 下拉菜单保留: 状态设置、属性设置、删除
+    - 删除: 验证、编辑按钮
+  - **状态设置对话框重构**:
+    - 显示当前状态标签
+    - 启用按钮、禁用按钮
+    - 连接测试按钮（使用 /test-connection API）
+  - **删除冗余代码**:
+    - 删除编辑对话框和 handleEdit/handleEditSubmit 函数
+    - 删除 handleVerify 函数
+    - 删除 confirmStatusChange 函数
+    - 删除未使用导入 (EditPen, CircleCheck, Search, Menu)
+  - 编译验证: 前端成功
+- Files modified:
+  - frontend/src/views/cloud-accounts/index.vue
+
+## Session: 2026-04-13 (功能合并优化)
+
+### "测试连接"与"验证"按钮功能合并
+- **Status:** complete
+- **Started:** 2026-04-13
+- **Completed:** 2026-04-13
+- Actions:
+  - 分析两个功能差异：本质相同，都调用 DescribeRegions API，但返回信息不同
+  - 采用方案 B：修改"测试连接"按钮调用 `/verify` API
+  - 修改内容:
+    - 按钮文字: "测试连接" → "验证连接"
+    - 按钮文字加载状态: "测试中..." → "验证中..."
+    - 函数调用: testConnectionAPI() → verifyCloudAccount()
+    - 结果显示: 简单结果 → 详细信息（如 "验证成功，18个区域可用"）
+    - 移除未使用的 testConnectionAPI 导入
+  - 编译验证: 前端成功
+- Files modified:
+  - frontend/src/views/cloud-accounts/index.vue
+- 功能对比:
+  | 按钮 | 位置 | API | 返回 |
+  |------|------|-----|------|
+  | 验证连接 | 状态设置对话框 | /verify | 详细结果 |
+  | 验证 | 下拉菜单 | /verify | 详细结果 |
+
+## Session: 2026-04-13 (状态设置对话框修复)
+
+### 云账户状态设置对话框"测试连接"按钮修复
+- **Status:** complete
+- **Started:** 2026-04-13
+- **Completed:** 2026-04-13
+- Actions:
+  - 发现问题: `testConnection` 函数变量命名冲突
+    - 本地函数 `testConnection` 调用 API 函数 `testConnection`
+    - 因为函数同名，递归调用自己，导致死循环，按钮点击无反应
+  - 修复方案: 将导入的 API 函数重命名为 `testConnectionAPI`
+  - 修复内容:
+    - import: `testConnection as testConnectionAPI`
+    - 函数内部: `await testConnectionAPI(currentAccount.value.id)`
+  - 编译验证: 前端成功
+  - 确认后端: TestConnection 方法调用 GetCloudInfo()，阿里云适配器会调用 DescribeRegions API
+- Files modified:
+  - frontend/src/views/cloud-accounts/index.vue
+
+## Session: 2026-04-13 (云账户验证功能修复)
+
+### 云账户验证真实 API 调用修复
+- **Status:** complete
+- **Started:** 2026-04-13
+- **Completed:** 2026-04-13
+- Actions:
+  - 发现问题: `/verify` 端点调用的 `VerifyCloudAccount` 方法只检查 Provider 初始化，未真正验证凭证
+  - 发现问题: `VerifyCredentials` 方法对阿里云调用 `ListRegions`，但该方法返回空数组
+  - 发现: `GetCloudInfo` 方法实际已调用 `DescribeRegions` API，但结果被丢弃
+  - 修复 1: 修改 `Verify` handler 调用 `VerifyCredentials` 方法进行真实验证
+  - 修复 2: 实现阿里云 `ListRegions` 方法，调用 ECS DescribeRegions API 返回区域列表
+  - 编译验证: 后端成功
+- Files modified:
+  - backend/internal/handler/cloud_account.go (Verify 方法)
+  - backend/pkg/cloudprovider/adapters/alibaba/provider.go (ListRegions 实现)
+
+## Session: 2026-04-13 (UI/UX 优化实施)
+
+### Phase 14: UI/UX 设计优化实施
+- **Status:** complete
+- **Started:** 2026-04-13
+- **Completed:** 2026-04-13
+- Actions:
+  - 创建可复用空状态组件 EmptyState.vue
+  - Task 22: 添加空状态组件到三个页面
+    - cloud-accounts/index.vue: 添加空状态，图标 Cloudy
+    - sync-policies/index.vue: 添加空状态，图标 Document
+    - scheduled-tasks.vue: 添加空状态，图标 Timer
+  - Task 20: 优化操作按钮布局
+    - sync-policies: 将4个独立按钮改为"查看"主按钮 + 下拉菜单
+    - scheduled-tasks: 将4个独立按钮改为"执行"主按钮 + 下拉菜单
+    - 操作列宽度从 280px/200px 优化为 140px
+  - Task 23: 添加云账户编辑对话框
+    - 添加 showEditDialog 状态和 editForm 表单
+    - 实现 handleEdit 函数加载当前账户数据
+    - 实现 handleEditSubmit 函数保存编辑
+    - 添加编辑对话框模板
+  - Task 21: 优化表格列结构
+    - cloud-accounts: 合并状态列（status/enabled/health_status）为一个单元格
+    - 删除次要列（description, balance, account_number, sync_time, domain_id, resource_assignment_method）
+    - 操作列宽度从 280px 优化为 120px
+  - 编译验证: 后端成功、前端成功
+- Files created/modified:
+  - frontend/src/components/common/EmptyState.vue (新建)
+  - frontend/src/views/cloud-accounts/index.vue (修改)
+  - frontend/src/views/cloud-management/sync-policies/index.vue (修改)
+  - frontend/src/views/cloud-accounts/scheduled-tasks.vue (修改)
+
 ## Session: 2026-04-13 (Phase 13 多云管理页面优化)
 
 ### Phase 13: 多云管理三页面优化完善
