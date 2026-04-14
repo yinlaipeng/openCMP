@@ -1,62 +1,108 @@
 <template>
   <div class="subnets-page">
-    <el-card class="page-card">
+    <el-card class="page-card glass">
       <template #header>
         <div class="card-header">
-          <span class="title">IP子网列表</span>
-          <el-button type="primary" @click="handleCreate">
+          <div class="header-left">
+            <span class="title">IP子网列表</span>
+            <el-tag size="small" type="info" class="count-tag">共 {{ subnets.length }} 个</el-tag>
+          </div>
+          <el-button type="primary" class="create-btn" @click="handleCreate">
             <el-icon><Plus /></el-icon>
             创建子网
           </el-button>
         </div>
       </template>
 
-      <el-table :data="subnets" v-loading="loading">
+      <!-- Empty State -->
+      <el-empty v-if="!loading && subnets.length === 0" description="暂无子网数据">
+        <el-button type="primary" @click="handleCreate">
+          <el-icon><Plus /></el-icon>
+          创建第一个子网
+        </el-button>
+      </el-empty>
+
+      <el-table v-if="subnets.length > 0 || loading" :data="subnets" v-loading="loading" class="subnet-table">
         <el-table-column label="名称" width="180">
           <template #default="{ row }">
-            <el-link @click="viewDetail(row)">{{ row.name }}</el-link>
+            <el-link type="primary" @click="viewDetail(row)">{{ row.name }}</el-link>
           </template>
         </el-table-column>
         <el-table-column prop="status" label="状态" width="100">
           <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)">{{ row.status }}</el-tag>
+            <el-tag :type="getStatusType(row.status)" class="status-tag">{{ row.status }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="type" label="类型" width="100" />
+        <el-table-column prop="type" label="类型" width="100">
+          <template #default="{ row }">
+            <el-tag size="small" effect="plain">{{ row.type }}</el-tag>
+          </template>
+        </el-table-column>
         <el-table-column prop="auto_schedule" label="自动调度" width="100">
           <template #default="{ row }">
-            <el-tag :type="row.auto_schedule ? 'success' : 'info'">
+            <el-tag :type="row.auto_schedule ? 'success' : 'info'" size="small" effect="plain">
               {{ row.auto_schedule ? '是' : '否' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="ip_address" label="ip地址" width="150" />
-        <el-table-column prop="ipv6_address" label="ipv6地址" width="150" />
-        <el-table-column prop="usage" label="使用情况" width="100" />
-        <el-table-column prop="schedule_tags" label="调度标签" width="150" />
-        <el-table-column prop="platform" label="平台" width="100" />
-        <el-table-column prop="project" label="项目" width="120" />
-        <el-table-column prop="region_id" label="区域" width="100" />
-        <el-table-column label="操作" width="150">
+        <el-table-column prop="ip_address" label="IP地址" width="150">
           <template #default="{ row }">
-            <el-button size="small" @click="adjustScheduleTags(row)">调整调度标签</el-button>
-            <el-dropdown>
-              <el-button size="small">
-                更多 <el-icon class="el-icon--right"><arrow-down /></el-icon>
-              </el-button>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item @click="modifyAttributes(row)">修改属性</el-dropdown-item>
-                  <el-dropdown-item @click="changeProject(row)">更改项目</el-dropdown-item>
-                  <el-dropdown-item @click="splitSubnet(row)">分割ip子网</el-dropdown-item>
-                  <el-dropdown-item @click="reserveIP(row)">预留ip</el-dropdown-item>
-                  <el-dropdown-item @click="toggleAutoSchedule(row)">设置自动调度</el-dropdown-item>
-                  <el-dropdown-item @click="switchLayer2Network(row)">更换二层网络</el-dropdown-item>
-                  <el-dropdown-item @click="syncStatus(row)">同步状态</el-dropdown-item>
-                  <el-dropdown-item divided @click="handleDelete(row)">删除</el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
+            <span class="ip-address font-mono">{{ row.ip_address }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="ipv6_address" label="IPv6地址" width="150">
+          <template #default="{ row }">
+            <span v-if="row.ipv6_address" class="ip-address font-mono">{{ row.ipv6_address }}</span>
+            <span v-else class="no-data">-</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="usage" label="使用情况" width="100">
+          <template #default="{ row }">
+            <el-progress
+              :percentage="parseInt(row.usage) || 0"
+              :stroke-width="6"
+              :show-text="false"
+              :color="row.usage > '80%' ? 'var(--color-warning)' : 'var(--color-accent)'"
+            />
+            <span class="usage-text">{{ row.usage }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="platform" label="平台" width="100">
+          <template #default="{ row }">
+            <el-tag size="small" effect="plain">{{ row.platform }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="region_id" label="区域" width="100">
+          <template #default="{ row }">
+            <span class="region font-mono">{{ row.region_id }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="150" fixed="right">
+          <template #default="{ row }">
+            <div class="operation-buttons">
+              <el-dropdown trigger="click">
+                <el-button size="small" type="primary">
+                  <el-icon><Setting /></el-icon>
+                  操作
+                  <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+                </el-button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item @click="adjustScheduleTags(row)">
+                      <el-icon><PriceTag /></el-icon>调整调度标签
+                    </el-dropdown-item>
+                    <el-dropdown-item @click="modifyAttributes(row)">修改属性</el-dropdown-item>
+                    <el-dropdown-item @click="changeProject(row)">更改项目</el-dropdown-item>
+                    <el-dropdown-item @click="syncStatus(row)">
+                      <el-icon><Refresh /></el-icon>同步状态
+                    </el-dropdown-item>
+                    <el-dropdown-item divided @click="handleDelete(row)">
+                      <el-icon color="var(--color-danger)"><Delete /></el-icon>删除
+                    </el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -153,7 +199,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowDown, Plus } from '@element-plus/icons-vue'
+import { ArrowDown, Plus, Setting, PriceTag, Refresh, Delete } from '@element-plus/icons-vue'
 import CreateSubnetModal from '@/components/network/CreateSubnetModal.vue'
 
 interface ExtendedSubnet {
@@ -350,10 +396,17 @@ onMounted(() => {
 <style scoped>
 .subnets-page {
   height: 100%;
+  padding: var(--space-4);
 }
 
 .page-card {
   height: 100%;
+}
+
+.page-card.glass {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(16px);
+  border-radius: var(--radius-lg);
 }
 
 .card-header {
@@ -362,12 +415,83 @@ onMounted(() => {
   align-items: center;
 }
 
-.title {
-  font-size: 18px;
-  font-weight: bold;
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
 }
 
+.title {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-foreground);
+}
+
+.count-tag {
+  font-family: var(--font-mono);
+}
+
+.create-btn {
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.create-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.2);
+}
+
+/* Table */
+.subnet-table {
+  border-radius: var(--radius-md);
+}
+
+.status-tag {
+  font-weight: var(--font-weight-medium);
+}
+
+.ip-address {
+  font-size: var(--font-size-sm);
+}
+
+.no-data {
+  color: var(--color-muted);
+}
+
+.usage-text {
+  font-size: var(--font-size-xs);
+  color: var(--color-muted);
+  margin-top: var(--space-1);
+}
+
+.region {
+  font-size: var(--font-size-sm);
+}
+
+.operation-buttons {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+/* Detail Modal */
 .ip-usage-chart {
-  padding: 20px;
+  padding: var(--space-6);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .subnets-page {
+    padding: var(--space-2);
+  }
+
+  .card-header {
+    flex-direction: column;
+    gap: var(--space-2);
+    align-items: flex-start;
+  }
+
+  .create-btn {
+    width: 100%;
+  }
 }
 </style>

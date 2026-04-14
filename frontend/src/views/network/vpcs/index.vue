@@ -1,144 +1,239 @@
 <template>
   <div class="vpcs-page">
-    <el-card class="page-card">
+    <el-card class="page-card glass">
       <template #header>
         <div class="card-header">
-          <span class="title">VPC列表</span>
-          <el-button type="primary" @click="handleCreate">
+          <div class="header-left">
+            <span class="title">VPC列表</span>
+            <el-tag size="small" type="info" class="count-tag">共 {{ allVpcs.length }} 个</el-tag>
+          </div>
+          <el-button type="primary" class="create-btn" @click="handleCreate">
             <el-icon><Plus /></el-icon>
             创建 VPC
           </el-button>
         </div>
       </template>
 
-      <el-tabs v-model="activeTab">
-        <el-tab-pane label="全部" name="all">
-          <el-table :data="allVpcs" v-loading="loading">
+      <el-tabs v-model="activeTab" class="vpc-tabs">
+        <el-tab-pane name="all">
+          <template #label>
+            <span class="tab-label">
+              <el-icon><Grid /></el-icon>
+              全部
+              <el-badge :value="allVpcs.length" :max="99" class="tab-badge" />
+            </span>
+          </template>
+          <el-table :data="allVpcs" v-loading="loading" class="vpc-table">
             <el-table-column label="名称" width="180">
               <template #default="{ row }">
-                <el-link @click="viewDetail(row)">{{ row.name }}</el-link>
+                <el-link type="primary" @click="viewDetail(row)">{{ row.name }}</el-link>
               </template>
             </el-table-column>
-            <el-table-column prop="status" label="状态" width="120">
+            <el-table-column prop="status" label="状态" width="100">
               <template #default="{ row }">
-                <el-tag :type="getStatusType(row.status)">{{ row.status }}</el-tag>
+                <el-tag :type="getStatusType(row.status)" class="status-tag">{{ row.status }}</el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="cidr" label="ipv4目标网段" width="180" />
-            <el-table-column prop="ipv6_cidr" label="ipv6目标网段" width="180" />
-            <el-table-column prop="allow_internet_access" label="允许外网访问" width="120">
+            <el-table-column prop="cidr" label="IPv4网段" width="180">
               <template #default="{ row }">
-                <el-switch v-model="row.allow_internet_access" disabled />
+                <span class="cidr font-mono">{{ row.cidr }}</span>
               </template>
             </el-table-column>
-            <el-table-column prop="subnet_count" label="ip子网数量" width="100" />
-            <el-table-column prop="platform" label="平台" width="120" />
-            <el-table-column prop="account" label="云账号" width="150" />
-            <el-table-column prop="domain" label="所属域" width="150" />
-            <el-table-column prop="region_id" label="区域" width="150" />
-            <el-table-column label="操作" width="200">
+            <el-table-column prop="ipv6_cidr" label="IPv6网段" width="180">
               <template #default="{ row }">
-                <el-button size="small" type="success" @click="syncStatus(row)">同步状态</el-button>
-                <el-dropdown>
-                  <el-button size="small">
-                    更多 <el-icon class="el-icon--right"><arrow-down /></el-icon>
+                <span v-if="row.ipv6_cidr" class="cidr font-mono">{{ row.ipv6_cidr }}</span>
+                <span v-else class="no-data">-</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="subnet_count" label="子网数" width="80">
+              <template #default="{ row }">
+                <span class="font-mono">{{ row.subnet_count || 0 }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="platform" label="平台" width="100">
+              <template #default="{ row }">
+                <el-tag size="small" effect="plain">{{ row.platform }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="region_id" label="区域" width="120">
+              <template #default="{ row }">
+                <span class="region font-mono">{{ row.region_id }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="180" fixed="right">
+              <template #default="{ row }">
+                <div class="operation-buttons">
+                  <el-button size="small" type="success" @click="syncStatus(row)">
+                    <el-icon><Refresh /></el-icon>
+                    同步
                   </el-button>
-                  <template #dropdown>
-                    <el-dropdown-menu>
-                      <el-dropdown-item @click="changeDomain(row)">更改域</el-dropdown-item>
-                      <el-dropdown-item @click="handleDelete(row)">删除</el-dropdown-item>
-                    </el-dropdown-menu>
-                  </template>
-                </el-dropdown>
+                  <el-dropdown trigger="click">
+                    <el-button size="small">
+                      更多<el-icon class="el-icon--right"><ArrowDown /></el-icon>
+                    </el-button>
+                    <template #dropdown>
+                      <el-dropdown-menu>
+                        <el-dropdown-item @click="changeDomain(row)">
+                          <el-icon><SwitchButton /></el-icon>更改域
+                        </el-dropdown-item>
+                        <el-dropdown-item divided @click="handleDelete(row)">
+                          <el-icon color="var(--color-danger)"><Delete /></el-icon>删除
+                        </el-dropdown-item>
+                      </el-dropdown-menu>
+                    </template>
+                  </el-dropdown>
+                </div>
               </template>
             </el-table-column>
           </el-table>
         </el-tab-pane>
-        <el-tab-pane label="本地idc" name="local_idc">
-          <el-table :data="localIdcVpcs" v-loading="loading">
+        <el-tab-pane name="local_idc">
+          <template #label>
+            <span class="tab-label">
+              <el-icon><OfficeBuilding /></el-icon>
+              本地IDC
+              <el-badge :value="localIdcVpcs.length" :max="99" class="tab-badge" />
+            </span>
+          </template>
+          <el-table :data="localIdcVpcs" v-loading="loading" class="vpc-table">
             <el-table-column label="名称" width="180">
               <template #default="{ row }">
-                <el-link @click="viewDetail(row)">{{ row.name }}</el-link>
+                <el-link type="primary" @click="viewDetail(row)">{{ row.name }}</el-link>
               </template>
             </el-table-column>
-            <el-table-column prop="status" label="状态" width="120">
+            <el-table-column prop="status" label="状态" width="100">
               <template #default="{ row }">
-                <el-tag :type="getStatusType(row.status)">{{ row.status }}</el-tag>
+                <el-tag :type="getStatusType(row.status)" class="status-tag">{{ row.status }}</el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="cidr" label="ipv4目标网段" width="180" />
-            <el-table-column prop="ipv6_cidr" label="ipv6目标网段" width="180" />
-            <el-table-column prop="allow_internet_access" label="允许外网访问" width="120">
+            <el-table-column prop="cidr" label="IPv4网段" width="180">
               <template #default="{ row }">
-                <el-switch v-model="row.allow_internet_access" disabled />
+                <span class="cidr font-mono">{{ row.cidr }}</span>
               </template>
             </el-table-column>
-            <el-table-column prop="subnet_count" label="ip子网数量" width="100" />
-            <el-table-column prop="platform" label="平台" width="120" />
-            <el-table-column prop="account" label="云账号" width="150" />
-            <el-table-column prop="domain" label="所属域" width="150" />
-            <el-table-column prop="region_id" label="区域" width="150" />
-            <el-table-column label="操作" width="200">
+            <el-table-column prop="ipv6_cidr" label="IPv6网段" width="180">
               <template #default="{ row }">
-                <el-button size="small" type="success" @click="syncStatus(row)">同步状态</el-button>
-                <el-dropdown>
-                  <el-button size="small">
-                    更多 <el-icon class="el-icon--right"><arrow-down /></el-icon>
+                <span v-if="row.ipv6_cidr" class="cidr font-mono">{{ row.ipv6_cidr }}</span>
+                <span v-else class="no-data">-</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="subnet_count" label="子网数" width="80">
+              <template #default="{ row }">
+                <span class="font-mono">{{ row.subnet_count || 0 }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="platform" label="平台" width="100">
+              <template #default="{ row }">
+                <el-tag size="small" effect="plain">{{ row.platform }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="region_id" label="区域" width="120">
+              <template #default="{ row }">
+                <span class="region font-mono">{{ row.region_id }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="180" fixed="right">
+              <template #default="{ row }">
+                <div class="operation-buttons">
+                  <el-button size="small" type="success" @click="syncStatus(row)">
+                    <el-icon><Refresh /></el-icon>
+                    同步
                   </el-button>
-                  <template #dropdown>
-                    <el-dropdown-menu>
-                      <el-dropdown-item @click="changeDomain(row)">更改域</el-dropdown-item>
-                      <el-dropdown-item @click="handleDelete(row)">删除</el-dropdown-item>
-                    </el-dropdown-menu>
-                  </template>
-                </el-dropdown>
+                  <el-dropdown trigger="click">
+                    <el-button size="small">
+                      更多<el-icon class="el-icon--right"><ArrowDown /></el-icon>
+                    </el-button>
+                    <template #dropdown>
+                      <el-dropdown-menu>
+                        <el-dropdown-item @click="changeDomain(row)">更改域</el-dropdown-item>
+                        <el-dropdown-item divided @click="handleDelete(row)">删除</el-dropdown-item>
+                      </el-dropdown-menu>
+                    </template>
+                  </el-dropdown>
+                </div>
               </template>
             </el-table-column>
           </el-table>
+          <el-empty v-if="!loading && localIdcVpcs.length === 0" description="暂无本地IDC VPC" :image-size="60" />
         </el-tab-pane>
-        <el-tab-pane label="公有云" name="public_cloud">
-          <el-table :data="publicCloudVpcs" v-loading="loading">
+        <el-tab-pane name="public_cloud">
+          <template #label>
+            <span class="tab-label">
+              <el-icon><Cloudy /></el-icon>
+              公有云
+              <el-badge :value="publicCloudVpcs.length" :max="99" class="tab-badge" />
+            </span>
+          </template>
+          <el-table :data="publicCloudVpcs" v-loading="loading" class="vpc-table">
             <el-table-column label="名称" width="180">
               <template #default="{ row }">
-                <el-link @click="viewDetail(row)">{{ row.name }}</el-link>
+                <el-link type="primary" @click="viewDetail(row)">{{ row.name }}</el-link>
               </template>
             </el-table-column>
-            <el-table-column prop="status" label="状态" width="120">
+            <el-table-column prop="status" label="状态" width="100">
               <template #default="{ row }">
-                <el-tag :type="getStatusType(row.status)">{{ row.status }}</el-tag>
+                <el-tag :type="getStatusType(row.status)" class="status-tag">{{ row.status }}</el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="cidr" label="ipv4目标网段" width="180" />
-            <el-table-column prop="ipv6_cidr" label="ipv6目标网段" width="180" />
-            <el-table-column prop="allow_internet_access" label="允许外网访问" width="120">
+            <el-table-column prop="cidr" label="IPv4网段" width="180">
               <template #default="{ row }">
-                <el-switch v-model="row.allow_internet_access" disabled />
+                <span class="cidr font-mono">{{ row.cidr }}</span>
               </template>
             </el-table-column>
-            <el-table-column prop="subnet_count" label="ip子网数量" width="100" />
-            <el-table-column prop="platform" label="平台" width="120" />
-            <el-table-column prop="account" label="云账号" width="150" />
-            <el-table-column prop="domain" label="所属域" width="150" />
-            <el-table-column prop="region_id" label="区域" width="150" />
-            <el-table-column label="操作" width="200">
+            <el-table-column prop="ipv6_cidr" label="IPv6网段" width="180">
               <template #default="{ row }">
-                <el-button size="small" type="success" @click="syncStatus(row)">同步状态</el-button>
-                <el-dropdown>
-                  <el-button size="small">
-                    更多 <el-icon class="el-icon--right"><arrow-down /></el-icon>
+                <span v-if="row.ipv6_cidr" class="cidr font-mono">{{ row.ipv6_cidr }}</span>
+                <span v-else class="no-data">-</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="subnet_count" label="子网数" width="80">
+              <template #default="{ row }">
+                <span class="font-mono">{{ row.subnet_count || 0 }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="platform" label="平台" width="100">
+              <template #default="{ row }">
+                <el-tag size="small" effect="plain">{{ row.platform }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="region_id" label="区域" width="120">
+              <template #default="{ row }">
+                <span class="region font-mono">{{ row.region_id }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="180" fixed="right">
+              <template #default="{ row }">
+                <div class="operation-buttons">
+                  <el-button size="small" type="success" @click="syncStatus(row)">
+                    <el-icon><Refresh /></el-icon>
+                    同步
                   </el-button>
-                  <template #dropdown>
-                    <el-dropdown-menu>
-                      <el-dropdown-item @click="changeDomain(row)">更改域</el-dropdown-item>
-                      <el-dropdown-item @click="handleDelete(row)">删除</el-dropdown-item>
-                    </el-dropdown-menu>
-                  </template>
-                </el-dropdown>
+                  <el-dropdown trigger="click">
+                    <el-button size="small">
+                      更多<el-icon class="el-icon--right"><ArrowDown /></el-icon>
+                    </el-button>
+                    <template #dropdown>
+                      <el-dropdown-menu>
+                        <el-dropdown-item @click="changeDomain(row)">更改域</el-dropdown-item>
+                        <el-dropdown-item divided @click="handleDelete(row)">删除</el-dropdown-item>
+                      </el-dropdown-menu>
+                    </template>
+                  </el-dropdown>
+                </div>
               </template>
             </el-table-column>
           </el-table>
+          <el-empty v-if="!loading && publicCloudVpcs.length === 0" description="暂无公有云 VPC" :image-size="60" />
         </el-tab-pane>
       </el-tabs>
+
+      <!-- Empty State -->
+      <el-empty v-if="!loading && allVpcs.length === 0" description="暂无 VPC 数据">
+        <el-button type="primary" @click="handleCreate">
+          <el-icon><Plus /></el-icon>
+          创建第一个 VPC
+        </el-button>
+      </el-empty>
     </el-card>
 
     <!-- Detail Modal -->
@@ -220,7 +315,16 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowDown, Plus } from '@element-plus/icons-vue'
+import {
+  ArrowDown,
+  Plus,
+  Grid,
+  OfficeBuilding,
+  Cloudy,
+  Refresh,
+  SwitchButton,
+  Delete
+} from '@element-plus/icons-vue'
 import CreateVPCModal from '@/components/network/CreateVPCModal.vue'
 
 interface ExtendedVPC {
@@ -409,10 +513,17 @@ onMounted(() => {
 <style scoped>
 .vpcs-page {
   height: 100%;
+  padding: var(--space-4);
 }
 
 .page-card {
   height: 100%;
+}
+
+.page-card.glass {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(16px);
+  border-radius: var(--radius-lg);
 }
 
 .card-header {
@@ -421,17 +532,102 @@ onMounted(() => {
   align-items: center;
 }
 
-.title {
-  font-size: 18px;
-  font-weight: bold;
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
 }
 
+.title {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-foreground);
+}
+
+.count-tag {
+  font-family: var(--font-mono);
+}
+
+.create-btn {
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.create-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.2);
+}
+
+/* Tabs Styling */
+.vpc-tabs {
+  margin-top: var(--space-2);
+}
+
+.tab-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.tab-badge {
+  margin-left: var(--space-1);
+}
+
+/* Table */
+.vpc-table {
+  border-radius: var(--radius-md);
+}
+
+.status-tag {
+  font-weight: var(--font-weight-medium);
+}
+
+.cidr {
+  font-size: var(--font-size-sm);
+}
+
+.no-data {
+  color: var(--color-muted);
+}
+
+.region {
+  font-size: var(--font-size-sm);
+}
+
+.operation-buttons {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+/* Detail Modal */
 .topology-placeholder {
   height: 400px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #f5f5f5;
-  border-radius: 4px;
+  background-color: var(--color-background);
+  border-radius: var(--radius-md);
+  color: var(--color-muted);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .vpcs-page {
+    padding: var(--space-2);
+  }
+
+  .card-header {
+    flex-direction: column;
+    gap: var(--space-2);
+    align-items: flex-start;
+  }
+
+  .create-btn {
+    width: 100%;
+  }
+
+  .tab-label {
+    font-size: var(--font-size-sm);
+  }
 }
 </style>

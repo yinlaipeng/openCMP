@@ -325,43 +325,74 @@ const handleSubmit = async () => {
 </script>
 
 <style scoped>
+/* Dialog */
+.el-dialog {
+  border-radius: var(--radius-xl);
+}
+
+/* Footer */
 .dialog-footer {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
+  gap: var(--space-2);
 }
 
+/* CIDR Help Content */
 .cidr-help-content {
-  line-height: 1.8;
+  line-height: var(--line-height-relaxed);
 }
 
 .cidr-help-content h4 {
-  margin-top: 10px;
-  margin-bottom: 10px;
-  color: #303133;
+  margin-top: var(--space-2);
+  margin-bottom: var(--space-2);
+  color: var(--color-foreground);
+  font-weight: var(--font-weight-semibold);
 }
 
 .cidr-help-content p {
-  color: #606266;
+  color: var(--color-muted);
 }
 
 .cidr-help-content code {
-  padding: 2px 6px;
-  background-color: #f5f7fa;
-  border-radius: 4px;
-  font-family: monospace;
+  padding: var(--space-1) var(--space-2);
+  background-color: rgba(248, 250, 252, 0.5);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
 }
 
 .cidr-help-content ul {
-  padding-left: 20px;
-  color: #606266;
+  padding-left: var(--space-6);
+  color: var(--color-muted);
 }
 
 .cidr-help-content li {
-  margin: 5px 0;
+  margin: var(--space-1) 0;
 }
 
 .cidr-help-content .el-table {
-  margin: 10px 0;
+  margin: var(--space-2) 0;
+  border-radius: var(--radius-md);
+}
+
+/* Form Items */
+.el-form-item__label {
+  font-weight: var(--font-weight-medium);
+}
+
+/* CIDR Input */
+.el-input-group__append {
+  background: rgba(248, 250, 252, 0.5);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .el-dialog {
+    width: 95% !important;
+  }
+
+  .dialog-footer {
+    flex-wrap: wrap;
+  }
 }
 </style>

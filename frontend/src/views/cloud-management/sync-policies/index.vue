@@ -27,7 +27,18 @@
         </el-form-item>
       </el-form>
 
-      <el-table :data="policies" v-loading="loading" style="width: 100%">
+      <!-- 空状态 -->
+      <EmptyState
+        v-if="!loading && policies.length === 0"
+        title="暂无同步策略"
+        description="当前没有任何同步策略，点击下方按钮创建策略"
+        :icon="Document"
+        createButtonText="添加策略"
+        @create="showCreateDialog"
+      />
+
+      <!-- 数据表格 -->
+      <el-table :data="policies" v-loading="loading" style="width: 100%" v-if="policies.length > 0 || loading">
         <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="name" label="名称" width="180" />
         <el-table-column prop="scope" label="应用范围" width="150">
@@ -53,14 +64,23 @@
             {{ formatDate(row.created_at) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="140" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" @click="handleView(row)">查看</el-button>
-            <el-button size="small" @click="handleEdit(row)">编辑</el-button>
-            <el-button size="small" @click="handleToggle(row)">
-              {{ row.enabled ? '禁用' : '启用' }}
-            </el-button>
-            <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+            <el-button size="small" type="primary" @click="handleView(row)">查看</el-button>
+            <el-dropdown trigger="click" @command="(cmd: string) => handleDropdownCommand(cmd, row)" style="margin-left: 8px">
+              <el-button size="small" link>
+                更多 <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="edit" :icon="EditPen">编辑</el-dropdown-item>
+                  <el-dropdown-item command="toggle" :icon="row.enabled ? CircleClose : CircleCheck">
+                    {{ row.enabled ? '禁用' : '启用' }}
+                  </el-dropdown-item>
+                  <el-dropdown-item command="delete" :icon="Delete" divided>删除</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </template>
         </el-table-column>
       </el-table>
@@ -217,11 +237,12 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance } from 'element-plus'
-import { Plus, Delete } from '@element-plus/icons-vue'
+import { Plus, Delete, Document, ArrowDown, EditPen, CircleCheck, CircleClose } from '@element-plus/icons-vue'
 import { getSyncPolicies, getSyncPolicy, createSyncPolicy, updateSyncPolicy, deleteSyncPolicy, updateSyncPolicyStatus } from '@/api/sync-policy'
 import { getDomains } from '@/api/iam'
 import { getProjects } from '@/api/project'
 import type { SyncPolicy, CreateSyncPolicyRequest, Rule, RuleTag } from '@/types/sync-policy'
+import EmptyState from '@/components/common/EmptyState.vue'
 
 interface TagItem {
   tag_key: string
@@ -435,6 +456,21 @@ const handleDelete = async (row: SyncPolicy) => {
       console.error(e)
       ElMessage.error('删除失败')
     }
+  }
+}
+
+// 处理下拉菜单命令
+const handleDropdownCommand = (command: string, row: SyncPolicy) => {
+  switch (command) {
+    case 'edit':
+      handleEdit(row)
+      break
+    case 'toggle':
+      handleToggle(row)
+      break
+    case 'delete':
+      handleDelete(row)
+      break
   }
 }
 

@@ -11,7 +11,18 @@
         </div>
       </template>
 
-      <el-table :data="tasks" v-loading="loading" style="width: 100%">
+      <!-- 空状态 -->
+      <EmptyState
+        v-if="!loading && tasks.length === 0"
+        title="暂无定时任务"
+        description="当前没有任何定时同步任务，点击下方按钮创建任务"
+        :icon="Timer"
+        createButtonText="添加任务"
+        @create="showDialog = true"
+      />
+
+      <!-- 数据表格 -->
+      <el-table :data="tasks" v-loading="loading" style="width: 100%" v-if="tasks.length > 0 || loading">
         <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="name" label="名称" width="150" />
         <el-table-column prop="type" label="类型" width="150">
@@ -44,14 +55,23 @@
             {{ getCloudAccountName(row.cloud_account_id) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="280" fixed="right">
+        <el-table-column label="操作" width="140" fixed="right">
           <template #default="{ row }">
             <el-button size="small" type="success" @click="handleExecute(row)">执行</el-button>
-            <el-button size="small" @click="handleEdit(row)">编辑</el-button>
-            <el-button size="small" @click="handleToggle(row)">
-              {{ row.status === 'active' ? '暂停' : '启用' }}
-            </el-button>
-            <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+            <el-dropdown trigger="click" @command="(cmd: string) => handleDropdownCommand(cmd, row)" style="margin-left: 8px">
+              <el-button size="small" link>
+                更多 <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="edit" :icon="EditPen">编辑</el-dropdown-item>
+                  <el-dropdown-item command="toggle" :icon="row.status === 'active' ? CircleClose : CircleCheck">
+                    {{ row.status === 'active' ? '暂停' : '启用' }}
+                  </el-dropdown-item>
+                  <el-dropdown-item command="delete" :icon="Delete" divided>删除</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </template>
         </el-table-column>
       </el-table>
@@ -146,10 +166,11 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, Timer, ArrowDown, EditPen, CircleCheck, CircleClose, Delete } from '@element-plus/icons-vue'
 import { getScheduledTasks, createScheduledTask, updateScheduledTask, deleteScheduledTask, updateScheduledTaskStatus, executeScheduledTask } from '@/api/scheduled-task'
 import { getCloudAccounts } from '@/api/cloud-account'
 import type { ScheduledTask, CreateScheduledTaskRequest } from '@/types'
+import EmptyState from '@/components/common/EmptyState.vue'
 
 const tasks = ref<ScheduledTask[]>([])
 const cloudAccounts = ref<any[]>([])
@@ -269,6 +290,21 @@ const handleDelete = async (row: ScheduledTask) => {
       console.error(e)
       ElMessage.error('删除失败')
     }
+  }
+}
+
+// 处理下拉菜单命令
+const handleDropdownCommand = (command: string, row: ScheduledTask) => {
+  switch (command) {
+    case 'edit':
+      handleEdit(row)
+      break
+    case 'toggle':
+      handleToggle(row)
+      break
+    case 'delete':
+      handleDelete(row)
+      break
   }
 }
 

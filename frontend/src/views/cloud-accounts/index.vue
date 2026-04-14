@@ -11,10 +11,20 @@
         </div>
       </template>
 
-      <el-table :data="accounts" v-loading="loading" style="width: 100%">
+      <!-- 空状态 -->
+      <EmptyState
+        v-if="!loading && accounts.length === 0"
+        title="暂无云账户"
+        description="当前没有任何云账户，点击下方按钮添加云账户"
+        :icon="Cloudy"
+        createButtonText="添加云账户"
+        @create="showWizard = true"
+      />
+
+      <!-- 数据表格 -->
+      <el-table :data="accounts" v-loading="loading" style="width: 100%" v-if="accounts.length > 0 || loading" :table-layout="'auto'">
         <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="name" label="名称" width="150" />
-        <el-table-column prop="description" label="备注" width="200" />
+        <el-table-column prop="name" label="名称" min-width="150" />
         <el-table-column prop="status" label="状态" width="100">
           <template #default="{ row }">
             <el-tag :type="getStatusType(row.status)">
@@ -41,33 +51,95 @@
             ¥{{ row.balance?.toFixed(2) || '0.00' }}
           </template>
         </el-table-column>
-        <el-table-column prop="provider_type" label="平台" width="120">
+        <el-table-column prop="provider_type" label="平台" width="100">
           <template #default="{ row }">
             <el-tag :type="getProviderType(row.provider_type)">
               {{ getProviderName(row.provider_type) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="account_number" label="账号" width="150" />
-        <el-table-column prop="last_sync" label="上次同步" width="180" />
-        <el-table-column prop="sync_time" label="同步时间" width="120" />
-        <el-table-column prop="domain_id" label="所属域" width="100" />
-        <el-table-column prop="resource_assignment_method" label="资源归属方式" width="150" />
-        <el-table-column prop="created_at" label="创建时间" width="180" />
-        <el-table-column label="操作" width="280" fixed="right">
+        <el-table-column prop="account_number" label="账号" width="150" show-overflow-tooltip />
+        <el-table-column prop="last_sync" label="上次同步" width="160" show-overflow-tooltip />
+        <el-table-column prop="sync_time" label="同步时间" width="120" show-overflow-tooltip />
+        <el-table-column prop="domain_id" label="所属域" width="100">
           <template #default="{ row }">
-            <el-dropdown trigger="click" @command="(cmd) => handleDropdownCommand(cmd, row)">
-              <el-button size="small" type="primary" link>
+            {{ getDomainName(row.domain_id) }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="resource_assignment_method" label="资源归属方式" width="150">
+          <template #default="{ row }">
+            {{ getResourceAssignmentMethodName(row.resource_assignment_method) }}
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="140" fixed="right">
+          <template #default="{ row }">
+            <el-button size="small" type="primary" @click="handleSyncClick(row)">同步云账号</el-button>
+            <el-dropdown trigger="click" style="margin-left: 8px">
+              <el-button size="small">
                 更多 <el-icon class="el-icon--right"><ArrowDown /></el-icon>
               </el-button>
               <template #dropdown>
                 <el-dropdown-menu>
-                  <el-dropdown-item command="sync" :icon="Refresh">同步云账号</el-dropdown-item>
-                  <el-dropdown-item command="status" :icon="Setting">状态设置</el-dropdown-item>
-                  <el-dropdown-item command="attributes" :icon="Tickets">属性设置</el-dropdown-item>
-                  <el-dropdown-item command="verify" :icon="CircleCheck">验证</el-dropdown-item>
-                  <el-dropdown-item command="edit" :icon="EditPen">编辑</el-dropdown-item>
-                  <el-dropdown-item command="delete" :icon="Delete" divided>删除</el-dropdown-item>
+                  <!-- 状态设置 - 使用 popover 子菜单 -->
+                  <el-dropdown-item>
+                    <el-popover
+                      placement="right-start"
+                      trigger="hover"
+                      :width="130"
+                      :show-arrow="false"
+                      :offset="4"
+                    >
+                      <template #reference>
+                        <span style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                          状态设置 <el-icon><ArrowRight /></el-icon>
+                        </span>
+                      </template>
+                      <div style="padding: 4px 0;">
+                        <div
+                          class="submenu-item"
+                          :class="{ 'submenu-item-disabled': row.enabled }"
+                          @click="!row.enabled && handleStatusCommand('enable', row)"
+                        >
+                          <span v-if="row.enabled" style="color: #909399;">启用 (已启用)</span>
+                          <span v-else>启用</span>
+                        </div>
+                        <div
+                          class="submenu-item"
+                          :class="{ 'submenu-item-disabled': !row.enabled }"
+                          @click="row.enabled && handleStatusCommand('disable', row)"
+                        >
+                          <span v-if="!row.enabled" style="color: #909399;">禁用 (已禁用)</span>
+                          <span v-else>禁用</span>
+                        </div>
+                        <div class="submenu-item" @click="handleStatusCommand('test', row)">连接测试</div>
+                      </div>
+                    </el-popover>
+                  </el-dropdown-item>
+                  <!-- 属性设置 - 使用 popover 子菜单 -->
+                  <el-dropdown-item>
+                    <el-popover
+                      placement="right-start"
+                      trigger="hover"
+                      :width="150"
+                      :show-arrow="false"
+                      :offset="4"
+                    >
+                      <template #reference>
+                        <span style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                          属性设置 <el-icon><ArrowRight /></el-icon>
+                        </span>
+                      </template>
+                      <div style="padding: 4px 0;">
+                        <div class="submenu-item" @click="handleAttributesCommand('auto_sync', row)">设置自动同步</div>
+                        <div class="submenu-item" @click="handleAttributesCommand('sync_policy', row)">设置同步策略</div>
+                        <div class="submenu-item" @click="handleAttributesCommand('update', row)">更新账号</div>
+                      </div>
+                    </el-popover>
+                  </el-dropdown-item>
+                  <!-- 删除 - 直接操作 -->
+                  <el-dropdown-item divided @click="handleDelete(row)">
+                    <span style="color: var(--el-color-danger)">删除</span>
+                  </el-dropdown-item>
                 </el-dropdown-menu>
               </template>
             </el-dropdown>
@@ -367,27 +439,6 @@
       </template>
     </el-dialog>
 
-    <!-- 状态设置对话框 -->
-    <el-dialog v-model="showStatusDialog" title="状态设置" width="500px">
-      <el-form :model="statusForm" label-width="120px">
-        <el-form-item label="启用状态">
-          <el-switch v-model="statusForm.enabled" />
-        </el-form-item>
-        <el-form-item label="连接测试">
-          <el-button @click="testConnection" :loading="statusForm.connectionStatus === 'testing'">
-            {{ statusForm.connectionStatus === 'testing' ? '测试中...' : '测试连接' }}
-          </el-button>
-          <span v-if="statusForm.connectionResult" :class="statusForm.connectionResult.includes('成功') ? 'text-success' : 'text-danger'">
-            {{ statusForm.connectionResult }}
-          </span>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="confirmStatusChange">保存</el-button>
-        <el-button @click="showStatusDialog = false">取消</el-button>
-      </template>
-    </el-dialog>
-
     <!-- 属性设置对话框 -->
     <el-dialog v-model="showAttributesDialog" title="属性设置" width="600px">
       <el-form :model="attributesForm" label-width="150px">
@@ -418,18 +469,35 @@
         <el-button @click="showAttributesDialog = false">取消</el-button>
       </template>
     </el-dialog>
+
+    <!-- 更新账号对话框 -->
+    <el-dialog v-model="showUpdateDialog" title="更新账号" width="500px">
+      <el-form :model="updateForm" label-width="100px">
+        <el-form-item label="账户名称">
+          <el-input v-model="updateForm.name" placeholder="请输入账户名称" />
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="updateForm.description" type="textarea" :rows="3" placeholder="请输入备注" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showUpdateDialog = false">取消</el-button>
+        <el-button type="primary" @click="handleUpdateSubmit">保存</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed, watch } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance } from 'element-plus'
-import { Plus, Cloudy, Search, Menu, ArrowDown, Refresh, Setting, Tickets, CircleCheck, EditPen, Delete } from '@element-plus/icons-vue'
-import { getCloudAccounts, createCloudAccount, updateCloudAccount, deleteCloudAccount, verifyCloudAccount, syncCloudAccount, testConnection, updateCloudAccountStatus, updateCloudAccountAttributes } from '@/api/cloud-account'
+import { Plus, Cloudy, ArrowDown, ArrowRight, Refresh, FolderOpened } from '@element-plus/icons-vue'
+import { getCloudAccounts, createCloudAccount, updateCloudAccount, deleteCloudAccount, syncCloudAccount, testConnection as testConnectionAPI, updateCloudAccountStatus, updateCloudAccountAttributes } from '@/api/cloud-account'
 import { getSyncPolicies } from '@/api/sync-policy'
 import { getProjects } from '@/api/project'
 import type { CloudAccount, CreateCloudAccountRequest, Project } from '@/types'
 import type { SyncPolicy } from '@/types/sync-policy'
+import EmptyState from '@/components/common/EmptyState.vue'
 
 const accounts = ref<CloudAccount[]>([])
 const syncPolicies = ref<SyncPolicy[]>([])
@@ -804,8 +872,10 @@ const getProviderType = (type: string) => {
 
 const getStatusType = (status: string) => {
   const statusMap: Record<string, string> = {
-    active: 'success',
-    inactive: 'info',
+    active: 'success',      // 已连接
+    connected: 'success',   // 已连接
+    inactive: 'info',       // 未连接
+    disconnected: 'info',   // 未连接
     error: 'danger',
     pending: 'warning',
     unknown: 'info'
@@ -815,10 +885,12 @@ const getStatusType = (status: string) => {
 
 const getStatusText = (status: string) => {
   const statusMap: Record<string, string> = {
-    active: '正常',
-    inactive: '未激活',
-    error: '错误',
-    pending: '待处理',
+    active: '已连接',
+    connected: '已连接',
+    inactive: '未连接',
+    disconnected: '未连接',
+    error: '连接错误',
+    pending: '连接中',
     unknown: '未知'
   }
   return statusMap[status] || status
@@ -826,8 +898,11 @@ const getStatusText = (status: string) => {
 
 const getHealthStatusType = (status: string) => {
   const statusMap: Record<string, string> = {
-    healthy: 'success',
-    unhealthy: 'danger',
+    healthy: 'success',     // 正常
+    normal: 'success',      // 正常
+    unhealthy: 'danger',    // 异常
+    abnormal: 'danger',     // 异常
+    no_permission: 'warning', // 无权限
     warning: 'warning',
     unknown: 'info'
   }
@@ -836,25 +911,15 @@ const getHealthStatusType = (status: string) => {
 
 const getHealthStatusText = (status: string) => {
   const statusMap: Record<string, string> = {
-    healthy: '健康',
+    healthy: '正常',
+    normal: '正常',
     unhealthy: '异常',
+    abnormal: '异常',
+    no_permission: '无权限',
     warning: '警告',
     unknown: '未知'
   }
   return statusMap[status] || status
-}
-
-const handleVerify = async (row: CloudAccount) => {
-  try {
-    await verifyCloudAccount(row.id)
-    ElMessage.success('验证成功')
-  } catch (e) {
-    ElMessage.error('验证失败')
-  }
-}
-
-const handleEdit = (row: CloudAccount) => {
-  ElMessage.warning('编辑功能将在后续版本中实现')
 }
 
 const handleDelete = async (row: CloudAccount) => {
@@ -880,8 +945,8 @@ const handleSizeChange = (size: number) => {
 
 // 新增的响应式数据
 const showSyncDialog = ref(false)
-const showStatusDialog = ref(false)
 const showAttributesDialog = ref(false)
+const showUpdateDialog = ref(false)
 const showAccountDetailDialog = ref(false)
 const activeTab = ref('details')
 
@@ -895,10 +960,9 @@ const syncForm = ref({
   notes: ''
 })
 
-const statusForm = ref({
-  enabled: true,
-  connectionStatus: 'unknown',
-  connectionResult: ''
+const updateForm = ref({
+  name: '',
+  description: ''
 })
 
 const attributesForm = ref({
@@ -985,39 +1049,95 @@ const loadSubscriptions = async (accountId: number) => {
   }
 }
 
-const handleDropdownCommand = async (command: string, row: any) => {
+// 状态设置下拉菜单命令处理
+const handleStatusCommand = async (command: string, row: any) => {
   currentAccount.value = row
-  statusForm.value.enabled = row.enabled
 
   switch (command) {
-    case 'sync':
-      syncForm.value.name = row.name
-      syncForm.value.environment = getProviderName(row.provider_type)
-      // 模拟连接状态检查
-      syncForm.value.connectionStatus = row.status === 'active'
-      showSyncDialog.value = true
+    case 'enable':
+      await handleEnable()
       break
-    case 'status':
-      statusForm.value.enabled = row.enabled
-      showStatusDialog.value = true
+    case 'disable':
+      await handleDisable()
       break
-    case 'attributes':
-      // 加载当前属性值
+    case 'test':
+      await handleTestConnection(row)
+      break
+  }
+}
+
+// 属性设置下拉菜单命令处理
+const handleAttributesCommand = async (command: string, row: any) => {
+  currentAccount.value = row
+
+  switch (command) {
+    case 'auto_sync':
+      attributesForm.value.autoSync = !row.auto_sync
+      attributesForm.value.syncPolicy = row.sync_policy || 'default'
+      attributesForm.value.syncInterval = row.sync_interval ?? 24
+      attributesForm.value.syncResourceTypes = row.sync_resource_types || []
+      showAttributesDialog.value = true
+      break
+    case 'sync_policy':
       attributesForm.value.autoSync = row.auto_sync ?? true
       attributesForm.value.syncPolicy = row.sync_policy || 'default'
       attributesForm.value.syncInterval = row.sync_interval ?? 24
       attributesForm.value.syncResourceTypes = row.sync_resource_types || []
       showAttributesDialog.value = true
       break
-    case 'verify':
-      await handleVerify(row)
+    case 'update':
+      showUpdateDialog.value = true
+      updateForm.value.name = row.name
+      updateForm.value.description = row.description || ''
       break
-    case 'edit':
-      handleEdit(row)
-      break
-    case 'delete':
-      await handleDelete(row)
-      break
+  }
+}
+
+// 同步云账号按钮点击
+const handleSyncClick = (row: any) => {
+  currentAccount.value = row
+  syncForm.value.name = row.name
+  syncForm.value.environment = getProviderName(row.provider_type)
+  syncForm.value.connectionStatus = row.status === 'active'
+  showSyncDialog.value = true
+}
+
+// 启用云账号
+const handleEnable = async () => {
+  try {
+    await updateCloudAccountStatus(currentAccount.value.id, true)
+    ElMessage.success('已启用云账号')
+    loadAccounts()
+  } catch (error) {
+    ElMessage.error('启用失败')
+    console.error('Enable error:', error)
+  }
+}
+
+// 禁用云账号
+const handleDisable = async () => {
+  try {
+    await updateCloudAccountStatus(currentAccount.value.id, false)
+    ElMessage.success('已禁用云账号')
+    loadAccounts()
+  } catch (error) {
+    ElMessage.error('禁用失败')
+    console.error('Disable error:', error)
+  }
+}
+
+// 连接测试
+const handleTestConnection = async (row: any) => {
+  try {
+    const response = await testConnectionAPI(row.id)
+    if (response.connected) {
+      ElMessage.success('连接测试成功')
+    } else {
+      ElMessage.warning('连接测试失败: ' + (response.message || '无法连接'))
+    }
+  } catch (error: any) {
+    ElMessage.error('连接测试失败')
+    console.error('Connection test error:', error)
   }
 }
 
@@ -1035,34 +1155,6 @@ const confirmSync = async () => {
   } catch (error) {
     ElMessage.error('同步启动失败')
     console.error('Sync error:', error)
-  }
-}
-
-const testConnection = async () => {
-  statusForm.value.connectionStatus = 'testing'
-  statusForm.value.connectionResult = '正在测试连接...'
-
-  try {
-    const response = await testConnection(currentAccount.value.id)
-    statusForm.value.connectionStatus = response.connected ? 'success' : 'error'
-    statusForm.value.connectionResult = response.connected ? '连接成功' : '连接失败'
-  } catch (error) {
-    statusForm.value.connectionStatus = 'error'
-    statusForm.value.connectionResult = '连接测试失败'
-    console.error('Connection test error:', error)
-  }
-}
-
-const confirmStatusChange = async () => {
-  try {
-    await updateCloudAccountStatus(currentAccount.value.id, statusForm.value.enabled)
-
-    ElMessage.success('状态更新成功')
-    showStatusDialog.value = false
-    loadAccounts() // 重新加载列表
-  } catch (error) {
-    ElMessage.error('状态更新失败')
-    console.error('Status update error:', error)
   }
 }
 
@@ -1095,6 +1187,21 @@ const confirmAttributesChange = async () => {
     loadAccounts() // 重新加载列表
   } catch (error) {
     ElMessage.error('属性更新失败')
+    console.error('Update error:', error)
+  }
+}
+
+const handleUpdateSubmit = async () => {
+  try {
+    await updateCloudAccount(currentAccount.value.id, {
+      name: updateForm.value.name,
+      description: updateForm.value.description
+    })
+    ElMessage.success('账号更新成功')
+    showUpdateDialog.value = false
+    loadAccounts()
+  } catch (error) {
+    ElMessage.error('账号更新失败')
     console.error('Update error:', error)
   }
 }
@@ -1159,7 +1266,7 @@ const getSyncStatusType = (status: string) => {
 
 const formatDate = (dateString: string | undefined) => {
   if (!dateString) return '-'
-  return new Date(dateString).toLocaleString('zh-CN')
+  return new Date(dateString).toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
 }
 
 const getDomainName = (domainId: number) => {
@@ -1309,5 +1416,44 @@ onMounted(() => {
 
 .text-danger {
   color: #f56c6c;
+}
+
+.status-cell {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+</style>
+
+<!-- 全局样式（子菜单项样式） -->
+<style>
+/* 子菜单项样式 - 模拟 Element Plus dropdown item */
+.submenu-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1.4;
+  transition: background-color 0.2s;
+}
+
+.submenu-item:hover {
+  background-color: var(--el-fill-color-light);
+  color: var(--el-color-primary);
+}
+
+.submenu-item:active {
+  background-color: var(--el-fill-color);
+}
+
+/* 子菜单项禁用状态 */
+.submenu-item-disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.submenu-item-disabled:hover {
+  background-color: transparent;
+  color: #909399;
 }
 </style>
