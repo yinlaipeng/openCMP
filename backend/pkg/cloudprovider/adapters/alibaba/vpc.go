@@ -3,6 +3,7 @@ package alibaba
 import (
 	"context"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
@@ -473,4 +474,117 @@ func (p *AlibabaProvider) ListEIPs(ctx context.Context, filter cloudprovider.EIP
 	}
 
 	return eips, nil
+}
+
+// UpdateSubnet 更新子网属性
+func (p *AlibabaProvider) UpdateSubnet(ctx context.Context, subnetID, name, description string, tags map[string]string) (*cloudprovider.Subnet, error) {
+	// 修改 VSwitch 名称
+	if name != "" {
+		request := vpc.CreateModifyVSwitchAttributeRequest()
+		request.Scheme = "https"
+		request.VSwitchId = subnetID
+		request.VSwitchName = name
+		request.Description = description
+
+		_, err := p.vpcClient.ModifyVSwitchAttribute(request)
+		if err != nil {
+			return nil, cloudprovider.NewCloudError(
+				cloudprovider.ErrOperationFailed,
+				"failed to modify vswitch attribute",
+				err.Error(),
+			)
+		}
+	}
+
+	// 获取更新后的子网信息
+	return p.GetSubnet(ctx, subnetID)
+}
+
+// AddSecurityGroupRule 添加安全组规则
+func (p *AlibabaProvider) AddSecurityGroupRule(ctx context.Context, sgID string, rule cloudprovider.SGRule) (string, error) {
+	request := ecs.CreateAuthorizeSecurityGroupRequest()
+	request.Scheme = "https"
+	request.SecurityGroupId = sgID
+	request.IpProtocol = rule.Protocol
+	request.PortRange = rule.PortRange
+	request.SourceCidrIp = rule.CIDR
+	request.Policy = rule.Action
+	request.Description = rule.Description
+
+	_, err := p.ecsClient.AuthorizeSecurityGroup(request)
+	if err != nil {
+		return "", cloudprovider.NewCloudError(
+			cloudprovider.ErrOperationFailed,
+			"failed to authorize security group rule",
+			err.Error(),
+		)
+	}
+
+	// 阿里云没有返回规则ID，返回一个基于规则的标识
+	return sgID + "-" + rule.Protocol + "-" + rule.PortRange, nil
+}
+
+// DeleteSecurityGroupRule 删除安全组规则
+func (p *AlibabaProvider) DeleteSecurityGroupRule(ctx context.Context, sgID, ruleID string) error {
+	// 需要先获取规则详情才能删除
+	request := ecs.CreateRevokeSecurityGroupRequest()
+	request.Scheme = "https"
+	request.SecurityGroupId = sgID
+
+	// ruleID 格式为 "sgId-protocol-portRange"，解析出协议和端口范围
+	parts := strings.Split(ruleID, "-")
+	if len(parts) >= 3 {
+		request.IpProtocol = parts[1]
+		request.PortRange = parts[2]
+	}
+
+	_, err := p.ecsClient.RevokeSecurityGroup(request)
+	if err != nil {
+		return cloudprovider.NewCloudError(
+			cloudprovider.ErrOperationFailed,
+			"failed to revoke security group rule",
+			err.Error(),
+		)
+	}
+
+	return nil
+}
+
+// BindEIP 绑定弹性IP
+func (p *AlibabaProvider) BindEIP(ctx context.Context, eipID, resourceID, resourceType string) error {
+	request := vpc.CreateAssociateEipAddressRequest()
+	request.Scheme = "https"
+	request.AllocationId = eipID
+	request.InstanceId = resourceID
+	// 阿里云支持: EcsInstance, SlbInstance, NatGateway, HaVip
+	// resourceType 会被自动处理
+
+	_, err := p.vpcClient.AssociateEipAddress(request)
+	if err != nil {
+		return cloudprovider.NewCloudError(
+			cloudprovider.ErrOperationFailed,
+			"failed to bind eip",
+			err.Error(),
+		)
+	}
+
+	return nil
+}
+
+// UnbindEIP 解绑弹性IP
+func (p *AlibabaProvider) UnbindEIP(ctx context.Context, eipID string) error {
+	request := vpc.CreateUnassociateEipAddressRequest()
+	request.Scheme = "https"
+	request.AllocationId = eipID
+
+	_, err := p.vpcClient.UnassociateEipAddress(request)
+	if err != nil {
+		return cloudprovider.NewCloudError(
+			cloudprovider.ErrOperationFailed,
+			"failed to unbind eip",
+			err.Error(),
+		)
+	}
+
+	return nil
 }

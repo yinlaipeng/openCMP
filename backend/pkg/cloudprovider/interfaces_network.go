@@ -30,6 +30,7 @@ type ISubnet interface {
 	DeleteSubnet(ctx context.Context, subnetID string) error
 	GetSubnet(ctx context.Context, subnetID string) (*Subnet, error)
 	ListSubnets(ctx context.Context, filter SubnetFilter) ([]*Subnet, error)
+	UpdateSubnet(ctx context.Context, subnetID, name, description string, tags map[string]string) (*Subnet, error)
 }
 
 // SubnetFilter 子网列表过滤条件
@@ -47,6 +48,8 @@ type ISecurityGroup interface {
 	AuthorizeSecurityGroup(ctx context.Context, sgID string, rules []SGRule) error
 	RevokeSecurityGroup(ctx context.Context, sgID string, rules []SGRule) error
 	ListSecurityGroups(ctx context.Context, filter SGFilter) ([]*SecurityGroup, error)
+	AddSecurityGroupRule(ctx context.Context, sgID string, rule SGRule) (string, error)
+	DeleteSecurityGroupRule(ctx context.Context, sgID, ruleID string) error
 }
 
 // SGFilter 安全组列表过滤条件
@@ -64,6 +67,8 @@ type IEIP interface {
 	AssociateEIP(ctx context.Context, eipID, resourceID string) error
 	DissociateEIP(ctx context.Context, eipID string) error
 	ListEIPs(ctx context.Context, filter EIPFilter) ([]*EIP, error)
+	BindEIP(ctx context.Context, eipID, resourceID, resourceType string) error
+	UnbindEIP(ctx context.Context, eipID string) error
 }
 
 // EIPFilter 弹性 IP 列表过滤条件

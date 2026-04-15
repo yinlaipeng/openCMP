@@ -174,3 +174,55 @@ func checkPassword(stored, input string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(stored), []byte(input))
 	return err == nil
 }
+
+// UpdateProfile 更新个人信息
+func (h *AuthHandler) UpdateProfile(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+		return
+	}
+
+	var req struct {
+		DisplayName  string `json:"display_name"`
+		Email        string `json:"email"`
+		Phone        string `json:"phone"`
+		Remark       string `json:"remark"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 获取当前用户信息
+	user, err := h.userService.GetUser(c.Request.Context(), userID.(uint))
+	if err != nil {
+		h.logger.Error("failed to get user", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get user info"})
+		return
+	}
+
+	// 更新用户信息
+	if req.DisplayName != "" {
+		user.DisplayName = req.DisplayName
+	}
+	if req.Email != "" {
+		user.Email = req.Email
+	}
+	if req.Phone != "" {
+		user.Phone = req.Phone
+	}
+	if req.Remark != "" {
+		user.Remark = req.Remark
+	}
+
+	err = h.userService.UpdateUser(c.Request.Context(), user)
+	if err != nil {
+		h.logger.Error("failed to update profile", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update profile"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "profile updated", "user": user})
+}

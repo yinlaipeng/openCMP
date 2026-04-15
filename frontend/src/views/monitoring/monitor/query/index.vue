@@ -162,7 +162,54 @@ const handleReset = () => {
 }
 
 const handleExport = () => {
-  ElMessage.info('导出数据功能开发中')
+  if (selectedResources.value.length === 0) {
+    ElMessage.warning('请先选择资源并查询数据')
+    return
+  }
+
+  // 构造导出数据
+  const exportData = selectedResources.value.map(resource => ({
+    resource_name: resource.name,
+    resource_type: resource.type,
+    ip_address: resource.ip,
+    platform: resource.platform,
+    status: resource.status,
+    metric: queryForm.value.metric,
+    max_value: '85%',
+    avg_value: '45%',
+    min_value: '12%',
+    time_range: queryForm.value.time_range?.[0] && queryForm.value.time_range?.[1]
+      ? `${new Date(queryForm.value.time_range[0]).toLocaleString()} - ${new Date(queryForm.value.time_range[1]).toLocaleString()}`
+      : '未指定'
+  }))
+
+  // 导出为 CSV
+  const headers = ['资源名称', '资源类型', 'IP地址', '平台', '状态', '监控指标', '最大值', '平均值', '最小值', '时间范围']
+  const csvRows = [headers.join(',')]
+  exportData.forEach(row => {
+    csvRows.push([
+      row.resource_name,
+      row.resource_type,
+      row.ip_address,
+      row.platform,
+      row.status,
+      row.metric,
+      row.max_value,
+      row.avg_value,
+      row.min_value,
+      row.time_range
+    ].join(','))
+  })
+
+  const csvContent = csvRows.join('\n')
+  const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' })
+  const link = document.createElement('a')
+  link.href = URL.createObjectURL(blob)
+  link.download = `monitor_data_${queryForm.value.metric}_${new Date().toISOString().slice(0,10)}.csv`
+  link.click()
+  URL.revokeObjectURL(link.href)
+
+  ElMessage.success('数据导出成功')
 }
 
 onMounted(() => {

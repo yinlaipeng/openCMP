@@ -1,5 +1,53 @@
 # Progress Log
 
+## Session: 2026-04-14 (云账户管理增强 - Phase 16)
+
+### Phase 16: 云账户管理增强任务规划
+- **Status:** in_progress
+- **Started:** 2026-04-14
+- Actions:
+  - 读取现有规划文件 (task_plan.md, progress.md, findings.md, docs/PROGRESS.md)
+  - 分析云账户管理现状
+  - 创建 Phase 16 任务计划（11个子任务）
+  - **创建完整设计方案文档**: docs/superpowers/specs/2026-04-14-cloud-account-enhancement-design.md
+  - **Task 1 完成**: 更新云账号弹窗
+    - 后端: 新增 TestConnectionWithCredentials handler/service 方法
+    - 后端: 注册新路由 POST /cloud-accounts/:id/test-connection-with-credentials
+    - 前端: 添加 testConnectionWithCredentials API 函数
+    - 前端: 创建 EditAccountDialog.vue 组件（包含测试连接功能）
+    - 前端: 集成到 cloud-accounts/index.vue
+  - **Task 2 完成**: 属性设置主弹窗框架
+    - 前端: 创建 CloudAccountDetailDialog.vue 主弹窗组件
+    - 前端: 创建 8 个子页面组件骨架:
+      - DetailTab.vue (基本信息+账号信息+权限列表)
+      - ResourceStatsTab.vue (资源统计+使用率)
+      - SubscriptionTab.vue (订阅管理)
+      - CloudUserTab.vue (云用户管理)
+      - CloudUserGroupTab.vue (云用户组管理)
+      - CloudProjectTab.vue (云上项目管理)
+      - ScheduledTaskTab.vue (定时任务)
+      - OperationLogTab.vue (操作日志)
+    - 前端: 集成到 cloud-accounts/index.vue (属性设置按钮触发)
+  - 编译验证: 后端成功、前端成功
+- Files created/modified:
+  - task_plan.md (更新)
+  - findings.md (更新)
+  - progress.md (更新)
+  - docs/superpowers/specs/2026-04-14-cloud-account-enhancement-design.md (新建)
+  - backend/internal/handler/cloud_account.go (添加 TestConnectionWithCredentials)
+  - backend/internal/service/cloud_account.go (添加 TestConnectionWithCredentials)
+  - backend/cmd/server/main.go (添加新路由)
+  - frontend/src/api/cloud-account.ts (添加 testConnectionWithCredentials)
+  - frontend/src/views/cloud-accounts/index.vue (集成新组件)
+  - frontend/src/views/cloud-accounts/components/EditAccountDialog.vue (新建)
+  - frontend/src/views/cloud-accounts/components/CloudAccountDetailDialog.vue (新建)
+  - frontend/src/views/cloud-accounts/components/tabs/*.vue (新建8个子页面)
+- Current status: **框架完成，子页面功能待完善**
+- Next steps:
+  - Task 3-4: 完善详情和资源统计（需要新增后端API）
+  - Task 5-8: 订阅/云用户/云用户组/云上项目（需要新增数据模型）
+  - Task 9-10: 定时任务/操作日志（待完善）
+
 ## Session: 2026-04-14 (费用中心页面完善)
 
 ### 费用中心 9 个子页面功能完善

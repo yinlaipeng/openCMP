@@ -471,20 +471,18 @@
     </el-dialog>
 
     <!-- 更新账号对话框 -->
-    <el-dialog v-model="showUpdateDialog" title="更新账号" width="500px">
-      <el-form :model="updateForm" label-width="100px">
-        <el-form-item label="账户名称">
-          <el-input v-model="updateForm.name" placeholder="请输入账户名称" />
-        </el-form-item>
-        <el-form-item label="备注">
-          <el-input v-model="updateForm.description" type="textarea" :rows="3" placeholder="请输入备注" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="showUpdateDialog = false">取消</el-button>
-        <el-button type="primary" @click="handleUpdateSubmit">保存</el-button>
-      </template>
-    </el-dialog>
+    <EditAccountDialog
+      v-model="showUpdateDialog"
+      :account-id="editAccountId"
+      @saved="loadAccounts"
+    />
+
+    <!-- 属性设置弹窗 -->
+    <CloudAccountDetailDialog
+      v-model="showAccountDetailDialog"
+      :account-id="accountDetailId"
+      :initial-tab="accountDetailTab"
+    />
   </div>
 </template>
 
@@ -498,6 +496,8 @@ import { getProjects } from '@/api/project'
 import type { CloudAccount, CreateCloudAccountRequest, Project } from '@/types'
 import type { SyncPolicy } from '@/types/sync-policy'
 import EmptyState from '@/components/common/EmptyState.vue'
+import EditAccountDialog from './components/EditAccountDialog.vue'
+import CloudAccountDetailDialog from './components/CloudAccountDetailDialog.vue'
 
 const accounts = ref<CloudAccount[]>([])
 const syncPolicies = ref<SyncPolicy[]>([])
@@ -947,7 +947,10 @@ const handleSizeChange = (size: number) => {
 const showSyncDialog = ref(false)
 const showAttributesDialog = ref(false)
 const showUpdateDialog = ref(false)
+const editAccountId = ref<number | null>(null)
 const showAccountDetailDialog = ref(false)
+const accountDetailId = ref<number | null>(null)
+const accountDetailTab = ref('detail')
 const activeTab = ref('details')
 
 const syncForm = ref({
@@ -1072,23 +1075,18 @@ const handleAttributesCommand = async (command: string, row: any) => {
 
   switch (command) {
     case 'auto_sync':
-      attributesForm.value.autoSync = !row.auto_sync
-      attributesForm.value.syncPolicy = row.sync_policy || 'default'
-      attributesForm.value.syncInterval = row.sync_interval ?? 24
-      attributesForm.value.syncResourceTypes = row.sync_resource_types || []
-      showAttributesDialog.value = true
+      accountDetailId.value = row.id
+      accountDetailTab.value = 'detail'
+      showAccountDetailDialog.value = true
       break
     case 'sync_policy':
-      attributesForm.value.autoSync = row.auto_sync ?? true
-      attributesForm.value.syncPolicy = row.sync_policy || 'default'
-      attributesForm.value.syncInterval = row.sync_interval ?? 24
-      attributesForm.value.syncResourceTypes = row.sync_resource_types || []
-      showAttributesDialog.value = true
+      accountDetailId.value = row.id
+      accountDetailTab.value = 'scheduledTasks'
+      showAccountDetailDialog.value = true
       break
     case 'update':
+      editAccountId.value = row.id
       showUpdateDialog.value = true
-      updateForm.value.name = row.name
-      updateForm.value.description = row.description || ''
       break
   }
 }

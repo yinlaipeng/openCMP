@@ -90,6 +90,45 @@
         <el-button type="primary" @click="handleAddPolicy">新增策略</el-button>
       </template>
     </el-dialog>
+
+    <!-- 新增/编辑告警策略对话框 -->
+    <el-dialog v-model="policyFormDialogVisible" :title="policyFormMode === 'add' ? '新增告警策略' : '编辑告警策略'" width="500px">
+      <el-form :model="policyForm" label-width="100px">
+        <el-form-item label="策略名称" required>
+          <el-input v-model="policyForm.name" placeholder="请输入策略名称" />
+        </el-form-item>
+        <el-form-item label="监控指标" required>
+          <el-select v-model="policyForm.metric" placeholder="请选择监控指标" style="width: 100%;">
+            <el-option label="CPU使用率" value="cpu_usage" />
+            <el-option label="内存使用率" value="memory_usage" />
+            <el-option label="磁盘使用率" value="disk_usage" />
+            <el-option label="网络流量" value="network_traffic" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="阈值" required>
+          <el-input-number v-model="policyForm.threshold" :min="0" :max="100" style="width: 150px;" />
+          <span style="margin-left: 10px;">%</span>
+        </el-form-item>
+        <el-form-item label="持续时间" required>
+          <el-input-number v-model="policyForm.duration" :min="1" :max="60" style="width: 150px;" />
+          <span style="margin-left: 10px;">分钟</span>
+        </el-form-item>
+        <el-form-item label="告警级别" required>
+          <el-select v-model="policyForm.level" placeholder="请选择告警级别" style="width: 100%;">
+            <el-option label="信息" value="信息" />
+            <el-option label="警告" value="警告" />
+            <el-option label="严重" value="严重" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="启用状态">
+          <el-switch v-model="policyForm.enabled" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="policyFormDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="handlePolicyFormSubmit" :loading="policyFormLoading">保存</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -128,6 +167,20 @@ const selectedVM = ref<VMResource | null>(null)
 const policiesDialogVisible = ref(false)
 const vmPolicies = ref<VMPolicy[]>([])
 const policiesLoading = ref(false)
+
+// 告警策略表单
+const policyFormDialogVisible = ref(false)
+const policyFormMode = ref<'add' | 'edit'>('add')
+const policyFormLoading = ref(false)
+const policyForm = ref({
+  id: '',
+  name: '',
+  metric: 'cpu_usage',
+  threshold: 80,
+  duration: 5,
+  level: '警告',
+  enabled: true
+})
 
 const getMonitorStatusType = (status: string) => {
   switch (status.toLowerCase()) {
@@ -228,7 +281,29 @@ const handleManagePolicies = (row: VMResource) => {
 }
 
 const handleEditPolicy = (row: VMPolicy) => {
-  ElMessage.info(`编辑策略: ${row.name}`)
+  policyFormMode.value = 'edit'
+  // 解析策略详情
+  const detailParts = row.detail.split(/[>,%持续]+/)
+  const metricMap: Record<string, string> = {
+    'CPU': 'cpu_usage',
+    '内存': 'memory_usage',
+    '磁盘': 'disk_usage',
+    '网络': 'network_traffic'
+  }
+  const metric = Object.keys(metricMap).find(k => row.name.includes(k)) || 'cpu_usage'
+  const threshold = parseInt(detailParts[1] || '80')
+  const duration = parseInt(detailParts[detailParts.length - 1] || '5')
+
+  policyForm.value = {
+    id: row.id,
+    name: row.name,
+    metric: metricMap[metric] || metric,
+    threshold: threshold,
+    duration: duration,
+    level: row.level,
+    enabled: row.enabled
+  }
+  policyFormDialogVisible.value = true
 }
 
 const handleDeletePolicy = async (row: VMPolicy) => {
@@ -246,7 +321,69 @@ const handleDeletePolicy = async (row: VMPolicy) => {
 }
 
 const handleAddPolicy = () => {
-  ElMessage.info('新增策略功能开发中')
+  policyFormMode.value = 'add'
+  policyForm.value = {
+    id: '',
+    name: '',
+    metric: 'cpu_usage',
+    threshold: 80,
+    duration: 5,
+    level: '警告',
+    enabled: true
+  }
+  policyFormDialogVisible.value = true
+}
+
+const handlePolicyFormSubmit = async () => {
+  if (!policyForm.value.name) {
+    ElMessage.warning('请输入策略名称')
+    return
+  }
+
+  policyFormLoading.value = true
+  try {
+    const metricNames: Record<string, string> = {
+      'cpu_usage': 'CPU',
+      'memory_usage': '内存',
+      'disk_usage': '磁盘',
+      'network_traffic': '网络'
+    }
+    const detail = `${metricNames[policyForm.value.metric] || 'CPU'}>${policyForm.value.threshold}%持续${policyForm.value.duration}分钟`
+
+    if (policyFormMode.value === 'add') {
+      // 新增策略
+      const newPolicy: VMPolicy = {
+        id: `policy-${Date.now()}`,
+        name: policyForm.value.name,
+        status: '正常',
+        enabled: policyForm.value.enabled,
+        resource_type: '虚拟机',
+        detail: detail,
+        level: policyForm.value.level,
+        owner: '自定义'
+      }
+      vmPolicies.value.push(newPolicy)
+      ElMessage.success('策略添加成功')
+    } else {
+      // 编辑策略
+      const index = vmPolicies.value.findIndex(p => p.id === policyForm.value.id)
+      if (index !== -1) {
+        vmPolicies.value[index] = {
+          ...vmPolicies.value[index],
+          name: policyForm.value.name,
+          enabled: policyForm.value.enabled,
+          detail: detail,
+          level: policyForm.value.level
+        }
+      }
+      ElMessage.success('策略更新成功')
+    }
+    policyFormDialogVisible.value = false
+  } catch (e) {
+    ElMessage.error('操作失败')
+  } finally {
+    policyFormLoading.value = false
+  }
 }
 
 onMounted(() => {

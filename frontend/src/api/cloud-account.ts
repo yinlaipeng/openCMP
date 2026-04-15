@@ -100,3 +100,278 @@ export function updateCloudAccountAttributes(id: number, attrs: UpdateCloudAccou
     data: attrs
   })
 }
+
+// 使用新凭证测试连接
+export interface TestConnectionWithCredentialsRequest {
+  access_key_id: string
+  access_key_secret: string
+}
+
+export interface TestConnectionWithCredentialsResponse {
+  connected: boolean
+  message: string
+  regions: string[]
+}
+
+export function testConnectionWithCredentials(id: number, credentials: TestConnectionWithCredentialsRequest) {
+  return request<TestConnectionWithCredentialsResponse>({
+    url: `/cloud-accounts/${id}/test-connection-with-credentials`,
+    method: 'post',
+    data: credentials
+  })
+}
+
+// 获取资源统计
+export interface ResourceStatsResponse {
+  resources: {
+    vms: number
+    rds: number
+    redis: number
+    buckets: number
+    eips: number
+    public_ips: number
+    snapshots: number
+    vpcs: number
+    subnets: number
+    total_ips: number
+    vms_running: number
+    eips_bound: number
+    ips_used: number
+    disks: number
+    disks_mounted: number
+  }
+  usage_rates: {
+    vm_running_rate: number
+    disk_mounted_rate: number
+    eip_bound_rate: number
+    ip_used_rate: number
+  }
+}
+
+export function getResourceStats(id: number) {
+  return request<ResourceStatsResponse>({
+    url: `/cloud-accounts/${id}/resource-stats`,
+    method: 'get'
+  })
+}
+
+// 获取权限列表
+export function getPermissions(id: number) {
+  return request<{ permissions: Array<{ name: string; description: string; granted: boolean }> }>({
+    url: `/cloud-accounts/${id}/permissions`,
+    method: 'get'
+  })
+}
+
+// 订阅 API
+export interface CloudSubscription {
+  id: number
+  cloud_account_id: number
+  name: string
+  subscription_id: string
+  enabled: boolean
+  status: string
+  sync_time: string | null
+  sync_duration: number
+  sync_status: string
+  domain_id: number
+  default_project_id: number | null
+}
+
+export function getSubscriptions(accountId: number) {
+  return request<{ items: CloudSubscription[]; total: number }>({
+    url: `/cloud-accounts/${accountId}/subscriptions`,
+    method: 'get'
+  })
+}
+
+export function createSubscription(accountId: number, data: Partial<CloudSubscription>) {
+  return request<CloudSubscription>({
+    url: `/cloud-accounts/${accountId}/subscriptions`,
+    method: 'post',
+    data
+  })
+}
+
+export function updateSubscription(accountId: number, subscriptionId: number, data: Partial<CloudSubscription>) {
+  return request<CloudSubscription>({
+    url: `/cloud-accounts/${accountId}/subscriptions/${subscriptionId}`,
+    method: 'put',
+    data
+  })
+}
+
+export function deleteSubscription(accountId: number, subscriptionId: number) {
+  return request<{ message: string }>({
+    url: `/cloud-accounts/${accountId}/subscriptions/${subscriptionId}`,
+    method: 'delete'
+  })
+}
+
+export function toggleSubscription(accountId: number, subscriptionId: number, enabled: boolean) {
+  return request<{ message: string; enabled: boolean }>({
+    url: `/cloud-accounts/${accountId}/subscriptions/${subscriptionId}/toggle`,
+    method: 'post',
+    data: { enabled }
+  })
+}
+
+export function syncSubscription(accountId: number, subscriptionId: number) {
+  return request<{ message: string; subscription: CloudSubscription }>({
+    url: `/cloud-accounts/${accountId}/subscriptions/${subscriptionId}/sync`,
+    method: 'post'
+  })
+}
+
+export function updateSubscriptionProject(accountId: number, subscriptionId: number, projectId: number) {
+  return request<{ message: string; project_id: number }>({
+    url: `/cloud-accounts/${accountId}/subscriptions/${subscriptionId}/project`,
+    method: 'put',
+    data: { project_id: projectId }
+  })
+}
+
+// 云用户 API
+export interface CloudUser {
+  id: number
+  cloud_account_id: number
+  username: string
+  console_login: boolean
+  status: string
+  password: string
+  login_url: string
+  local_user_id: number | null
+  platform: string
+}
+
+export function getCloudUsers(accountId: number) {
+  return request<{ items: CloudUser[]; total: number }>({
+    url: `/cloud-accounts/${accountId}/cloud-users`,
+    method: 'get'
+  })
+}
+
+export function createCloudUser(accountId: number, data: Partial<CloudUser>) {
+  return request<CloudUser>({
+    url: `/cloud-accounts/${accountId}/cloud-users`,
+    method: 'post',
+    data
+  })
+}
+
+export function updateCloudUser(accountId: number, userId: number, data: Partial<CloudUser>) {
+  return request<CloudUser>({
+    url: `/cloud-accounts/${accountId}/cloud-users/${userId}`,
+    method: 'put',
+    data
+  })
+}
+
+export function deleteCloudUser(accountId: number, userId: number) {
+  return request<{ message: string }>({
+    url: `/cloud-accounts/${accountId}/cloud-users/${userId}`,
+    method: 'delete'
+  })
+}
+
+// 云用户组 API
+export interface CloudUserGroup {
+  id: number
+  cloud_account_id: number
+  name: string
+  status: string
+  permissions: string
+  platform: string
+  domain_id: number
+}
+
+export function getCloudUserGroups(accountId: number) {
+  return request<{ items: CloudUserGroup[]; total: number }>({
+    url: `/cloud-accounts/${accountId}/cloud-user-groups`,
+    method: 'get'
+  })
+}
+
+export function createCloudUserGroup(accountId: number, data: Partial<CloudUserGroup>) {
+  return request<CloudUserGroup>({
+    url: `/cloud-accounts/${accountId}/cloud-user-groups`,
+    method: 'post',
+    data
+  })
+}
+
+export function updateCloudUserGroup(accountId: number, groupId: number, data: Partial<CloudUserGroup>) {
+  return request<CloudUserGroup>({
+    url: `/cloud-accounts/${accountId}/cloud-user-groups/${groupId}`,
+    method: 'put',
+    data
+  })
+}
+
+export function deleteCloudUserGroup(accountId: number, groupId: number) {
+  return request<{ message: string }>({
+    url: `/cloud-accounts/${accountId}/cloud-user-groups/${groupId}`,
+    method: 'delete'
+  })
+}
+
+// 云上项目 API
+export interface CloudProject {
+  id: number
+  cloud_account_id: number
+  name: string
+  subscription_id: number | null
+  status: string
+  tags: string
+  domain_id: number
+  local_project_id: number | null
+  priority: number
+  sync_time: string | null
+}
+
+export function getCloudProjects(accountId: number) {
+  return request<{ items: CloudProject[]; total: number }>({
+    url: `/cloud-accounts/${accountId}/cloud-projects`,
+    method: 'get'
+  })
+}
+
+export function createCloudProject(accountId: number, data: Partial<CloudProject>) {
+  return request<CloudProject>({
+    url: `/cloud-accounts/${accountId}/cloud-projects`,
+    method: 'post',
+    data
+  })
+}
+
+export function updateCloudProject(accountId: number, projectId: number, data: Partial<CloudProject>) {
+  return request<CloudProject>({
+    url: `/cloud-accounts/${accountId}/cloud-projects/${projectId}`,
+    method: 'put',
+    data
+  })
+}
+
+export function deleteCloudProject(accountId: number, projectId: number) {
+  return request<{ message: string }>({
+    url: `/cloud-accounts/${accountId}/cloud-projects/${projectId}`,
+    method: 'delete'
+  })
+}
+
+export function mapCloudProjectToLocal(accountId: number, projectId: number, localProjectId: number) {
+  return request<{ message: string; local_project_id: number }>({
+    url: `/cloud-accounts/${accountId}/cloud-projects/${projectId}/map`,
+    method: 'post',
+    data: { local_project_id: localProjectId }
+  })
+}
+
+// 操作日志 API（云账户相关）
+export function getOperationLogsByAccount(accountId: number, params?: { page?: number; page_size?: number }) {
+  return request<{ items: any[]; total: number; page: number; page_size: number }>({
+    url: `/cloud-accounts/${accountId}/operation-logs`,
+    method: 'get',
+    params
+  })
+}

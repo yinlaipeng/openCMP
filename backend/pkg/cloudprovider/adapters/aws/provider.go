@@ -357,6 +357,30 @@ func (p *AWSProvider) UpdateVMConfig(ctx context.Context, vmID, instanceType, na
 	return cloudprovider.NewCloudError(cloudprovider.ErrUnsupportedOperation, "UpdateVMConfig not implemented", "")
 }
 
+// ============================================
+// Extended network methods (未实现)
+// ============================================
+
+func (p *AWSProvider) UpdateSubnet(ctx context.Context, subnetID, name, description string, tags map[string]string) (*cloudprovider.Subnet, error) {
+	return nil, cloudprovider.NewCloudError(cloudprovider.ErrUnsupportedOperation, "UpdateSubnet not implemented", "")
+}
+
+func (p *AWSProvider) AddSecurityGroupRule(ctx context.Context, sgID string, rule cloudprovider.SGRule) (string, error) {
+	return "", cloudprovider.NewCloudError(cloudprovider.ErrUnsupportedOperation, "AddSecurityGroupRule not implemented", "")
+}
+
+func (p *AWSProvider) DeleteSecurityGroupRule(ctx context.Context, sgID, ruleID string) error {
+	return cloudprovider.NewCloudError(cloudprovider.ErrUnsupportedOperation, "DeleteSecurityGroupRule not implemented", "")
+}
+
+func (p *AWSProvider) BindEIP(ctx context.Context, eipID, resourceID, resourceType string) error {
+	return cloudprovider.NewCloudError(cloudprovider.ErrUnsupportedOperation, "BindEIP not implemented", "")
+}
+
+func (p *AWSProvider) UnbindEIP(ctx context.Context, eipID string) error {
+	return cloudprovider.NewCloudError(cloudprovider.ErrUnsupportedOperation, "UnbindEIP not implemented", "")
+}
+
 func init() {
 	cloudprovider.RegisterProvider("aws", NewAWSProvider)
 }

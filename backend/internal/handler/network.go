@@ -712,3 +712,373 @@ func (h *NetworkHandler) DeleteL2Network(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "l2 network deleted"})
 }
+
+// ========== 子网扩展操作 ==========
+
+// UpdateSubnetRequest 更新子网请求
+type UpdateSubnetRequest struct {
+	Name        string            `json:"name"`
+	Description string            `json:"description"`
+	Tags        map[string]string `json:"tags"`
+}
+
+// UpdateSubnet 更新子网属性
+func (h *NetworkHandler) UpdateSubnet(c *gin.Context) {
+	accountIDStr := c.Query("account_id")
+	subnetID := c.Param("id")
+
+	accountID, err := strconv.ParseUint(accountIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid account_id"})
+		return
+	}
+
+	var req UpdateSubnetRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	subnet, err := h.service.UpdateSubnet(c.Request.Context(), uint(accountID), subnetID, req.Name, req.Description, req.Tags)
+	if err != nil {
+		h.logger.Error("failed to update subnet", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, subnet)
+}
+
+// DeleteSubnet 删除子网
+func (h *NetworkHandler) DeleteSubnet(c *gin.Context) {
+	accountIDStr := c.Query("account_id")
+	subnetID := c.Param("id")
+
+	accountID, err := strconv.ParseUint(accountIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid account_id"})
+		return
+	}
+
+	if err := h.service.DeleteSubnet(c.Request.Context(), uint(accountID), subnetID); err != nil {
+		h.logger.Error("failed to delete subnet", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "subnet deleted"})
+}
+
+// ChangeSubnetProjectRequest 更改子网项目请求
+type ChangeSubnetProjectRequest struct {
+	ProjectID uint `json:"project_id" binding:"required"`
+}
+
+// ChangeSubnetProject 更改子网所属项目
+func (h *NetworkHandler) ChangeSubnetProject(c *gin.Context) {
+	accountIDStr := c.Query("account_id")
+	subnetID := c.Param("id")
+
+	accountID, err := strconv.ParseUint(accountIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid account_id"})
+		return
+	}
+
+	var req ChangeSubnetProjectRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.service.ChangeSubnetProject(c.Request.Context(), uint(accountID), subnetID, req.ProjectID); err != nil {
+		h.logger.Error("failed to change subnet project", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "project changed", "project_id": req.ProjectID})
+}
+
+// SplitSubnetRequest 分割子网请求
+type SplitSubnetRequest struct {
+	NewCIDRs []string `json:"new_cidrs" binding:"required"`
+}
+
+// SplitSubnet 分割IP子网
+func (h *NetworkHandler) SplitSubnet(c *gin.Context) {
+	accountIDStr := c.Query("account_id")
+	subnetID := c.Param("id")
+
+	accountID, err := strconv.ParseUint(accountIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid account_id"})
+		return
+	}
+
+	var req SplitSubnetRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	newSubnets, err := h.service.SplitSubnet(c.Request.Context(), uint(accountID), subnetID, req.NewCIDRs)
+	if err != nil {
+		h.logger.Error("failed to split subnet", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "subnet split", "new_subnets": newSubnets})
+}
+
+// ReserveIPRequest 预留IP请求
+type ReserveIPRequest struct {
+	IPs       []string `json:"ips" binding:"required"`
+	Reason    string   `json:"reason"`
+	ReservedBy string  `json:"reserved_by"`
+}
+
+// ReserveIP 预留IP地址
+func (h *NetworkHandler) ReserveIP(c *gin.Context) {
+	accountIDStr := c.Query("account_id")
+	subnetID := c.Param("id")
+
+	accountID, err := strconv.ParseUint(accountIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid account_id"})
+		return
+	}
+
+	var req ReserveIPRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	reservedIPs, err := h.service.ReserveIP(c.Request.Context(), uint(accountID), subnetID, req.IPs, req.Reason, req.ReservedBy)
+	if err != nil {
+		h.logger.Error("failed to reserve ip", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "ip reserved", "reserved_ips": reservedIPs})
+}
+
+// ReleaseIPRequest 释放预留IP请求
+type ReleaseIPRequest struct {
+	IPs []string `json:"ips" binding:"required"`
+}
+
+// ReleaseIP 释放预留IP地址
+func (h *NetworkHandler) ReleaseIP(c *gin.Context) {
+	accountIDStr := c.Query("account_id")
+	subnetID := c.Param("id")
+
+	accountID, err := strconv.ParseUint(accountIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid account_id"})
+		return
+	}
+
+	var req ReleaseIPRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.service.ReleaseIP(c.Request.Context(), uint(accountID), subnetID, req.IPs); err != nil {
+		h.logger.Error("failed to release ip", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "ip released"})
+}
+
+// ListReservedIPs 列出预留IP
+func (h *NetworkHandler) ListReservedIPs(c *gin.Context) {
+	accountIDStr := c.Query("account_id")
+	subnetID := c.Query("subnet_id")
+
+	accountID, err := strconv.ParseUint(accountIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid account_id"})
+		return
+	}
+
+	reservedIPs, err := h.service.ListReservedIPs(c.Request.Context(), uint(accountID), subnetID)
+	if err != nil {
+		h.logger.Error("failed to list reserved ips", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"items": reservedIPs, "total": len(reservedIPs)})
+}
+
+// ========== 安全组扩展操作 ==========
+
+// AddSecurityGroupRuleRequest 添加安全组规则请求
+type AddSecurityGroupRuleRequest struct {
+	Direction   string `json:"direction" binding:"required"` // ingress/egress
+	Protocol    string `json:"protocol" binding:"required"`
+	PortRange   string `json:"port_range"`
+	CIDR        string `json:"cidr" binding:"required"`
+	Action      string `json:"action" binding:"required"`
+	Description string `json:"description"`
+	Priority    int    `json:"priority"`
+}
+
+// AddSecurityGroupRule 添加安全组规则
+func (h *NetworkHandler) AddSecurityGroupRule(c *gin.Context) {
+	accountIDStr := c.Query("account_id")
+	sgID := c.Param("id")
+
+	accountID, err := strconv.ParseUint(accountIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid account_id"})
+		return
+	}
+
+	var req AddSecurityGroupRuleRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	rule := cloudprovider.SGRule{
+		Direction:   req.Direction,
+		Protocol:    req.Protocol,
+		PortRange:   req.PortRange,
+		CIDR:        req.CIDR,
+		Action:      req.Action,
+		Description: req.Description,
+		Priority:    req.Priority,
+	}
+
+	ruleID, err := h.service.AddSecurityGroupRule(c.Request.Context(), uint(accountID), sgID, rule)
+	if err != nil {
+		h.logger.Error("failed to add security group rule", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "rule added", "rule_id": ruleID})
+}
+
+// DeleteSecurityGroupRule 删除安全组规则
+func (h *NetworkHandler) DeleteSecurityGroupRule(c *gin.Context) {
+	accountIDStr := c.Query("account_id")
+	sgID := c.Param("id")
+	ruleID := c.Param("rule_id")
+
+	accountID, err := strconv.ParseUint(accountIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid account_id"})
+		return
+	}
+
+	if err := h.service.DeleteSecurityGroupRule(c.Request.Context(), uint(accountID), sgID, ruleID); err != nil {
+		h.logger.Error("failed to delete security group rule", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "rule deleted"})
+}
+
+// DeleteSecurityGroup 删除安全组
+func (h *NetworkHandler) DeleteSecurityGroup(c *gin.Context) {
+	accountIDStr := c.Query("account_id")
+	sgID := c.Param("id")
+
+	accountID, err := strconv.ParseUint(accountIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid account_id"})
+		return
+	}
+
+	if err := h.service.DeleteSecurityGroup(c.Request.Context(), uint(accountID), sgID); err != nil {
+		h.logger.Error("failed to delete security group", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "security group deleted"})
+}
+
+// ========== EIP 扩展操作 ==========
+
+// BindEIPRequest 绑定EIP请求
+type BindEIPRequest struct {
+	ResourceID   string `json:"resource_id" binding:"required"`
+	ResourceType string `json:"resource_type" binding:"required"` // vm/nat_gateway/slb
+}
+
+// BindEIP 绑定弹性IP
+func (h *NetworkHandler) BindEIP(c *gin.Context) {
+	accountIDStr := c.Query("account_id")
+	eipID := c.Param("id")
+
+	accountID, err := strconv.ParseUint(accountIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid account_id"})
+		return
+	}
+
+	var req BindEIPRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.service.BindEIP(c.Request.Context(), uint(accountID), eipID, req.ResourceID, req.ResourceType); err != nil {
+		h.logger.Error("failed to bind eip", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "eip bound", "resource_id": req.ResourceID})
+}
+
+// UnbindEIP 解绑弹性IP
+func (h *NetworkHandler) UnbindEIP(c *gin.Context) {
+	accountIDStr := c.Query("account_id")
+	eipID := c.Param("id")
+
+	accountID, err := strconv.ParseUint(accountIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid account_id"})
+		return
+	}
+
+	if err := h.service.UnbindEIP(c.Request.Context(), uint(accountID), eipID); err != nil {
+		h.logger.Error("failed to unbind eip", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "eip unbound"})
+}
+
+// DeleteEIP 删除弹性IP
+func (h *NetworkHandler) DeleteEIP(c *gin.Context) {
+	accountIDStr := c.Query("account_id")
+	eipID := c.Param("id")
+
+	accountID, err := strconv.ParseUint(accountIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid account_id"})
+		return
+	}
+
+	if err := h.service.DeleteEIP(c.Request.Context(), uint(accountID), eipID); err != nil {
+		h.logger.Error("failed to delete eip", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "eip deleted"})
+}

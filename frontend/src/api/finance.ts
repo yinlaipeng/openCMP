@@ -81,6 +81,32 @@ export function getRenewalResources(params: {
   })
 }
 
+// 同步待续费资源
+export function syncRenewals(cloudAccountId: number, daysThreshold?: number) {
+  return request<{ message: string; count: number }>({
+    url: '/finance/renewals/sync',
+    method: 'post',
+    data: { cloud_account_id: cloudAccountId, days_threshold: daysThreshold || 30 }
+  })
+}
+
+// ========== 账户余额 ==========
+
+export interface AccountBalance {
+  balance: number
+  currency: string
+  credit_limit: number
+  status: string
+}
+
+export function getAccountBalance(cloudAccountId: number) {
+  return request<AccountBalance>({
+    url: '/finance/account-balance',
+    method: 'get',
+    params: { cloud_account_id: cloudAccountId }
+  })
+}
+
 // ========== 成本分析 ==========
 
 // 获取成本分析数据

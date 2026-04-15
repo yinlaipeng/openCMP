@@ -113,6 +113,7 @@ func (h *ScheduledTaskHandler) Create(c *gin.Context) {
 func (h *ScheduledTaskHandler) List(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	cloudAccountIDStr := c.Query("cloud_account_id")
 
 	if page < 1 {
 		page = 1
@@ -123,7 +124,21 @@ func (h *ScheduledTaskHandler) List(c *gin.Context) {
 
 	offset := (page - 1) * pageSize
 
-	tasks, total, err := h.taskService.ListScheduledTasks(c.Request.Context(), pageSize, offset)
+	var tasks []*model.ScheduledTask
+	var total int64
+	var err error
+
+	if cloudAccountIDStr != "" {
+		cloudAccountID, parseErr := strconv.ParseUint(cloudAccountIDStr, 10, 32)
+		if parseErr != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid cloud_account_id"})
+			return
+		}
+		tasks, total, err = h.taskService.ListScheduledTasksByAccount(c.Request.Context(), uint(cloudAccountID), pageSize, offset)
+	} else {
+		tasks, total, err = h.taskService.ListScheduledTasks(c.Request.Context(), pageSize, offset)
+	}
+
 	if err != nil {
 		h.logger.Error("failed to list scheduled tasks", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

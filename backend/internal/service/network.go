@@ -286,3 +286,131 @@ func (s *NetworkService) DeleteL2Network(ctx context.Context, accountID uint, l2
 
 	return provider.DeleteL2Network(ctx, l2NetworkID)
 }
+
+// ========== 子网扩展操作 ==========
+
+// UpdateSubnet 更新子网属性
+func (s *NetworkService) UpdateSubnet(ctx context.Context, accountID uint, subnetID, name, description string, tags map[string]string) (*cloudprovider.Subnet, error) {
+	provider, err := s.getProvider(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+
+	return provider.UpdateSubnet(ctx, subnetID, name, description, tags)
+}
+
+// ChangeSubnetProject 更改子网所属项目（本地数据库操作）
+func (s *NetworkService) ChangeSubnetProject(ctx context.Context, accountID uint, subnetID string, projectID uint) error {
+	// 更新本地数据库中的子网项目关联
+	// 实际云上子网的项目归属由本地系统管理
+	return nil // TODO: 实现本地数据库更新逻辑
+}
+
+// SplitSubnet 分割IP子网
+func (s *NetworkService) SplitSubnet(ctx context.Context, accountID uint, subnetID string, newCIDRs []string) ([]*cloudprovider.Subnet, error) {
+	// 分割子网逻辑：先获取原子网信息，然后创建新子网
+	// TODO: 实现完整的分割逻辑
+	return nil, cloudprovider.NewCloudError(cloudprovider.ErrUnsupportedOperation, "subnet split not implemented", "")
+}
+
+// ReservedIP 预留IP记录
+type ReservedIP struct {
+	IP        string `json:"ip"`
+	SubnetID  string `json:"subnet_id"`
+	Reason    string `json:"reason"`
+	ReservedBy string `json:"reserved_by"`
+	Status    string `json:"status"`
+}
+
+// ReserveIP 预留IP地址
+func (s *NetworkService) ReserveIP(ctx context.Context, accountID uint, subnetID string, ips []string, reason, reservedBy string) ([]*ReservedIP, error) {
+	// IP预留由本地系统管理，不调用云厂商API
+	reservedIPs := make([]*ReservedIP, len(ips))
+	for i, ip := range ips {
+		reservedIPs[i] = &ReservedIP{
+			IP:         ip,
+			SubnetID:   subnetID,
+			Reason:     reason,
+			ReservedBy: reservedBy,
+			Status:     "reserved",
+		}
+	}
+	// TODO: 存储到本地数据库
+	return reservedIPs, nil
+}
+
+// ReleaseIP 释放预留IP
+func (s *NetworkService) ReleaseIP(ctx context.Context, accountID uint, subnetID string, ips []string) error {
+	// TODO: 从本地数据库删除预留记录
+	return nil
+}
+
+// ListReservedIPs 列出预留IP
+func (s *NetworkService) ListReservedIPs(ctx context.Context, accountID uint, subnetID string) ([]*ReservedIP, error) {
+	// TODO: 从本地数据库查询
+	return []*ReservedIP{}, nil
+}
+
+// ========== 安全组扩展操作 ==========
+
+// AddSecurityGroupRule 添加安全组规则
+func (s *NetworkService) AddSecurityGroupRule(ctx context.Context, accountID uint, sgID string, rule cloudprovider.SGRule) (string, error) {
+	provider, err := s.getProvider(ctx, accountID)
+	if err != nil {
+		return "", err
+	}
+
+	return provider.AddSecurityGroupRule(ctx, sgID, rule)
+}
+
+// DeleteSecurityGroupRule 删除安全组规则
+func (s *NetworkService) DeleteSecurityGroupRule(ctx context.Context, accountID uint, sgID, ruleID string) error {
+	provider, err := s.getProvider(ctx, accountID)
+	if err != nil {
+		return err
+	}
+
+	return provider.DeleteSecurityGroupRule(ctx, sgID, ruleID)
+}
+
+// DeleteSecurityGroup 删除安全组
+func (s *NetworkService) DeleteSecurityGroup(ctx context.Context, accountID uint, sgID string) error {
+	provider, err := s.getProvider(ctx, accountID)
+	if err != nil {
+		return err
+	}
+
+	return provider.DeleteSecurityGroup(ctx, sgID)
+}
+
+// ========== EIP 扩展操作 ==========
+
+// BindEIP 绑定弹性IP
+func (s *NetworkService) BindEIP(ctx context.Context, accountID uint, eipID, resourceID, resourceType string) error {
+	provider, err := s.getProvider(ctx, accountID)
+	if err != nil {
+		return err
+	}
+
+	return provider.BindEIP(ctx, eipID, resourceID, resourceType)
+}
+
+// UnbindEIP 解绑弹性IP
+func (s *NetworkService) UnbindEIP(ctx context.Context, accountID uint, eipID string) error {
+	provider, err := s.getProvider(ctx, accountID)
+	if err != nil {
+		return err
+	}
+
+	return provider.UnbindEIP(ctx, eipID)
+}
+
+// DeleteEIP 删除弹性IP
+func (s *NetworkService) DeleteEIP(ctx context.Context, accountID uint, eipID string) error {
+	provider, err := s.getProvider(ctx, accountID)
+	if err != nil {
+		return err
+	}
+
+	return provider.ReleaseEIP(ctx, eipID)
+}

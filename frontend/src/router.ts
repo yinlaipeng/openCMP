@@ -360,6 +360,13 @@ const routes = [
             component: () => import('@/views/storage/block/block-storage/index.vue'),
             meta: { title: '块存储' }
           },
+          // 云硬盘
+          {
+            path: 'cloud/disks',
+            name: 'StorageCloudDisks',
+            component: () => import('@/views/storage/cloud/disks/index.vue'),
+            meta: { title: '云硬盘' }
+          },
           // 对象存储
           {
             path: 'object/buckets',

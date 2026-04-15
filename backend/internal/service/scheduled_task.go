@@ -54,6 +54,26 @@ func (s *ScheduledTaskService) ListScheduledTasks(ctx context.Context, limit, of
 	return tasks, total, err
 }
 
+// ListScheduledTasksByAccount 列出指定云账号的定时同步任务
+func (s *ScheduledTaskService) ListScheduledTasksByAccount(ctx context.Context, cloudAccountID uint, limit, offset int) ([]*model.ScheduledTask, int64, error) {
+	var tasks []*model.ScheduledTask
+	var total int64
+
+	query := s.db.Model(&model.ScheduledTask{}).Where("cloud_account_id = ? OR cloud_account_id IS NULL", cloudAccountID)
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	err := s.db.WithContext(ctx).
+		Where("cloud_account_id = ? OR cloud_account_id IS NULL", cloudAccountID).
+		Limit(limit).
+		Offset(offset).
+		Order("created_at DESC").
+		Find(&tasks).Error
+
+	return tasks, total, err
+}
+
 // UpdateScheduledTask 更新定时同步任务
 func (s *ScheduledTaskService) UpdateScheduledTask(ctx context.Context, task *model.ScheduledTask) error {
 	return s.db.WithContext(ctx).Save(task).Error

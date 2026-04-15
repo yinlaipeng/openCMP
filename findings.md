@@ -5,6 +5,167 @@
 - 不再使用模拟接口，实现真实的云厂商 SDK 调用
 - 完成从云账号添加 → 资源同步 → 资源管理的完整业务流程
 
+## Phase 16: 云账户管理增强需求分析 (2026-04-14)
+
+### 功能需求拆解
+
+**功能 1: 更新云账号弹窗**
+| 功能点 | 前端实现 | 后端实现 | 复杂度 |
+|--------|---------|---------|--------|
+| 备注信息编辑 | el-input textarea | 已有 PUT API | 低 |
+| 密钥ID编辑 | el-input | 已有 PUT API (Credentials JSON) | 低 |
+| 密码编辑 | el-input password | 已有 PUT API | 低 |
+| 测试连接按钮 | 调用 verify-credentials API | 已实现 VerifyCredentials | 低 |
+| 凭证验证反馈 | ElMessage 显示结果 | - | 低 |
+
+**功能 2: 属性设置-设置自动同步弹窗**
+| 子页面 | 需要新模型 | 复杂度 | 说明 |
+|--------|-----------|--------|------|
+| 详情 | 否 | 中 | 基本信息+账号信息+权限列表（需调用云厂商API获取权限） |
+| 资源统计 | 否 | 中 | 需新增 GetResourceStats API，从云厂商同步统计数据 |
+| 订阅 | 是(CloudSubscription) | 高 | 完整 CRUD + 同步策略配置 |
+| 云用户 | 是(CloudUser) | 高 | 完整 CRUD + 本地用户关联 |
+| 云用户组 | 是(CloudUserGroup) | 高 | 完整 CRUD |
+| 云上项目 | 是(CloudProject) | 高 | 完整 CRUD + 本地项目映射 |
+| 定时任务 | 否(已有ScheduledTask) | 中 | 扩展关联字段，页面展示 |
+| 操作日志 | 否(已有OperationLog) | 低 | 扩展 cloud_account_id 字段，表格展示 |
+
+### 需要新增的数据模型
+
+**1. CloudSubscription (云订阅)**
+```go
+type CloudSubscription struct {
+    ID                  uint           // 主键
+    CloudAccountID      uint           // 关联云账户
+    Name                string         // 订阅名称
+    SubscriptionID      string         // 订阅ID（云厂商侧）
+    Enabled             bool           // 启用状态
+    Status              string         // 状态
+    SyncTime            *time.Time     // 上次同步时间
+    SyncDuration        int            // 上次同步耗时（秒）
+    SyncStatus          string         // 同步状态（completed/failed/in_progress）
+    DomainID            uint           // 所属域
+    DefaultProjectID    *uint          // 资源默认归属项目
+    CreatedAt           time.Time
+    UpdatedAt           time.Time
+}
+```
+
+**2. CloudUser (云用户)**
+```go
+type CloudUser struct {
+    ID                uint           // 主键
+    CloudAccountID    uint           // 关联云账户
+    Username          string         // 用户名
+    ConsoleLogin      bool           // 控制台登录权限
+    Status            string         // 状态
+    Password          string         // 密码（加密）
+    LoginURL          string         // 登录地址
+    LocalUserID       *uint          // 关联本地用户
+    Platform          string         // 平台
+    CreatedAt         time.Time
+    UpdatedAt         time.Time
+}
+```
+
+**3. CloudUserGroup (云用户组)**
+```go
+type CloudUserGroup struct {
+    ID              uint           // 主键
+    CloudAccountID  uint           // 关联云账户
+    Name            string         // 组名
+    Status          string         // 状态
+    Permissions     string         // 权限（JSON）
+    Platform        string         // 平台
+    DomainID        uint           // 所属域
+    CreatedAt       time.Time
+    UpdatedAt       time.Time
+}
+```
+
+**4. CloudProject (云上项目)**
+```go
+type CloudProject struct {
+    ID              uint           // 主键
+    CloudAccountID  uint           // 关联云账户
+    Name            string         // 云上项目名
+    SubscriptionID  *uint          // 关联订阅
+    Status          string         // 状态
+    Tags            datatypes.JSON // 标签
+    DomainID        uint           // 所属域
+    LocalProjectID  *uint          // 本地项目映射
+    Priority        int            // 优先级
+    SyncTime        *time.Time     // 同步时间
+    CreatedAt       time.Time
+    UpdatedAt       time.Time
+}
+```
+
+### 需要扩展的现有模型
+
+**OperationLog 扩展**
+```go
+// 新增字段
+CloudAccountID *uint  `json:"cloud_account_id,omitempty" gorm:"column:cloud_account_id;index"`
+EventType      string `json:"event_type" gorm:"column:event_type;size:50;default:'api_call'"` // api_call/console/scheduled
+```
+
+### 前端组件架构
+
+**主组件: CloudAccountDetailDialog.vue**
+- 使用 el-tabs 结构包含 8 个子页面
+- 每个子页面作为独立组件或内联实现
+- 统一的 API 调用和数据刷新机制
+
+**组件结构建议:**
+```
+frontend/src/views/cloud-accounts/
+├── index.vue                     # 云账户列表页（已有）
+├── components/
+│   ├── EditAccountDialog.vue     # 更新云账号弹窗（新建）
+│   └── CloudAccountDetailDialog.vue  # 属性设置弹窗（新建）
+│   ├── tabs/
+│   │   ├── DetailTab.vue         # 详情子页面
+│   │   ├── ResourceStatsTab.vue  # 资源统计子页面
+│   │   ├── SubscriptionTab.vue   # 订阅子页面
+│   │   ├── CloudUserTab.vue      # 云用户子页面
+│   │   ├── CloudUserGroupTab.vue # 云用户组子页面
+│   │   ├── CloudProjectTab.vue   # 云上项目子页面
+│   │   ├── ScheduledTaskTab.vue  # 定时任务子页面
+│   │   └── OperationLogTab.vue   # 操作日志子页面
+```
+
+### 后端 API 设计
+
+**新增 API 端点:**
+```
+GET    /cloud-accounts/:id/resource-stats     # 获取资源统计
+GET    /cloud-accounts/:id/permissions        # 获取权限列表
+GET    /cloud-accounts/:id/subscriptions      # 订阅列表
+POST   /cloud-accounts/:id/subscriptions      # 创建订阅
+PUT    /cloud-accounts/:id/subscriptions/:sid # 更新订阅
+DELETE /cloud-accounts/:id/subscriptions/:sid # 删除订阅
+GET    /cloud-accounts/:id/cloud-users        # 云用户列表
+POST   /cloud-accounts/:id/cloud-users        # 创建云用户
+PUT    /cloud-accounts/:id/cloud-users/:uid   # 更新云用户
+DELETE /cloud-accounts/:id/cloud-users/:uid   # 删除云用户
+GET    /cloud-accounts/:id/cloud-user-groups  # 云用户组列表
+GET    /cloud-accounts/:id/cloud-projects     # 云上项目列表
+GET    /cloud-accounts/:id/operation-logs     # 操作日志列表
+```
+
+### 实现优先级
+
+| 优先级 | 任务 | 原因 |
+|--------|------|------|
+| P0 | Task 1: 更新云账号弹窗 | 独立功能，不依赖其他模型 |
+| P0 | Task 2: 主弹窗框架 | 基础框架，后续页面依赖 |
+| P1 | Task 10: 操作日志 | 已有模型，只需扩展和展示 |
+| P1 | Task 9: 定时任务 | 已有模型，只需页面展示 |
+| P1 | Task 4: 资源统计 | 不需要新模型，调用云厂商API |
+| P2 | Task 3: 详情 | 需要权限获取API |
+| P2 | Task 5-8: 订阅/云用户/云用户组/云上项目 | 需要新模型 |
+
 ## Research Findings (2026-04-12 Session 3)
 
 ### 后端 API 调用链分析

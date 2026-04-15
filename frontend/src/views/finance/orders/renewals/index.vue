@@ -85,7 +85,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { getRenewalResources } from '@/api/finance'
+import { getRenewalResources, syncRenewals } from '@/api/finance'
 import { getCloudAccounts } from '@/api/cloud-account'
 import type { RenewalResource } from '@/types/finance'
 
@@ -151,7 +151,16 @@ const handleSync = async () => {
     ElMessage.warning('请先选择云账号')
     return
   }
-  ElMessage.info('同步功能开发中...')
+  try {
+    loading.value = true
+    const res = await syncRenewals(selectedAccountId.value, daysThreshold.value)
+    ElMessage.success(`同步完成，新增 ${res.count} 条数据`)
+    loadRenewals()
+  } catch (e) {
+    ElMessage.error('同步失败')
+  } finally {
+    loading.value = false
+  }
 }
 
 watch([selectedAccountId, daysThreshold, pagination.currentPage, pagination.pageSize], loadRenewals)

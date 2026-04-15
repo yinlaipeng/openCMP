@@ -425,6 +425,50 @@
         <router-view />
       </el-main>
     </el-container>
+
+    <!-- 修改密码对话框 -->
+    <el-dialog v-model="passwordDialogVisible" title="修改密码" width="400px">
+      <el-form :model="passwordForm" label-width="100px" :rules="passwordRules" ref="passwordFormRef">
+        <el-form-item label="当前密码" prop="oldPassword">
+          <el-input v-model="passwordForm.oldPassword" type="password" placeholder="请输入当前密码" show-password />
+        </el-form-item>
+        <el-form-item label="新密码" prop="newPassword">
+          <el-input v-model="passwordForm.newPassword" type="password" placeholder="请输入新密码（至少6位）" show-password />
+        </el-form-item>
+        <el-form-item label="确认密码" prop="confirmPassword">
+          <el-input v-model="passwordForm.confirmPassword" type="password" placeholder="请再次输入新密码" show-password />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="passwordDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="handlePasswordSubmit" :loading="passwordLoading">确认修改</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 个人信息对话框 -->
+    <el-dialog v-model="profileDialogVisible" title="个人信息" width="500px">
+      <el-form :model="profileForm" label-width="100px">
+        <el-form-item label="用户名">
+          <el-input :value="currentUser?.name" disabled />
+        </el-form-item>
+        <el-form-item label="显示名称">
+          <el-input v-model="profileForm.display_name" placeholder="请输入显示名称" />
+        </el-form-item>
+        <el-form-item label="邮箱">
+          <el-input v-model="profileForm.email" placeholder="请输入邮箱" />
+        </el-form-item>
+        <el-form-item label="手机号">
+          <el-input v-model="profileForm.phone" placeholder="请输入手机号" />
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="profileForm.remark" type="textarea" placeholder="请输入备注" :rows="2" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="profileDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="handleProfileSubmit" :loading="profileLoading">保存</el-button>
+      </template>
+    </el-dialog>
   </el-container>
 </template>
 
@@ -438,9 +482,35 @@ import {
 } from '@element-plus/icons-vue'
 import { getProjects } from '@/api/iam' // 使用iam中的项目API
 import { initializeProjectContext, setProjectContext, getCurrentProjectId, getCurrentProjectName, isInProjectMode, clearProjectContext } from '@/utils/projectContext'
+import { changePassword, updateProfile } from '@/api/auth'
 
 const router = useRouter()
 const route = useRoute()
+
+// 密码修改对话框
+const passwordDialogVisible = ref(false)
+const passwordLoading = ref(false)
+const passwordFormRef = ref<any>(null)
+const passwordForm = ref({
+  oldPassword: '',
+  newPassword: '',
+  confirmPassword: ''
+})
+const passwordRules = {
+  oldPassword: [{ required: true, message: '请输入当前密码', trigger: 'blur' }],
+  newPassword: [{ required: true, min: 6, message: '密码长度至少6位', trigger: 'blur' }],
+  confirmPassword: [{ required: true, message: '请确认新密码', trigger: 'blur' }]
+}
+
+// 个人信息对话框
+const profileDialogVisible = ref(false)
+const profileLoading = ref(false)
+const profileForm = ref({
+  display_name: '',
+  email: '',
+  phone: '',
+  remark: ''
+})
 
 // 环境状态
 const currentEnvironment = ref({
@@ -547,11 +617,70 @@ const handleCommand = async (command: string) => {
       await handleLogout()
       break
     case 'password':
-      ElMessage.info('修改密码功能开发中')
+      passwordDialogVisible.value = true
+      passwordForm.value = { oldPassword: '', newPassword: '', confirmPassword: '' }
       break
     case 'profile':
-      ElMessage.info('个人信息功能开发中')
+      profileDialogVisible.value = true
+      profileForm.value = {
+        display_name: currentUser.value?.display_name || '',
+        email: currentUser.value?.email || '',
+        phone: currentUser.value?.phone || '',
+        remark: currentUser.value?.remark || ''
+      }
       break
+  }
+}
+
+// 处理密码修改
+const handlePasswordSubmit = async () => {
+  if (!passwordFormRef.value) return
+  try {
+    await passwordFormRef.value.validate()
+    if (passwordForm.value.newPassword !== passwordForm.value.confirmPassword) {
+      ElMessage.error('两次输入的密码不一致')
+      return
+    }
+    passwordLoading.value = true
+    await changePassword(passwordForm.value.oldPassword, passwordForm.value.newPassword)
+    ElMessage.success('密码修改成功')
+    passwordDialogVisible.value = false
+  } catch (e: any) {
+    if (e?.response?.data?.error) {
+      ElMessage.error(e.response.data.error)
+    } else if (e !== 'cancel') {
+      ElMessage.error('密码修改失败')
+    }
+  } finally {
+    passwordLoading.value = false
+  }
+}
+
+// 处理个人信息更新
+const handleProfileSubmit = async () => {
+  profileLoading.value = true
+  try {
+    const res = await updateProfile(profileForm.value)
+    ElMessage.success('个人信息更新成功')
+    // 更新本地存储的用户信息
+    const userStr = localStorage.getItem('user')
+    if (userStr) {
+      const user = JSON.parse(userStr)
+      user.display_name = profileForm.value.display_name
+      user.email = profileForm.value.email
+      user.phone = profileForm.value.phone
+      user.remark = profileForm.value.remark
+      localStorage.setItem('user', JSON.stringify(user))
+    }
+    profileDialogVisible.value = false
+  } catch (e: any) {
+    if (e?.response?.data?.error) {
+      ElMessage.error(e.response.data.error)
+    } else {
+      ElMessage.error('更新失败')
+    }
+  } finally {
+    profileLoading.value = false
   }
 }
 

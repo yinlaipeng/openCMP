@@ -1,7 +1,7 @@
 import request from '@/utils/request'
 import type { ScheduledTask, CreateScheduledTaskRequest } from '@/types'
 
-export function getScheduledTasks(params?: { page?: number; page_size?: number }) {
+export function getScheduledTasks(params?: { page?: number; page_size?: number; cloud_account_id?: number }) {
   return request<{ items: ScheduledTask[], total: number }>({
     url: '/scheduled-tasks',
     method: 'get',

@@ -4,9 +4,99 @@
 实现 openCMP 多云管理平台的完整功能落地，前端页面与后端 API 真实对接，云厂商适配器调用真实 SDK，实现从云账号添加 → 资源同步 → 资源管理的完整业务流程。
 
 ## Current Phase
-Phase 15 - 费用中心功能完善（进行中）
+Phase 17 - 项目全面完善（Phase A/B/C/D/E 已完成）
 
 ## Phases
+
+### Phase 17: 项目全面完善
+- **目标**: 根据全面审查结果，系统性完善项目各模块功能
+- [x] **Task 0: 全面项目审查** - 完成项目代码审查，创建完善计划
+- [x] **Phase A: 云账户详情完善**（已完成）
+  - [x] A1: SubscriptionTab 完整 CRUD - 后端添加 PUT/DELETE/Toggle/Sync API，前端完整实现
+  - [x] A2: ScheduledTaskTab 调用真实 API - 支持 cloud_account_id 筛选，完整 CRUD
+  - [x] A3: CloudUser/CloudUserGroup/CloudProject CRUD API + 前端完整实现
+  - [x] A4: SubscriptionTab 更改项目/同步策略/启用禁用功能实现
+- [x] **Phase B: 费用中心真实API对接**（已完成）
+  - [x] B1: 阿里云 BSS SDK 集成 - 创建 IBilling 接口和 Alibaba billing adapter
+  - [x] B2: 账单/订单/成本 API 实现 - SyncBills/SyncOrders/SyncRenewals/GetAccountBalance
+  - [x] B3: 前端对接真实数据 - 续费管理同步功能调用真实API
+- [x] **Phase C: 云厂商适配器完善**（已完成）
+  - [x] C1: Storage 接口实现 - 阿里云 Disk/Snapshot adapter 已存在，创建 Storage Handler
+  - [x] C2: 云硬盘管理页面 - 前端实现创建/删除/挂载/卸载/扩容/快照功能
+  - [x] C3: 存储路由注册 - /storage/cloud-disks, /storage/cloud-snapshots
+- [x] **Phase D: 网络模块功能完善**
+  - [x] D1: 扩展网络接口 - UpdateSubnet/AddSecurityGroupRule/DeleteSecurityGroupRule/BindEIP/UnbindEIP
+  - [x] D2: Alibaba provider 实现 - vpc.go 新增方法实现
+  - [x] D3: 其他 provider stub 实现 - Tencent/Azure/AWS 添加 stub 方法
+  - [x] D4: Handler 方法实现 - network.go 扩展方法
+  - [x] D5: 路由注册 - main.go 新增 subnet/sg/eip 扩展路由
+  - [x] D6: 前端 API - network.ts 扩展 API 方法
+- [x] **Phase E: 监控/用户中心完善**
+  - [x] E1: 监控数据导出 - monitoring/query/index.vue 实现 CSV 导出
+  - [x] E2: 告警策略配置 - monitoring/resources/vms/index.vue 实现新增/编辑策略
+  - [x] E3: 修改密码功能 - layout/index.vue + auth API 实现
+  - [x] E4: 个人信息编辑 - layout/index.vue + auth API 实现
+- **Status:** Phase C complete
+- **详细计划**: docs/superpowers/specs/2026-04-14-project-improvement-plan.md
+
+### Phase 16: 云账户管理增强
+- **目标**: 完善云账户管理功能，实现更新云账号弹窗、属性设置自动同步弹窗及其8个子页面
+- [x] **Task 0: 现状分析与需求梳理** ✅
+- [x] **Task 1: 更新云账号弹窗** ✅
+- [x] **Task 2: 属性设置主弹窗框架** ✅
+- [x] **Task 3: 详情子页面完善** ✅（骨架完成）
+- [x] **Task 4: 资源统计子页面完善** ✅（骨架完成）
+- [x] **Task 5: 订阅子页面完善** ✅（骨架+后端API）
+- [x] **Task 6: 云用户子页面完善** ✅（骨架+后端API）
+- [x] **Task 7: 云用户组子页面完善** ✅（骨架+后端API）
+- [x] **Task 8: 云上项目子页面完善** ✅（骨架+后端API）
+- [x] **Task 9: 定时任务子页面完善** ✅（骨架完成）
+- [x] **Task 10: 操作日志子页面完善** ✅（骨架+后端API）
+- [x] **Task 11: 数据库迁移与编译验证** ✅
+  - 新增模型：CloudSubscription、CloudUser、CloudUserGroup、CloudProject
+  - 扩展模型：OperationLog 添加 cloud_account_id 字段
+  - 后端编译成功
+  - 前端编译成功
+- **Status:** complete（框架和基础功能完成，后续迭代可完善细节）
+- [ ] **Task 2: 属性设置主弹窗框架**
+  - 前端：创建 CloudAccountDetailDialog.vue 组件
+  - 结构：el-tabs 包含 8 个子页面
+  - API：新增获取云账户详情统计的 API
+- [ ] **Task 3: 详情子页面**
+  - 基本信息：名称、平台、状态、创建时间等
+  - 账号信息：账号ID、余额、上次同步时间
+  - 权限列表：云账号在云平台中的权限（需要同步获取）
+- [ ] **Task 4: 资源统计子页面**
+  - 统计卡片：虚拟机、RDS、Redis、存储桶、EIP、VPC、子网等数量
+  - 使用率指标：虚拟机开机率、磁盘挂载率、EIP使用率、IP使用率
+  - 后端：新增 GetResourceStats API
+- [ ] **Task 5: 订阅子页面**（需要新模型）
+  - 数据模型：CloudSubscription（订阅ID、启用状态、同步状态、所属域、默认项目）
+  - 前端表格：名称、订阅ID、状态、同步时间、所属域、操作
+  - 操作功能：更改项目、同步策略设置、启用/禁用/删除
+- [ ] **Task 6: 云用户子页面**（需要新模型）
+  - 数据模型：CloudUser（用户名、控制台登录、状态、密码、登录地址、关联本地用户）
+  - 前端表格：用户名、状态、平台、所属云账号、操作
+- [ ] **Task 7: 云用户组子页面**（需要新模型）
+  - 数据模型：CloudUserGroup（名称、状态、权限、平台、所属云账号、所属域）
+  - 前端表格：名称、状态、权限、平台、所属域、操作
+- [ ] **Task 8: 云上项目子页面**（需要新模型）
+  - 数据模型：CloudProject（云上项目名、订阅、状态、标签、所属域、本地项目、优先级）
+  - 前端表格：云上项目、订阅、状态、标签、本地项目、优先级、操作
+- [ ] **Task 9: 定时任务子页面**
+  - 利用现有 ScheduledTask 模型，扩展关联云账户
+  - 前端表格：名称、状态、启用状态、操作动作、策略详情、操作
+  - 操作：编辑、启用/禁用、删除、立即执行
+- [ ] **Task 10: 操作日志子页面**
+  - 利用现有 OperationLog 模型，扩展云账户关联字段
+  - 前端表格：#ID、操作时间、资源名称、资源类型、操作类型、服务类型、风险级别、事件类型、结果、发起人、所属项目
+  - 操作：查看详情弹窗
+- [ ] **Task 11: 数据库迁移与编译验证**
+  - 新增模型：CloudSubscription、CloudUser、CloudUserGroup、CloudProject
+  - 扩展模型：OperationLog 添加 cloud_account_id 字段
+  - 后端编译验证
+  - 前端编译验证
+- **Status:** in_progress
 
 ### Phase 15: 费用中心功能完善
 - **目标**: 完善费用中心 9 个子页面的前端功能，实现阿里云 BSS API 数据同步

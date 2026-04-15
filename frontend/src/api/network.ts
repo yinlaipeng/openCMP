@@ -64,6 +64,59 @@ export function deleteSubnet(id: string, account_id: number) {
   })
 }
 
+export function updateSubnet(id: string, account_id: number, data: { name?: string; description?: string; tags?: Record<string, string> }) {
+  return request<Subnet>({
+    url: `/network/subnets/${id}`,
+    method: 'put',
+    params: { account_id },
+    data
+  })
+}
+
+export function changeSubnetProject(id: string, account_id: number, project_id: number) {
+  return request({
+    url: `/network/subnets/${id}/change-project`,
+    method: 'post',
+    params: { account_id },
+    data: { project_id }
+  })
+}
+
+export function splitSubnet(id: string, account_id: number, new_cidrs: string[]) {
+  return request({
+    url: `/network/subnets/${id}/split`,
+    method: 'post',
+    params: { account_id },
+    data: { new_cidrs }
+  })
+}
+
+export function reserveIP(id: string, account_id: number, data: { ips: string[]; reason?: string; reserved_by?: string }) {
+  return request({
+    url: `/network/subnets/${id}/reserve-ip`,
+    method: 'post',
+    params: { account_id },
+    data
+  })
+}
+
+export function releaseIP(id: string, account_id: number, ips: string[]) {
+  return request({
+    url: `/network/subnets/${id}/release-ip`,
+    method: 'post',
+    params: { account_id },
+    data: { ips }
+  })
+}
+
+export function getReservedIPs(account_id: number, subnet_id: string) {
+  return request({
+    url: '/network/subnets/reserved-ips',
+    method: 'get',
+    params: { account_id, subnet_id }
+  })
+}
+
 // Security Group APIs
 export function getSecurityGroups(params?: { account_id?: number; vpc_id?: string }) {
   return request<SecurityGroup[]>({
@@ -86,6 +139,39 @@ export function createSecurityGroup(data: {
   })
 }
 
+export function deleteSecurityGroup(id: string, account_id: number) {
+  return request({
+    url: `/network/security-groups/${id}`,
+    method: 'delete',
+    params: { account_id }
+  })
+}
+
+export function addSecurityGroupRule(id: string, account_id: number, data: {
+  direction: string
+  protocol: string
+  port_range?: string
+  cidr: string
+  action: string
+  description?: string
+  priority?: number
+}) {
+  return request({
+    url: `/network/security-groups/${id}/rules`,
+    method: 'post',
+    params: { account_id },
+    data
+  })
+}
+
+export function deleteSecurityGroupRule(id: string, rule_id: string, account_id: number) {
+  return request({
+    url: `/network/security-groups/${id}/rules/${rule_id}`,
+    method: 'delete',
+    params: { account_id }
+  })
+}
+
 // EIP APIs
 export function getEIPs(params?: { account_id?: number; region_id?: string; status?: string }) {
   return request<EIP[]>({
@@ -104,6 +190,31 @@ export function createEIP(data: {
     url: '/network/eips',
     method: 'post',
     data
+  })
+}
+
+export function deleteEIP(id: string, account_id: number) {
+  return request({
+    url: `/network/eips/${id}`,
+    method: 'delete',
+    params: { account_id }
+  })
+}
+
+export function bindEIP(id: string, account_id: number, data: { resource_id: string; resource_type: string }) {
+  return request({
+    url: `/network/eips/${id}/bind`,
+    method: 'post',
+    params: { account_id },
+    data
+  })
+}
+
+export function unbindEIP(id: string, account_id: number) {
+  return request({
+    url: `/network/eips/${id}/unbind`,
+    method: 'post',
+    params: { account_id }
   })
 }
 

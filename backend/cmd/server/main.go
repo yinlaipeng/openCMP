@@ -109,6 +109,12 @@ func main() {
 		&model.Budget{},        // 添加预算模型
 		&model.CostAnomaly{},   // 添加成本异常模型
 		&model.RenewalResource{}, // 添加续费资源模型
+			&model.CloudSubscription{}, // 添加云订阅模型
+			&model.CloudUser{},         // 添加云用户模型
+			&model.CloudUserGroup{},    // 添加云用户组模型
+			&model.CloudProject{},      // 添加云上项目模型
+			&model.CloudDisk{},         // 添加云硬盘模型
+			&model.CloudSnapshot{},     // 添加云快照模型
 	); err != nil {
 		log.Fatalf("failed to migrate database: %v", err)
 	}
@@ -136,6 +142,9 @@ func main() {
 	r.Use(middleware.RecoveryMiddleware(logger))
 	r.Use(middleware.LoggerMiddleware(logger))
 
+	// 创建 authHandler（认证相关）
+	authHandler := handler.NewAuthHandler(db, logger, cfg.Auth.JWTSecret, cfg.Auth.TokenExpireHours)
+
 	// API 路由组
 	v1 := r.Group("/api/v1")
 	v1.Use(func(c *gin.Context) {
@@ -157,8 +166,35 @@ func main() {
 			cloudAccountGroup.POST("/:id/test-connection", cloudAccountHandler.TestConnection)
 			cloudAccountGroup.POST("/:id/sync", cloudAccountHandler.Sync)
 			cloudAccountGroup.GET("/:id/verify-credentials", cloudAccountHandler.VerifyCredentials)
-				cloudAccountGroup.PATCH("/:id/status", cloudAccountHandler.UpdateStatus)
-				cloudAccountGroup.PATCH("/:id/attributes", cloudAccountHandler.UpdateAttributes)
+			cloudAccountGroup.PATCH("/:id/status", cloudAccountHandler.UpdateStatus)
+			cloudAccountGroup.POST("/:id/test-connection-with-credentials", cloudAccountHandler.TestConnectionWithCredentials)
+			cloudAccountGroup.PATCH("/:id/attributes", cloudAccountHandler.UpdateAttributes)
+
+			// 云账户资源相关路由
+			cloudAccountResourcesHandler := handler.NewCloudAccountResourcesHandler(db, logger)
+			cloudAccountGroup.GET("/:id/resource-stats", cloudAccountResourcesHandler.GetResourceStats)
+			cloudAccountGroup.GET("/:id/permissions", cloudAccountResourcesHandler.GetPermissions)
+			cloudAccountGroup.GET("/:id/subscriptions", cloudAccountResourcesHandler.ListSubscriptions)
+			cloudAccountGroup.POST("/:id/subscriptions", cloudAccountResourcesHandler.CreateSubscription)
+			cloudAccountGroup.PUT("/:id/subscriptions/:sid", cloudAccountResourcesHandler.UpdateSubscription)
+			cloudAccountGroup.DELETE("/:id/subscriptions/:sid", cloudAccountResourcesHandler.DeleteSubscription)
+			cloudAccountGroup.POST("/:id/subscriptions/:sid/toggle", cloudAccountResourcesHandler.ToggleSubscription)
+			cloudAccountGroup.POST("/:id/subscriptions/:sid/sync", cloudAccountResourcesHandler.SyncSubscription)
+			cloudAccountGroup.PUT("/:id/subscriptions/:sid/project", cloudAccountResourcesHandler.UpdateSubscriptionProject)
+			cloudAccountGroup.GET("/:id/cloud-users", cloudAccountResourcesHandler.ListCloudUsers)
+			cloudAccountGroup.POST("/:id/cloud-users", cloudAccountResourcesHandler.CreateCloudUser)
+			cloudAccountGroup.PUT("/:id/cloud-users/:uid", cloudAccountResourcesHandler.UpdateCloudUser)
+			cloudAccountGroup.DELETE("/:id/cloud-users/:uid", cloudAccountResourcesHandler.DeleteCloudUser)
+			cloudAccountGroup.GET("/:id/cloud-user-groups", cloudAccountResourcesHandler.ListCloudUserGroups)
+			cloudAccountGroup.POST("/:id/cloud-user-groups", cloudAccountResourcesHandler.CreateCloudUserGroup)
+			cloudAccountGroup.PUT("/:id/cloud-user-groups/:gid", cloudAccountResourcesHandler.UpdateCloudUserGroup)
+			cloudAccountGroup.DELETE("/:id/cloud-user-groups/:gid", cloudAccountResourcesHandler.DeleteCloudUserGroup)
+			cloudAccountGroup.GET("/:id/cloud-projects", cloudAccountResourcesHandler.ListCloudProjects)
+			cloudAccountGroup.POST("/:id/cloud-projects", cloudAccountResourcesHandler.CreateCloudProject)
+			cloudAccountGroup.PUT("/:id/cloud-projects/:pid", cloudAccountResourcesHandler.UpdateCloudProject)
+			cloudAccountGroup.DELETE("/:id/cloud-projects/:pid", cloudAccountResourcesHandler.DeleteCloudProject)
+			cloudAccountGroup.POST("/:id/cloud-projects/:pid/map", cloudAccountResourcesHandler.MapCloudProjectToLocal)
+			cloudAccountGroup.GET("/:id/operation-logs", cloudAccountResourcesHandler.ListOperationLogs)
 
 		}
 
@@ -216,14 +252,27 @@ func main() {
 			networkGroup.GET("/vpcs", networkHandler.ListVPCs)
 			networkGroup.DELETE("/vpcs/:id", networkHandler.DeleteVPC)
 
-			networkGroup.POST("/subnets", networkHandler.CreateSubnet)
-			networkGroup.GET("/subnets", networkHandler.ListSubnets)
+				networkGroup.POST("/subnets", networkHandler.CreateSubnet)
+				networkGroup.GET("/subnets", networkHandler.ListSubnets)
+				networkGroup.PUT("/subnets/:id", networkHandler.UpdateSubnet)
+				networkGroup.DELETE("/subnets/:id", networkHandler.DeleteSubnet)
+				networkGroup.POST("/subnets/:id/change-project", networkHandler.ChangeSubnetProject)
+				networkGroup.POST("/subnets/:id/split", networkHandler.SplitSubnet)
+				networkGroup.POST("/subnets/:id/reserve-ip", networkHandler.ReserveIP)
+				networkGroup.POST("/subnets/:id/release-ip", networkHandler.ReleaseIP)
+				networkGroup.GET("/subnets/reserved-ips", networkHandler.ListReservedIPs)
 
-			networkGroup.POST("/security-groups", networkHandler.CreateSecurityGroup)
-			networkGroup.GET("/security-groups", networkHandler.ListSecurityGroups)
+				networkGroup.POST("/security-groups", networkHandler.CreateSecurityGroup)
+				networkGroup.GET("/security-groups", networkHandler.ListSecurityGroups)
+				networkGroup.DELETE("/security-groups/:id", networkHandler.DeleteSecurityGroup)
+				networkGroup.POST("/security-groups/:id/rules", networkHandler.AddSecurityGroupRule)
+				networkGroup.DELETE("/security-groups/:id/rules/:rule_id", networkHandler.DeleteSecurityGroupRule)
 
-			networkGroup.POST("/eips", networkHandler.CreateEIP)
-			networkGroup.GET("/eips", networkHandler.ListEIPs)
+				networkGroup.POST("/eips", networkHandler.CreateEIP)
+				networkGroup.GET("/eips", networkHandler.ListEIPs)
+				networkGroup.DELETE("/eips/:id", networkHandler.DeleteEIP)
+				networkGroup.POST("/eips/:id/bind", networkHandler.BindEIP)
+				networkGroup.POST("/eips/:id/unbind", networkHandler.UnbindEIP)
 
 				// 地理资源路由
 				networkGroup.GET("/regions", networkHandler.ListRegions)
@@ -245,6 +294,25 @@ func main() {
 				networkGroup.POST("/l2-networks", networkHandler.CreateL2Network)
 				networkGroup.GET("/l2-networks", networkHandler.ListL2Networks)
 				networkGroup.DELETE("/l2-networks/:id", networkHandler.DeleteL2Network)
+		}
+
+		// 存储资源路由
+		storageHandler := handler.NewStorageHandler(db, logger)
+		storageGroup := v1.Group("/storage")
+		{
+			// 云硬盘
+			storageGroup.GET("/cloud-disks", storageHandler.ListCloudDisks)
+			storageGroup.POST("/cloud-disks", storageHandler.CreateCloudDisk)
+			storageGroup.DELETE("/cloud-disks/:id", storageHandler.DeleteCloudDisk)
+			storageGroup.POST("/cloud-disks/:id/attach", storageHandler.AttachCloudDisk)
+			storageGroup.POST("/cloud-disks/:id/detach", storageHandler.DetachCloudDisk)
+			storageGroup.POST("/cloud-disks/:id/resize", storageHandler.ResizeCloudDisk)
+			storageGroup.POST("/cloud-disks/sync", storageHandler.SyncCloudDisks)
+
+			// 云快照
+			storageGroup.GET("/cloud-snapshots", storageHandler.ListCloudSnapshots)
+			storageGroup.POST("/cloud-snapshots", storageHandler.CreateCloudSnapshot)
+			storageGroup.DELETE("/cloud-snapshots/:id", storageHandler.DeleteCloudSnapshot)
 		}
 
 		// IAM 认证与安全路由
@@ -494,6 +562,10 @@ func main() {
 
 			// 续费
 			financeGroup.GET("/renewals", financeHandler.GetRenewals)
+			financeGroup.POST("/renewals/sync", financeHandler.SyncRenewals)
+
+			// 账户余额
+			financeGroup.GET("/account-balance", financeHandler.GetAccountBalance)
 
 			// 成本分析
 			financeGroup.GET("/cost/analysis", financeHandler.GetCostAnalysis)
@@ -510,6 +582,14 @@ func main() {
 			financeGroup.GET("/anomalies", financeHandler.GetAnomalies)
 			financeGroup.POST("/anomalies/:id/resolve", financeHandler.ResolveAnomaly)
 		}
+
+		// 认证相关路由（需要认证）
+		authGroup := v1.Group("/auth")
+		{
+			authGroup.GET("/me", authHandler.GetCurrentUser)
+			authGroup.POST("/change-password", authHandler.ChangePassword)
+			authGroup.PUT("/profile", authHandler.UpdateProfile)
+		}
 	}
 
 	// 健康检查（不需要认证）
@@ -518,7 +598,6 @@ func main() {
 	})
 
 	// 认证路由（不需要认证）
-	authHandler := handler.NewAuthHandler(db, logger, cfg.Auth.JWTSecret, cfg.Auth.TokenExpireHours)
 	r.POST("/api/v1/auth/login", authHandler.Login)
 
 	// 启动服务

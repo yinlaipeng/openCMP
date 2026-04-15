@@ -243,3 +243,44 @@ func (s *CloudAccountService) VerifyCredentials(ctx context.Context, account *mo
 		return true, "provider initialized", nil
 	}
 }
+
+// TestConnectionWithCredentials 使用新凭证测试连接
+func (s *CloudAccountService) TestConnectionWithCredentials(ctx context.Context, account *model.CloudAccount, accessKeyId, accessKeySecret string) (bool, string, []string, error) {
+	// 构建新的凭证配置
+	creds := map[string]string{
+		"access_key_id":     accessKeyId,
+		"access_key_secret": accessKeySecret,
+		"region_id":         "cn-hangzhou", // 使用默认区域测试
+	}
+
+	config := cloudprovider.CloudAccountConfig{
+		ID:           strconv.Itoa(int(account.ID)),
+		Name:         account.Name,
+		ProviderType: account.ProviderType,
+		Credentials:  creds,
+		Region:       "cn-hangzhou",
+	}
+
+	provider, err := cloudprovider.GetProvider(account.ProviderType, config)
+	if err != nil {
+		return false, "failed to initialize provider: " + err.Error(), []string{}, err
+	}
+
+	// 尝试列出区域来验证凭证有效性
+	regions, err := provider.ListRegions()
+	if err != nil {
+		return false, "failed to list regions: " + err.Error(), []string{}, err
+	}
+
+	// 将区域转换为字符串数组
+	regionNames := []string{}
+	for _, region := range regions {
+		regionNames = append(regionNames, region.Name)
+	}
+
+	if len(regions) == 0 {
+		return false, "no regions returned", regionNames, nil
+	}
+
+	return true, "连接成功，" + strconv.Itoa(len(regions)) + " 个区域可用", regionNames, nil
+}

@@ -454,3 +454,27 @@ func (p *AzureProvider) DeleteL2Network(ctx context.Context, l2NetworkID string)
 func (p *AzureProvider) ListL2Networks(ctx context.Context, filter cloudprovider.L2NetworkFilter) ([]*cloudprovider.L2Network, error) {
 	return nil, cloudprovider.NewCloudError(cloudprovider.ErrUnsupportedOperation, "ListL2Networks not implemented", "")
 }
+
+// ============================================
+// Extended network methods (未实现)
+// ============================================
+
+func (p *AzureProvider) UpdateSubnet(ctx context.Context, subnetID, name, description string, tags map[string]string) (*cloudprovider.Subnet, error) {
+	return nil, cloudprovider.NewCloudError(cloudprovider.ErrUnsupportedOperation, "UpdateSubnet not implemented", "")
+}
+
+func (p *AzureProvider) AddSecurityGroupRule(ctx context.Context, sgID string, rule cloudprovider.SGRule) (string, error) {
+	return "", cloudprovider.NewCloudError(cloudprovider.ErrUnsupportedOperation, "AddSecurityGroupRule not implemented", "")
+}
+
+func (p *AzureProvider) DeleteSecurityGroupRule(ctx context.Context, sgID, ruleID string) error {
+	return cloudprovider.NewCloudError(cloudprovider.ErrUnsupportedOperation, "DeleteSecurityGroupRule not implemented", "")
+}
+
+func (p *AzureProvider) BindEIP(ctx context.Context, eipID, resourceID, resourceType string) error {
+	return cloudprovider.NewCloudError(cloudprovider.ErrUnsupportedOperation, "BindEIP not implemented", "")
+}
+
+func (p *AzureProvider) UnbindEIP(ctx context.Context, eipID string) error {
+	return cloudprovider.NewCloudError(cloudprovider.ErrUnsupportedOperation, "UnbindEIP not implemented", "")
+}

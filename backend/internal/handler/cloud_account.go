@@ -465,3 +465,51 @@ func (h *CloudAccountHandler) UpdateAttributes(c *gin.Context) {
 		"sync_resource_types": req.SyncResourceTypes,
 	})
 }
+
+// TestConnectionWithCredentials 使用新凭证测试连接
+func (h *CloudAccountHandler) TestConnectionWithCredentials(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	account, err := h.service.GetCloudAccount(c.Request.Context(), uint(id))
+	if err != nil {
+		h.logger.Error("failed to get cloud account", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if account == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "account not found"})
+		return
+	}
+
+	var req struct {
+		AccessKeyId     string `json:"access_key_id" binding:"required"`
+		AccessKeySecret string `json:"access_key_secret" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "credentials are required"})
+		return
+	}
+
+	// 使用新凭证测试连接
+	valid, message, regions, err := h.service.TestConnectionWithCredentials(c.Request.Context(), account, req.AccessKeyId, req.AccessKeySecret)
+	if err != nil {
+		h.logger.Error("failed to test connection with credentials", zap.Error(err))
+		c.JSON(http.StatusOK, gin.H{
+			"connected": false,
+			"message":   "连接失败: " + err.Error(),
+			"regions":   []string{},
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"connected": valid,
+		"message":   message,
+		"regions":   regions,
+	})
+}

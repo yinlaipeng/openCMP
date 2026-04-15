@@ -342,3 +342,49 @@ func (h *FinanceHandler) ResolveAnomaly(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "resolved"})
 }
+
+// ========== 续费同步 ==========
+
+// SyncRenewals 同步待续费资源
+func (h *FinanceHandler) SyncRenewals(c *gin.Context) {
+	var req struct {
+		CloudAccountID uint `json:"cloud_account_id" binding:"required"`
+		DaysThreshold  int  `json:"days_threshold"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if req.DaysThreshold == 0 {
+		req.DaysThreshold = 30
+	}
+
+	count, err := h.service.SyncRenewals(c.Request.Context(), req.CloudAccountID, req.DaysThreshold)
+	if err != nil {
+		h.logger.Error("failed to sync renewals", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "sync completed",
+		"count":   count,
+	})
+}
+
+// ========== 账户余额 ==========
+
+// GetAccountBalance 获取账户余额
+func (h *FinanceHandler) GetAccountBalance(c *gin.Context) {
+	cloudAccountID, _ := strconv.ParseUint(c.Query("cloud_account_id"), 10, 32)
+
+	balance, err := h.service.GetAccountBalance(c.Request.Context(), uint(cloudAccountID))
+	if err != nil {
+		h.logger.Error("failed to get account balance", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, balance)
+}

@@ -20,6 +20,7 @@ type OperationLog struct {
 	ProjectID     *uint     `json:"project_id" gorm:"column:project_id;index"`
 	DomainID      *uint     `json:"domain_id,omitempty" gorm:"column:domain_id;index"`
 	UserID        *uint     `json:"user_id,omitempty" gorm:"column:user_id;index"`
+	CloudAccountID *uint    `json:"cloud_account_id,omitempty" gorm:"column:cloud_account_id;index"` // 新增：关联云账户
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
 }

@@ -13,6 +13,7 @@ const (
 	ErrOperationFailed       ErrorCode = "OperationFailed"
 	ErrTimeout               ErrorCode = "Timeout"
 	ErrUnsupportedOperation  ErrorCode = "UnsupportedOperation"
+	ErrProviderError         ErrorCode = "ProviderError"
 )
 
 // CloudError 云操作错误
