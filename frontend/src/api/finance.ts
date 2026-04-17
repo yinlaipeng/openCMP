@@ -212,3 +212,86 @@ export function resolveAnomaly(id: number, resolution: string) {
     data: { resolution }
   })
 }
+
+// ========== 成本聚合统计 ==========
+
+export interface CostAggregation {
+  key: string
+  name: string
+  cost: number
+  count: number
+  ratio: number
+}
+
+export interface CostTrendPoint {
+  date: string
+  cost: number
+  budget: number
+  change: number
+}
+
+export interface CostSummary {
+  current_month_cost: number
+  last_month_cost: number
+  change_rate: number
+  budget_amount: number
+  budget_usage: number
+  currency: string
+}
+
+// 按项目统计成本
+export function getCostByProject(params: {
+  start_date?: string
+  end_date?: string
+}) {
+  return request<CostAggregation[]>({
+    url: '/finance/cost/by-project',
+    method: 'get',
+    params
+  })
+}
+
+// 按云账号统计成本
+export function getCostByAccount(params: {
+  start_date?: string
+  end_date?: string
+}) {
+  return request<CostAggregation[]>({
+    url: '/finance/cost/by-account',
+    method: 'get',
+    params
+  })
+}
+
+// 按服务类型统计成本
+export function getCostByService(params: {
+  start_date?: string
+  end_date?: string
+}) {
+  return request<CostAggregation[]>({
+    url: '/finance/cost/by-service',
+    method: 'get',
+    params
+  })
+}
+
+// 获取成本趋势
+export function getCostTrend(params: {
+  cloud_account_id?: number
+  months?: number
+}) {
+  return request<CostTrendPoint[]>({
+    url: '/finance/cost/trend',
+    method: 'get',
+    params
+  })
+}
+
+// 获取成本概览
+export function getCostSummary(params?: { cloud_account_id?: number }) {
+  return request<CostSummary>({
+    url: '/finance/cost/summary',
+    method: 'get',
+    params
+  })
+}

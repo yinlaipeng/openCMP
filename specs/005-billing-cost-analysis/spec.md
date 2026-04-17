@@ -22,9 +22,9 @@
 - [x] 按账号统计成本API实现（GetCostByAccount）
 - [x] 按服务类型统计成本API实现（GetCostByService）
 - [x] 成本趋势图表数据API（GetCostTrend, GetCostSummary）
-- [ ] 前端账单页面真实数据展示
+- [x] 前端账单页面真实数据展示（finance.ts API集成）
 - [x] All tests pass
-- [ ] Changes committed and pushed
+- [x] Changes committed and pushed
 
 ### Implementation Notes
 
@@ -71,6 +71,14 @@ WHERE cost_date BETWEEN '...' GROUP BY service_type
 
 ---
 
-## Status: PENDING
+## Status: COMPLETE
 
-<!-- Change to COMPLETE when all acceptance criteria are met -->
+<!-- All acceptance criteria are met:
+- Alibaba BSS SDK integration in billing.go
+- Bill data parsing and storage to finance_bills table
+- Cost aggregation APIs: GetCostByProject, GetCostByAccount, GetCostByService
+- Cost trend and summary APIs: GetCostTrend, GetCostSummary
+- Frontend finance.ts API integration with new cost endpoints
+- Backend and frontend builds passing
+- Changes committed and pushed
+-->
