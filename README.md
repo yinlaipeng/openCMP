@@ -139,9 +139,35 @@ cd frontend
 npm run dev
 ```
 
-### Docker 部署
+### Docker 部署（推荐）
 
-#### 1. 构建镜像
+#### 快速部署
+```bash
+# 1. 克隆项目
+git clone https://github.com/opencmp/opencmp.git
+cd opencmp
+
+# 2. 配置环境变量
+cp .env.example .env
+# 编辑 .env 文件，修改生产环境配置
+
+# 3. 一键启动所有服务
+docker-compose up -d
+
+# 4. 查看服务状态
+docker-compose ps
+```
+
+#### 服务访问
+- 前端界面: http://localhost:80
+- API服务: http://localhost:8080/api/v1
+- 健康检查: http://localhost:8080/health
+
+#### 默认账户
+- 用户名: `admin`
+- 密码: `admin123`
+
+#### 手动构建镜像
 ```bash
 # 构建后端镜像
 cd backend
@@ -152,11 +178,7 @@ cd frontend
 docker build -t opencmp/frontend .
 ```
 
-#### 2. 使用 Docker Compose
-```bash
-# 启动所有服务
-docker-compose -f docker-compose.prod.yml up -d
-```
+### 本地开发部署
 
 ## 🔐 安全特性
 

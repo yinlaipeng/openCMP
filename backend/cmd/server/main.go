@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -756,7 +757,49 @@ func loadConfig(path string) (*Config, error) {
 		return nil, err
 	}
 
+	// Override with environment variables if set
+	if host := os.Getenv("DB_HOST"); host != "" {
+		port := os.Getenv("DB_PORT")
+		if port == "" {
+			port = "3306"
+		}
+		user := os.Getenv("DB_USER")
+		if user == "" {
+			user = "root"
+		}
+		password := os.Getenv("DB_PASSWORD")
+		dbName := os.Getenv("DB_NAME")
+		if dbName == "" {
+			dbName = "opencmp"
+		}
+		cfg.Database.DSN = fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local", user, password, host, port, dbName)
+	}
+
+	if port := os.Getenv("SERVER_PORT"); port != "" {
+		cfg.Server.Port = parseInt(port, cfg.Server.Port)
+	}
+
+	if mode := os.Getenv("SERVER_MODE"); mode != "" {
+		cfg.Server.Mode = mode
+	}
+
+	if secret := os.Getenv("JWT_SECRET"); secret != "" {
+		cfg.Auth.JWTSecret = secret
+	}
+
+	if level := os.Getenv("LOG_LEVEL"); level != "" {
+		cfg.Log.Level = level
+	}
+
 	return &cfg, nil
+}
+
+func parseInt(s string, defaultVal int) int {
+	val, err := strconv.Atoi(s)
+	if err != nil {
+		return defaultVal
+	}
+	return val
 }
 
 func initLogger(cfg LogConfig) (*zap.Logger, error) {
