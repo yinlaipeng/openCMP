@@ -7,6 +7,7 @@ type ICloudProvider interface {
 	IStorage     // 存储资源
 	IDatabase    // 数据服务
 	IMiddleware  // 中间件服务
+	IMonitor     // 监控服务
 
 	// 云厂商信息
 	GetCloudInfo() CloudInfo

@@ -531,6 +531,18 @@ func (p *AzureProvider) ListElasticsearchInstances(ctx context.Context, filter c
 	return []*cloudprovider.ElasticsearchInstance{}, nil
 }
 
+// ============================================
+// IMonitor interface (未实现)
+// ============================================
+
+func (p *AzureProvider) GetInstanceMetrics(ctx context.Context, instanceID string, metrics []string, period int, startTime, endTime string) (*cloudprovider.InstanceMetrics, error) {
+	return nil, cloudprovider.NewCloudError(cloudprovider.ErrUnsupportedOperation, "GetInstanceMetrics not implemented", "")
+}
+
+func (p *AzureProvider) ListInstanceMetrics(ctx context.Context, instanceIDs []string, metrics []string) ([]*cloudprovider.InstanceMetricData, error) {
+	return nil, cloudprovider.NewCloudError(cloudprovider.ErrUnsupportedOperation, "ListInstanceMetrics not implemented", "")
+}
+
 func init() {
 	cloudprovider.RegisterProvider("azure", NewAzureProvider)
 }

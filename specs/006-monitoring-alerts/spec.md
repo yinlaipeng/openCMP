@@ -16,14 +16,14 @@
 
 ### Acceptance Criteria
 
-- [ ] VM监控指标数据采集API实现（当前返回模拟数据，需集成阿里云云监控SDK）
+- [x] VM监控指标数据采集API实现（集成阿里云云监控SDK）
 - [x] 告警策略CRUD API完整实现
 - [x] 告警历史记录查询API实现
 - [x] 通知机器人测试发送功能（钉钉/飞书/企微/Webhook真实发送测试消息）
 - [x] 消息订阅规则配置实现
-- [ ] 前端监控页面真实数据展示
+- [x] 前端监控页面真实数据展示（API已集成，通过云账号选择后调用）
 - [x] All tests pass
-- [ ] Changes committed and pushed
+- [x] Changes committed and pushed
 
 ### Implementation Notes
 
@@ -68,6 +68,11 @@
 
 ---
 
-## Status: PENDING
+## Status: COMPLETE
 
-<!-- Change to COMPLETE when all acceptance criteria are met -->
+<!-- All acceptance criteria are met:
+- Alibaba Cloud monitoring SDK (CMS) integration implemented
+- VM monitoring metrics API calls DescribeMetricList/DescribeMetricLast
+- Frontend already integrated with monitor API
+- Backend tests pass, frontend builds successfully
+-->

@@ -1,54 +1,131 @@
 <template>
-  <div class="monitoring-vms-page">
-    <el-card class="page-card">
-      <template #header>
-        <div class="card-header">
-          <span class="title">虚拟机监控列表</span>
-        </div>
-      </template>
+  <div class="monitoring-vms-container">
+    <div class="page-header">
+      <h2>虚拟机监控</h2>
+      <el-button type="primary" @click="handleSync">同步监控数据</el-button>
+    </div>
 
-      <el-table :data="vmList" v-loading="loading">
+    <el-card class="filter-card">
+      <el-form :inline="true" :model="filters" @submit.prevent="loadVMList">
+        <el-form-item label="云账号">
+          <CloudAccountSelector
+            v-model:value="filters.account_id"
+            placeholder="选择云账号"
+            @change="handleAccountChange"
+          />
+        </el-form-item>
+        <el-form-item label="监控状态">
+          <el-select v-model="filters.monitor_status" placeholder="监控状态" clearable>
+            <el-option label="正常" value="正常" />
+            <el-option label="告警" value="告警" />
+            <el-option label="异常" value="异常" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="loadVMList">查询</el-button>
+          <el-button @click="resetFilters">重置</el-button>
+        </el-form-item>
+      </el-form>
+    </el-card>
+
+    <el-table
+      :data="vmList"
+      v-loading="loading"
+      style="width: 100%"
+      row-key="resource_id"
+    >
         <el-table-column label="名称" width="180">
           <template #default="{ row }">
-            <el-link @click="viewDetail(row)">{{ row.name }}</el-link>
+            <el-link @click="viewDetail(row)">{{ row.resource_name }}</el-link>
           </template>
         </el-table-column>
-        <el-table-column prop="ip" label="IP" width="140" />
+        <el-table-column prop="resource_id" label="资源ID" width="150" />
         <el-table-column prop="monitor_status" label="监控状态" width="100">
           <template #default="{ row }">
             <el-tag :type="getMonitorStatusType(row.monitor_status)">{{ row.monitor_status }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" width="100">
+        <el-table-column prop="platform" label="平台" width="100" />
+        <el-table-column prop="region" label="区域" width="120" />
+        <el-table-column prop="last_sync_at" label="同步时间" width="150">
           <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)">{{ row.status }}</el-tag>
+            {{ formatTime(row.last_sync_at) }}
           </template>
         </el-table-column>
-        <el-table-column prop="platform" label="平台" width="100" />
-        <el-table-column prop="account" label="云账号" width="150" />
-        <el-table-column prop="owner" label="归属" width="120" />
-        <el-table-column label="操作" width="150">
+        <el-table-column label="操作" width="200">
           <template #default="{ row }">
+            <el-button size="small" @click="viewMetrics(row)">查看指标</el-button>
             <el-button size="small" @click="handleManagePolicies(row)">管理告警策略</el-button>
           </template>
         </el-table-column>
-      </el-table>
-    </el-card>
+    </el-table>
+
+    <el-pagination
+      v-model:current-page="pagination.page"
+      v-model:page-size="pagination.pageSize"
+      :total="pagination.total"
+      :page-sizes="[10, 20, 50, 100]"
+      layout="total, sizes, prev, pager, next, jumper"
+      @size-change="handleSizeChange"
+      @current-change="handleCurrentChange"
+      class="pagination"
+    />
 
     <!-- VM Detail Modal -->
     <el-dialog v-model="detailDialogVisible" title="虚拟机详情" width="600px">
       <el-descriptions :column="2" border>
-        <el-descriptions-item label="名称">{{ selectedVM?.name }}</el-descriptions-item>
-        <el-descriptions-item label="IP">{{ selectedVM?.ip }}</el-descriptions-item>
+        <el-descriptions-item label="资源ID">{{ selectedVM?.resource_id }}</el-descriptions-item>
+        <el-descriptions-item label="名称">{{ selectedVM?.resource_name }}</el-descriptions-item>
         <el-descriptions-item label="监控状态">{{ selectedVM?.monitor_status }}</el-descriptions-item>
-        <el-descriptions-item label="状态">{{ selectedVM?.status }}</el-descriptions-item>
         <el-descriptions-item label="平台">{{ selectedVM?.platform }}</el-descriptions-item>
-        <el-descriptions-item label="云账号">{{ selectedVM?.account }}</el-descriptions-item>
-        <el-descriptions-item label="归属">{{ selectedVM?.owner }}</el-descriptions-item>
         <el-descriptions-item label="区域">{{ selectedVM?.region }}</el-descriptions-item>
+        <el-descriptions-item label="同步时间">{{ formatTime(selectedVM?.last_sync_at) }}</el-descriptions-item>
       </el-descriptions>
       <template #footer>
         <el-button @click="detailDialogVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- Metrics Modal -->
+    <el-dialog v-model="metricsDialogVisible" title="监控指标" width="700px">
+      <div v-if="metricsLoading" class="metrics-loading">
+        <el-skeleton :rows="5" animated />
+      </div>
+      <div v-else>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-card shadow="hover">
+              <template #header>CPU使用率</template>
+              <div class="metric-value">{{ currentMetrics?.cpu_usage?.value?.toFixed(1) || '-' }}%</div>
+            </el-card>
+          </el-col>
+          <el-col :span="12">
+            <el-card shadow="hover">
+              <template #header>内存使用率</template>
+              <div class="metric-value">{{ currentMetrics?.memory_usage?.value?.toFixed(1) || '-' }}%</div>
+            </el-card>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20" style="margin-top: 20px;">
+          <el-col :span="12">
+            <el-card shadow="hover">
+              <template #header>磁盘使用率</template>
+              <div class="metric-value">{{ currentMetrics?.disk_usage?.value?.toFixed(1) || '-' }}%</div>
+            </el-card>
+          </el-col>
+          <el-col :span="12">
+            <el-card shadow="hover">
+              <template #header>网络流量</template>
+              <div class="metric-value">
+                入: {{ currentMetrics?.network_in?.value?.toFixed(1) || '-' }} KB/s
+                出: {{ currentMetrics?.network_out?.value?.toFixed(1) || '-' }} KB/s
+              </div>
+            </el-card>
+          </el-col>
+        </el-row>
+      </div>
+      <template #footer>
+        <el-button @click="metricsDialogVisible = false">关闭</el-button>
       </template>
     </el-dialog>
 
@@ -66,10 +143,14 @@
             <el-tag :type="row.enabled ? 'success' : 'info'">{{ row.enabled ? '已启用' : '已禁用' }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="resource_type" label="资源类型" width="100" />
-        <el-table-column prop="detail" label="策略详情" width="150">
+        <el-table-column prop="resource_type" label="资源类型" width="100">
           <template #default="{ row }">
-            <span>{{ row.detail }}</span>
+            {{ getResourceTypeLabel(row.resource_type) }}
+          </template>
+        </el-table-column>
+        <el-table-column label="策略详情" width="150">
+          <template #default="{ row }">
+            <span>{{ getMetricLabel(row.metric) }} > {{ row.threshold }}%</span>
           </template>
         </el-table-column>
         <el-table-column prop="level" label="告警级别" width="100">
@@ -133,53 +214,54 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ref, reactive, onMounted } from 'vue'
+import { ElMessage } from 'element-plus'
+import CloudAccountSelector from '@/components/common/CloudAccountSelector.vue'
+import { listMonitorResources, syncMonitorResources, getResourceMetrics, type MonitorResource, type ResourceMetrics } from '@/api/monitor'
+import { listAlertPolicies, createAlertPolicy, updateAlertPolicy, deleteAlertPolicy, type AlertPolicy, type AlertPolicyRequest } from '@/api/monitor'
 
-interface VMResource {
-  id: string
-  name: string
-  ip: string
-  monitor_status: string
-  status: string
-  platform: string
-  account: string
-  owner: string
-  region: string
-}
+interface VMPolicy extends AlertPolicy {}
 
-interface VMPolicy {
-  id: string
-  name: string
-  status: string
-  enabled: boolean
-  resource_type: string
-  detail: string
-  level: string
-  owner: string
-}
-
-const vmList = ref<VMResource[]>([])
+const vmList = ref<MonitorResource[]>([])
 const loading = ref(false)
 const detailDialogVisible = ref(false)
-const selectedVM = ref<VMResource | null>(null)
+const selectedVM = ref<MonitorResource | null>(null)
+
+// 筛选条件
+const filters = reactive({
+  account_id: null as number | null,
+  monitor_status: ''
+})
+
+// 分页数据
+const pagination = reactive({
+  page: 1,
+  pageSize: 20,
+  total: 0
+})
 
 const policiesDialogVisible = ref(false)
-const vmPolicies = ref<VMPolicy[]>([])
+const vmPolicies = ref<AlertPolicy[]>([])
 const policiesLoading = ref(false)
+
+// Metrics dialog
+const metricsDialogVisible = ref(false)
+const metricsLoading = ref(false)
+const currentMetrics = ref<ResourceMetrics | null>(null)
 
 // 告警策略表单
 const policyFormDialogVisible = ref(false)
 const policyFormMode = ref<'add' | 'edit'>('add')
 const policyFormLoading = ref(false)
-const policyForm = ref({
-  id: '',
+const policyForm = ref<AlertPolicyRequest>({
   name: '',
+  resource_type: 'vm',
   metric: 'cpu_usage',
   threshold: 80,
   duration: 5,
   level: '警告',
-  enabled: true
+  enabled: true,
+  owner: '自定义'
 })
 
 const getMonitorStatusType = (status: string) => {
@@ -191,19 +273,6 @@ const getMonitorStatusType = (status: string) => {
     case 'warning':
       return 'warning'
     case '异常':
-    case 'error':
-      return 'danger'
-    default:
-      return 'info'
-  }
-}
-
-const getStatusType = (status: string) => {
-  switch (status.toLowerCase()) {
-    case 'running':
-    case 'active':
-      return 'success'
-    case 'stopped':
     case 'error':
       return 'danger'
     default:
@@ -235,33 +304,103 @@ const getAlertLevelType = (level: string) => {
   }
 }
 
+const getResourceTypeLabel = (type: string) => {
+  const labels: Record<string, string> = {
+    'vm': '虚拟机',
+    'database': '数据库',
+    'network': '网络',
+    'application': '应用'
+  }
+  return labels[type] || type
+}
+
+const getMetricLabel = (metric: string) => {
+  const labels: Record<string, string> = {
+    'cpu_usage': 'CPU',
+    'memory_usage': '内存',
+    'disk_usage': '磁盘',
+    'network_traffic': '网络流量'
+  }
+  return labels[metric] || metric
+}
+
+const formatTime = (time: string | undefined) => {
+  if (!time) return '-'
+  return time.substring(0, 19).replace('T', ' ')
+}
+
+const handleAccountChange = (accountId: number | null) => {
+  filters.account_id = accountId
+  if (accountId) {
+    loadVMList()
+  } else {
+    vmList.value = []
+  }
+}
+
 const loadVMList = async () => {
+  if (!filters.account_id) {
+    vmList.value = []
+    return
+  }
+
   loading.value = true
   try {
-    vmList.value = [
-      { id: 'vm-1', name: 'prod-web-01', ip: '192.168.1.10', monitor_status: '正常', status: 'Running', platform: '阿里云', account: 'Aliyun Account 1', owner: 'Project A', region: 'cn-hangzhou' },
-      { id: 'vm-2', name: 'prod-web-02', ip: '192.168.1.11', monitor_status: '告警', status: 'Running', platform: '阿里云', account: 'Aliyun Account 1', owner: 'Project A', region: 'cn-hangzhou' },
-      { id: 'vm-3', name: 'dev-api-01', ip: '192.168.2.10', monitor_status: '正常', status: 'Running', platform: '阿里云', account: 'Aliyun Account 1', owner: 'Project B', region: 'cn-shanghai' },
-      { id: 'vm-4', name: 'dev-db-01', ip: '192.168.2.20', monitor_status: '正常', status: 'Stopped', platform: '阿里云', account: 'Aliyun Account 1', owner: 'Project B', region: 'cn-shanghai' },
-      { id: 'vm-5', name: 'test-app-01', ip: '192.168.3.10', monitor_status: '异常', status: 'Running', platform: '阿里云', account: 'Aliyun Account 1', owner: 'Project A', region: 'cn-beijing' }
-    ]
-  } catch (e) {
+    const res = await listMonitorResources(filters.account_id, 'vm', filters.monitor_status || undefined)
+    vmList.value = res.items || res
+    pagination.total = res.total || vmList.value.length
+  } catch (e: any) {
     console.error(e)
+    ElMessage.error(e.message || '获取监控资源列表失败')
     vmList.value = []
   } finally {
     loading.value = false
   }
 }
 
-const loadVMPolicies = async (vmId: string) => {
+const handleSync = async () => {
+  if (!filters.account_id) {
+    ElMessage.warning('请先选择云账号')
+    return
+  }
+
+  try {
+    const result = await syncMonitorResources(filters.account_id)
+    ElMessage.success(result.message + `，同步了 ${result.count} 个资源`)
+    loadVMList()
+  } catch (e: any) {
+    ElMessage.error(e.message || '同步失败')
+  }
+}
+
+const viewDetail = (row: MonitorResource) => {
+  selectedVM.value = row
+  detailDialogVisible.value = true
+}
+
+const viewMetrics = async (row: MonitorResource) => {
+  if (!filters.account_id) {
+    return
+  }
+
+  metricsDialogVisible.value = true
+  metricsLoading.value = true
+  try {
+    currentMetrics.value = await getResourceMetrics(filters.account_id, row.resource_id)
+  } catch (e: any) {
+    ElMessage.error(e.message || '获取指标失败')
+    currentMetrics.value = null
+  } finally {
+    metricsLoading.value = false
+  }
+}
+
+const loadVMPolicies = async () => {
   policiesLoading.value = true
   try {
-    vmPolicies.value = [
-      { id: 'policy-1', name: 'CPU告警策略', status: '正常', enabled: true, resource_type: '虚拟机', detail: 'CPU>80%持续5分钟', level: '警告', owner: '系统' },
-      { id: 'policy-2', name: '内存告警策略', status: '正常', enabled: true, resource_type: '虚拟机', detail: '内存>90%持续3分钟', level: '严重', owner: '系统' },
-      { id: 'policy-3', name: '磁盘告警策略', status: '正常', enabled: false, resource_type: '虚拟机', detail: '磁盘>85%持续10分钟', level: '信息', owner: '自定义' }
-    ]
-  } catch (e) {
+    const policies = await listAlertPolicies({ resource_type: 'vm' })
+    vmPolicies.value = policies
+  } catch (e: any) {
     console.error(e)
     vmPolicies.value = []
   } finally {
@@ -269,67 +408,56 @@ const loadVMPolicies = async (vmId: string) => {
   }
 }
 
-const viewDetail = (row: VMResource) => {
+const handleManagePolicies = (row: MonitorResource) => {
   selectedVM.value = row
-  detailDialogVisible.value = true
-}
-
-const handleManagePolicies = (row: VMResource) => {
-  selectedVM.value = row
-  loadVMPolicies(row.id)
+  loadVMPolicies()
   policiesDialogVisible.value = true
 }
 
-const handleEditPolicy = (row: VMPolicy) => {
+const handleEditPolicy = (row: AlertPolicy) => {
   policyFormMode.value = 'edit'
-  // 解析策略详情
-  const detailParts = row.detail.split(/[>,%持续]+/)
-  const metricMap: Record<string, string> = {
-    'CPU': 'cpu_usage',
-    '内存': 'memory_usage',
-    '磁盘': 'disk_usage',
-    '网络': 'network_traffic'
-  }
-  const metric = Object.keys(metricMap).find(k => row.name.includes(k)) || 'cpu_usage'
-  const threshold = parseInt(detailParts[1] || '80')
-  const duration = parseInt(detailParts[detailParts.length - 1] || '5')
-
   policyForm.value = {
-    id: row.id,
     name: row.name,
-    metric: metricMap[metric] || metric,
-    threshold: threshold,
-    duration: duration,
+    resource_type: row.resource_type,
+    metric: row.metric,
+    threshold: row.threshold,
+    duration: row.duration,
     level: row.level,
-    enabled: row.enabled
+    enabled: row.enabled,
+    owner: row.owner
   }
   policyFormDialogVisible.value = true
 }
 
-const handleDeletePolicy = async (row: VMPolicy) => {
+const handleDeletePolicy = async (row: AlertPolicy) => {
   try {
     await ElMessageBox.confirm(`确认删除策略 ${row.name}？`, '警告', {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
       type: 'warning'
     })
+
+    await deleteAlertPolicy(row.id)
     vmPolicies.value = vmPolicies.value.filter(p => p.id !== row.id)
     ElMessage.success('删除成功')
-  } catch (e) {
-    console.error(e)
+  } catch (e: any) {
+    if (e !== 'cancel') {
+      ElMessage.error(e.message || '删除失败')
+    }
   }
 }
 
 const handleAddPolicy = () => {
   policyFormMode.value = 'add'
   policyForm.value = {
-    id: '',
     name: '',
+    resource_type: 'vm',
     metric: 'cpu_usage',
     threshold: 80,
     duration: 5,
     level: '警告',
-    enabled: true
+    enabled: true,
+    owner: '自定义'
   }
   policyFormDialogVisible.value = true
 }
@@ -342,72 +470,87 @@ const handlePolicyFormSubmit = async () => {
 
   policyFormLoading.value = true
   try {
-    const metricNames: Record<string, string> = {
-      'cpu_usage': 'CPU',
-      'memory_usage': '内存',
-      'disk_usage': '磁盘',
-      'network_traffic': '网络'
-    }
-    const detail = `${metricNames[policyForm.value.metric] || 'CPU'}>${policyForm.value.threshold}%持续${policyForm.value.duration}分钟`
-
     if (policyFormMode.value === 'add') {
-      // 新增策略
-      const newPolicy: VMPolicy = {
-        id: `policy-${Date.now()}`,
-        name: policyForm.value.name,
-        status: '正常',
-        enabled: policyForm.value.enabled,
-        resource_type: '虚拟机',
-        detail: detail,
-        level: policyForm.value.level,
-        owner: '自定义'
-      }
+      const newPolicy = await createAlertPolicy(policyForm.value)
       vmPolicies.value.push(newPolicy)
       ElMessage.success('策略添加成功')
     } else {
-      // 编辑策略
-      const index = vmPolicies.value.findIndex(p => p.id === policyForm.value.id)
-      if (index !== -1) {
-        vmPolicies.value[index] = {
-          ...vmPolicies.value[index],
-          name: policyForm.value.name,
-          enabled: policyForm.value.enabled,
-          detail: detail,
-          level: policyForm.value.level
+      const currentPolicy = vmPolicies.value.find(p => p.name === policyForm.value.name)
+      if (currentPolicy) {
+        const updated = await updateAlertPolicy(currentPolicy.id, policyForm.value)
+        const index = vmPolicies.value.findIndex(p => p.id === currentPolicy.id)
+        if (index !== -1) {
+          vmPolicies.value[index] = updated
         }
       }
       ElMessage.success('策略更新成功')
     }
     policyFormDialogVisible.value = false
-  } catch (e) {
-    ElMessage.error('操作失败')
+  } catch (e: any) {
+    ElMessage.error(e.message || '操作失败')
   } finally {
     policyFormLoading.value = false
   }
 }
 
 onMounted(() => {
-  loadVMList()
+  // Wait for account selector to initialize
 })
+
+const resetFilters = () => {
+  filters.account_id = null
+  filters.monitor_status = ''
+  pagination.page = 1
+  vmList.value = []
+}
+
+const handleSizeChange = (size: number) => {
+  pagination.pageSize = size
+  pagination.page = 1
+  loadVMList()
+}
+
+const handleCurrentChange = (page: number) => {
+  pagination.page = page
+  loadVMList()
+}
 </script>
 
 <style scoped>
-.monitoring-vms-page {
-  height: 100%;
+.monitoring-vms-container {
+  padding: 20px;
 }
 
-.page-card {
-  height: 100%;
-}
-
-.card-header {
+.page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 20px;
 }
 
-.title {
+.page-header h2 {
+  margin: 0;
   font-size: 18px;
+  font-weight: 600;
+}
+
+.filter-card {
+  margin-bottom: 20px;
+}
+
+.pagination {
+  margin-top: 20px;
+  text-align: right;
+}
+
+.metric-value {
+  font-size: 24px;
   font-weight: bold;
+  text-align: center;
+  padding: 20px 0;
+}
+
+.metrics-loading {
+  padding: 20px;
 }
 </style>
