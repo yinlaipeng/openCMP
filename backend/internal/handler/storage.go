@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -22,6 +23,25 @@ type StorageHandler struct {
 // NewStorageHandler 创建存储资源 Handler
 func NewStorageHandler(db *gorm.DB, logger *zap.Logger) *StorageHandler {
 	return &StorageHandler{db: db, logger: logger}
+}
+
+// logStateChange 记录资源状态变更日志
+func (h *StorageHandler) logStateChange(accountID uint, resourceType, resourceID, resourceName, prevStatus, currStatus, operation, reason string) {
+	stateLog := &model.ResourceStateLog{
+		ResourceType:   resourceType,
+		ResourceID:     resourceID,
+		ResourceName:   resourceName,
+		CloudAccountID: accountID,
+		PreviousStatus: prevStatus,
+		CurrentStatus:  currStatus,
+		OperationType:  operation,
+		Reason:         reason,
+		OccurredAt:     time.Now(),
+		CreatedAt:      time.Now(),
+	}
+	if err := h.db.Create(stateLog).Error; err != nil {
+		h.logger.Error("failed to log state change", zap.Error(err))
+	}
 }
 
 // ListCloudDisks 列出云硬盘
@@ -118,6 +138,9 @@ func (h *StorageHandler) CreateCloudDisk(c *gin.Context) {
 		h.logger.Error("failed to save cloud disk", zap.Error(err))
 	}
 
+	// 记录状态变更日志
+	h.logStateChange(uint(cloudAccountID), "disk", disk.ID, req.Name, "", disk.Status, "create", "磁盘创建")
+
 	c.JSON(http.StatusCreated, cloudDisk)
 }
 
@@ -152,6 +175,9 @@ func (h *StorageHandler) DeleteCloudDisk(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	// 记录状态变更日志
+	h.logStateChange(disk.CloudAccountID, "disk", disk.DiskID, disk.Name, disk.Status, "terminated", "delete", "磁盘删除")
 
 	// 从数据库删除
 	if err := h.db.Delete(&disk).Error; err != nil {
@@ -191,6 +217,7 @@ func (h *StorageHandler) AttachCloudDisk(c *gin.Context) {
 		return
 	}
 
+	prevStatus := disk.Status
 	err = provider.AttachDisk(c.Request.Context(), disk.DiskID, req.VMID)
 	if err != nil {
 		h.logger.Error("failed to attach cloud disk", zap.Error(err))
@@ -202,6 +229,9 @@ func (h *StorageHandler) AttachCloudDisk(c *gin.Context) {
 	disk.Status = "in_use"
 	disk.VMID = req.VMID
 	h.db.Save(&disk)
+
+	// 记录状态变更日志
+	h.logStateChange(disk.CloudAccountID, "disk", disk.DiskID, disk.Name, prevStatus, "in_use", "attach", "磁盘挂载到VM:"+req.VMID)
 
 	c.JSON(http.StatusOK, gin.H{"message": "attached"})
 }
@@ -228,6 +258,8 @@ func (h *StorageHandler) DetachCloudDisk(c *gin.Context) {
 		return
 	}
 
+	prevStatus := disk.Status
+	prevVMID := disk.VMID
 	err = provider.DetachDisk(c.Request.Context(), disk.DiskID)
 	if err != nil {
 		h.logger.Error("failed to detach cloud disk", zap.Error(err))
@@ -238,6 +270,9 @@ func (h *StorageHandler) DetachCloudDisk(c *gin.Context) {
 	disk.Status = "available"
 	disk.VMID = ""
 	h.db.Save(&disk)
+
+	// 记录状态变更日志
+	h.logStateChange(disk.CloudAccountID, "disk", disk.DiskID, disk.Name, prevStatus, "available", "detach", "磁盘从VM:"+prevVMID+"卸载")
 
 	c.JSON(http.StatusOK, gin.H{"message": "detached"})
 }
@@ -272,6 +307,7 @@ func (h *StorageHandler) ResizeCloudDisk(c *gin.Context) {
 		return
 	}
 
+	prevSize := disk.Size
 	err = provider.ResizeDisk(c.Request.Context(), disk.DiskID, req.NewSize)
 	if err != nil {
 		h.logger.Error("failed to resize cloud disk", zap.Error(err))
@@ -281,6 +317,9 @@ func (h *StorageHandler) ResizeCloudDisk(c *gin.Context) {
 
 	disk.Size = req.NewSize
 	h.db.Save(&disk)
+
+	// 记录状态变更日志（容量变更）
+	h.logStateChange(disk.CloudAccountID, "disk", disk.DiskID, disk.Name, strconv.Itoa(prevSize)+"GB", strconv.Itoa(req.NewSize)+"GB", "resize", "磁盘扩容")
 
 	c.JSON(http.StatusOK, gin.H{"message": "resized", "new_size": req.NewSize})
 }
@@ -356,7 +395,7 @@ func (h *StorageHandler) CreateCloudSnapshot(c *gin.Context) {
 		CloudAccountID: disk.CloudAccountID,
 		SnapshotID:     snapshot.ID,
 		Name:           snapshot.Name,
-		DiskID:         disk.ID,
+		DiskID:         strconv.FormatUint(uint64(disk.ID), 10),
 		Size:           snapshot.Size,
 		Status:         snapshot.Status,
 		ProviderType:   account.ProviderType,
@@ -365,6 +404,9 @@ func (h *StorageHandler) CreateCloudSnapshot(c *gin.Context) {
 	if err := h.db.Create(cloudSnapshot).Error; err != nil {
 		h.logger.Error("failed to save cloud snapshot", zap.Error(err))
 	}
+
+	// 记录状态变更日志
+	h.logStateChange(disk.CloudAccountID, "snapshot", snapshot.ID, req.Name, "", snapshot.Status, "create", "快照创建，来源磁盘:"+disk.Name)
 
 	c.JSON(http.StatusCreated, cloudSnapshot)
 }
@@ -397,6 +439,9 @@ func (h *StorageHandler) DeleteCloudSnapshot(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	// 记录状态变更日志
+	h.logStateChange(snapshot.CloudAccountID, "snapshot", snapshot.SnapshotID, snapshot.Name, snapshot.Status, "terminated", "delete", "快照删除")
 
 	h.db.Delete(&snapshot)
 
