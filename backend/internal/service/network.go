@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"strconv"
+	"time"
 
 	"gorm.io/gorm"
 
+	"github.com/opencmp/opencmp/internal/model"
 	"github.com/opencmp/opencmp/pkg/cloudprovider"
 )
 
@@ -47,6 +49,13 @@ func (s *NetworkService) getProvider(ctx context.Context, accountID uint) (cloud
 	return cloudprovider.GetProvider(account.ProviderType, providerConfig)
 }
 
+// logStateChange 记录资源状态变更日志
+func (s *NetworkService) logStateChange(ctx context.Context, log *model.ResourceStateLog) error {
+	log.OccurredAt = time.Now()
+	log.CreatedAt = time.Now()
+	return s.db.WithContext(ctx).Create(log).Error
+}
+
 // CreateVPC 创建 VPC
 func (s *NetworkService) CreateVPC(ctx context.Context, accountID uint, config cloudprovider.VPCConfig) (*cloudprovider.VPC, error) {
 	provider, err := s.getProvider(ctx, accountID)
@@ -54,11 +63,91 @@ func (s *NetworkService) CreateVPC(ctx context.Context, accountID uint, config c
 		return nil, err
 	}
 
-	return provider.CreateVPC(ctx, config)
+	vpc, err := provider.CreateVPC(ctx, config)
+	if err != nil {
+		return nil, err
+	}
+
+	// 记录状态变更日志
+	stateLog := &model.ResourceStateLog{
+		ResourceType:   "vpc",
+		ResourceID:     vpc.ID,
+		ResourceName:   config.Name,
+		CloudAccountID: accountID,
+		PreviousStatus: "",
+		CurrentStatus:  vpc.Status,
+		OperationType:  "create",
+		Reason:         "VPC创建",
+	}
+	if err := s.logStateChange(ctx, stateLog); err != nil {
+		// 日志记录失败不影响主流程
+	}
+
+	return vpc, nil
 }
 
-// ListVPCs 列出 VPC
-func (s *NetworkService) ListVPCs(ctx context.Context, accountID uint, filter cloudprovider.VPCFilter) ([]*cloudprovider.VPC, error) {
+// ListVPCs 列出 VPC（从本地数据库获取同步后的数据）
+// 这是设计文档要求的正确实现：资源列表应从本地数据库获取
+// projectIDs参数用于项目隔离过滤（可选）
+func (s *NetworkService) ListVPCs(ctx context.Context, accountID uint, filter cloudprovider.VPCFilter, projectIDs []int64) ([]*cloudprovider.VPC, error) {
+	var cloudVPCs []model.CloudVPC
+
+	query := s.db.WithContext(ctx).Where("cloud_account_id = ?", accountID)
+
+	// 应用项目隔离过滤
+	if len(projectIDs) > 0 {
+		query = query.Where("project_id IN ?", projectIDs)
+	}
+
+	// 应用过滤器
+	if filter.RegionID != "" {
+		query = query.Where("region_id = ?", filter.RegionID)
+	}
+	if filter.VPCID != "" {
+		query = query.Where("vpc_id = ?", filter.VPCID)
+	}
+	if filter.Name != "" {
+		query = query.Where("name LIKE ?", "%"+filter.Name+"%")
+	}
+	if filter.Status != "" {
+		query = query.Where("status = ?", filter.Status)
+	}
+
+	// 排除已删除的资源
+	query = query.Where("status != ?", "terminated")
+
+	if filter.MaxResults > 0 {
+		query = query.Limit(filter.MaxResults)
+	}
+
+	if err := query.Find(&cloudVPCs).Error; err != nil {
+		return nil, err
+	}
+
+	// 转换为cloudprovider.VPC格式
+	vpcs := make([]*cloudprovider.VPC, len(cloudVPCs))
+	for i, vpc := range cloudVPCs {
+		var tags map[string]string
+		if vpc.Tags != nil {
+			json.Unmarshal(vpc.Tags, &tags)
+		}
+
+		vpcs[i] = &cloudprovider.VPC{
+			ID:       vpc.VPCID,
+			Name:     vpc.Name,
+			CIDR:     vpc.CIDR,
+			Status:   vpc.Status,
+			RegionID: vpc.RegionID,
+			Tags:     tags,
+		}
+	}
+
+	return vpcs, nil
+}
+
+// ListVPCsFromCloud 从云平台实时获取VPC列表（用于创建资源等场景）
+// 这个方法用于需要实时云平台数据的场景
+func (s *NetworkService) ListVPCsFromCloud(ctx context.Context, accountID uint, filter cloudprovider.VPCFilter) ([]*cloudprovider.VPC, error) {
 	provider, err := s.getProvider(ctx, accountID)
 	if err != nil {
 		return nil, err
@@ -67,14 +156,70 @@ func (s *NetworkService) ListVPCs(ctx context.Context, accountID uint, filter cl
 	return provider.ListVPCs(ctx, filter)
 }
 
+// GetVPC 获取单个VPC详情（从本地数据库）
+func (s *NetworkService) GetVPC(ctx context.Context, accountID uint, vpcID string) (*cloudprovider.VPC, error) {
+	var cloudVPC model.CloudVPC
+
+	err := s.db.WithContext(ctx).
+		Where("cloud_account_id = ?", accountID).
+		Where("vpc_id = ?", vpcID).
+		First(&cloudVPC).Error
+
+	if err == gorm.ErrRecordNotFound {
+		return nil, cloudprovider.NewCloudError(cloudprovider.ErrResourceNotFound, "vpc not found", vpcID)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	var tags map[string]string
+	if cloudVPC.Tags != nil {
+		json.Unmarshal(cloudVPC.Tags, &tags)
+	}
+
+	return &cloudprovider.VPC{
+		ID:       cloudVPC.VPCID,
+		Name:     cloudVPC.Name,
+		CIDR:     cloudVPC.CIDR,
+		Status:   cloudVPC.Status,
+		RegionID: cloudVPC.RegionID,
+		Tags:     tags,
+	}, nil
+}
+
 // DeleteVPC 删除 VPC
 func (s *NetworkService) DeleteVPC(ctx context.Context, accountID uint, vpcID string) error {
+	// 先获取当前状态用于日志记录
+	vpc, err := s.GetVPC(ctx, accountID, vpcID)
+	if err != nil {
+		return err
+	}
+
 	provider, err := s.getProvider(ctx, accountID)
 	if err != nil {
 		return err
 	}
 
-	return provider.DeleteVPC(ctx, vpcID)
+	if err := provider.DeleteVPC(ctx, vpcID); err != nil {
+		return err
+	}
+
+	// 记录状态变更日志
+	stateLog := &model.ResourceStateLog{
+		ResourceType:   "vpc",
+		ResourceID:     vpcID,
+		ResourceName:   vpc.Name,
+		CloudAccountID: accountID,
+		PreviousStatus: vpc.Status,
+		CurrentStatus:  "terminated",
+		OperationType:  "delete",
+		Reason:         "VPC删除",
+	}
+	if err := s.logStateChange(ctx, stateLog); err != nil {
+		// 日志记录失败不影响主流程
+	}
+
+	return nil
 }
 
 // CreateSubnet 创建子网
@@ -84,11 +229,88 @@ func (s *NetworkService) CreateSubnet(ctx context.Context, accountID uint, confi
 		return nil, err
 	}
 
-	return provider.CreateSubnet(ctx, config)
+	subnet, err := provider.CreateSubnet(ctx, config)
+	if err != nil {
+		return nil, err
+	}
+
+	// 记录状态变更日志
+	stateLog := &model.ResourceStateLog{
+		ResourceType:   "subnet",
+		ResourceID:     subnet.ID,
+		ResourceName:   config.Name,
+		CloudAccountID: accountID,
+		PreviousStatus: "",
+		CurrentStatus:  subnet.Status,
+		OperationType:  "create",
+		Reason:         "子网创建",
+	}
+	if err := s.logStateChange(ctx, stateLog); err != nil {
+		// 日志记录失败不影响主流程
+	}
+
+	return subnet, nil
 }
 
-// ListSubnets 列出子网
-func (s *NetworkService) ListSubnets(ctx context.Context, accountID uint, filter cloudprovider.SubnetFilter) ([]*cloudprovider.Subnet, error) {
+// ListSubnets 列出子网（从本地数据库获取同步后的数据）
+// 这是设计文档要求的正确实现：资源列表应从本地数据库获取
+// projectIDs参数用于项目隔离过滤（可选）
+func (s *NetworkService) ListSubnets(ctx context.Context, accountID uint, filter cloudprovider.SubnetFilter, projectIDs []int64) ([]*cloudprovider.Subnet, error) {
+	var cloudSubnets []model.CloudSubnet
+
+	query := s.db.WithContext(ctx).Where("cloud_account_id = ?", accountID)
+
+	// 应用项目隔离过滤
+	if len(projectIDs) > 0 {
+		query = query.Where("project_id IN ?", projectIDs)
+	}
+
+	// 应用过滤器 - SubnetFilter只有VPCID/SubnetID/ZoneID/MaxResults字段
+	if filter.VPCID != "" {
+		query = query.Where("vpc_id = ?", filter.VPCID)
+	}
+	if filter.SubnetID != "" {
+		query = query.Where("subnet_id = ?", filter.SubnetID)
+	}
+	if filter.ZoneID != "" {
+		query = query.Where("zone_id = ?", filter.ZoneID)
+	}
+
+	// 排除已删除的资源
+	query = query.Where("status != ?", "terminated")
+
+	if filter.MaxResults > 0 {
+		query = query.Limit(filter.MaxResults)
+	}
+
+	if err := query.Find(&cloudSubnets).Error; err != nil {
+		return nil, err
+	}
+
+	// 转换为cloudprovider.Subnet格式
+	subnets := make([]*cloudprovider.Subnet, len(cloudSubnets))
+	for i, subnet := range cloudSubnets {
+		var tags map[string]string
+		if subnet.Tags != nil {
+			json.Unmarshal(subnet.Tags, &tags)
+		}
+
+		subnets[i] = &cloudprovider.Subnet{
+			ID:     subnet.SubnetID,
+			Name:   subnet.Name,
+			VPCID:  subnet.VPCID,
+			CIDR:   subnet.CIDR,
+			ZoneID: subnet.ZoneID,
+			Status: subnet.Status,
+			Tags:   tags,
+		}
+	}
+
+	return subnets, nil
+}
+
+// ListSubnetsFromCloud 从云平台实时获取子网列表（用于创建资源等场景）
+func (s *NetworkService) ListSubnetsFromCloud(ctx context.Context, accountID uint, filter cloudprovider.SubnetFilter) ([]*cloudprovider.Subnet, error) {
 	provider, err := s.getProvider(ctx, accountID)
 	if err != nil {
 		return nil, err
@@ -97,14 +319,71 @@ func (s *NetworkService) ListSubnets(ctx context.Context, accountID uint, filter
 	return provider.ListSubnets(ctx, filter)
 }
 
+// GetSubnet 获取单个子网详情（从本地数据库）
+func (s *NetworkService) GetSubnet(ctx context.Context, accountID uint, subnetID string) (*cloudprovider.Subnet, error) {
+	var cloudSubnet model.CloudSubnet
+
+	err := s.db.WithContext(ctx).
+		Where("cloud_account_id = ?", accountID).
+		Where("subnet_id = ?", subnetID).
+		First(&cloudSubnet).Error
+
+	if err == gorm.ErrRecordNotFound {
+		return nil, cloudprovider.NewCloudError(cloudprovider.ErrResourceNotFound, "subnet not found", subnetID)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	var tags map[string]string
+	if cloudSubnet.Tags != nil {
+		json.Unmarshal(cloudSubnet.Tags, &tags)
+	}
+
+	return &cloudprovider.Subnet{
+		ID:     cloudSubnet.SubnetID,
+		Name:   cloudSubnet.Name,
+		VPCID:  cloudSubnet.VPCID,
+		CIDR:   cloudSubnet.CIDR,
+		ZoneID: cloudSubnet.ZoneID,
+		Status: cloudSubnet.Status,
+		Tags:   tags,
+	}, nil
+}
+
 // DeleteSubnet 删除子网
 func (s *NetworkService) DeleteSubnet(ctx context.Context, accountID uint, subnetID string) error {
+	// 先获取当前状态用于日志记录
+	subnet, err := s.GetSubnet(ctx, accountID, subnetID)
+	if err != nil {
+		return err
+	}
+
 	provider, err := s.getProvider(ctx, accountID)
 	if err != nil {
 		return err
 	}
 
-	return provider.DeleteSubnet(ctx, subnetID)
+	if err := provider.DeleteSubnet(ctx, subnetID); err != nil {
+		return err
+	}
+
+	// 记录状态变更日志
+	stateLog := &model.ResourceStateLog{
+		ResourceType:   "subnet",
+		ResourceID:     subnetID,
+		ResourceName:   subnet.Name,
+		CloudAccountID: accountID,
+		PreviousStatus: subnet.Status,
+		CurrentStatus:  "terminated",
+		OperationType:  "delete",
+		Reason:         "子网删除",
+	}
+	if err := s.logStateChange(ctx, stateLog); err != nil {
+		// 日志记录失败不影响主流程
+	}
+
+	return nil
 }
 
 // CreateSecurityGroup 创建安全组
@@ -114,17 +393,116 @@ func (s *NetworkService) CreateSecurityGroup(ctx context.Context, accountID uint
 		return nil, err
 	}
 
-	return provider.CreateSecurityGroup(ctx, config)
+	sg, err := provider.CreateSecurityGroup(ctx, config)
+	if err != nil {
+		return nil, err
+	}
+
+	// 记录状态变更日志
+	stateLog := &model.ResourceStateLog{
+		ResourceType:   "security_group",
+		ResourceID:     sg.ID,
+		ResourceName:   config.Name,
+		CloudAccountID: accountID,
+		PreviousStatus: "",
+		CurrentStatus:  "available",
+		OperationType:  "create",
+		Reason:         "安全组创建",
+	}
+	if err := s.logStateChange(ctx, stateLog); err != nil {
+		// 日志记录失败不影响主流程
+	}
+
+	return sg, nil
 }
 
-// ListSecurityGroups 列出安全组
+// ListSecurityGroups 列出安全组（从本地数据库获取同步后的数据）
+// 这是设计文档要求的正确实现：资源列表应从本地数据库获取
 func (s *NetworkService) ListSecurityGroups(ctx context.Context, accountID uint, filter cloudprovider.SGFilter) ([]*cloudprovider.SecurityGroup, error) {
+	var cloudSGs []model.CloudSecurityGroup
+
+	query := s.db.WithContext(ctx).Where("cloud_account_id = ?", accountID)
+
+	// 应用过滤器 - SGFilter有VPCID/SGID/Name/MaxResults字段
+	if filter.VPCID != "" {
+		query = query.Where("vpc_id = ?", filter.VPCID)
+	}
+	if filter.SGID != "" {
+		query = query.Where("security_group_id = ?", filter.SGID)
+	}
+	if filter.Name != "" {
+		query = query.Where("name LIKE ?", "%"+filter.Name+"%")
+	}
+
+	// 排除已删除的资源
+	query = query.Where("status != ?", "terminated")
+
+	if filter.MaxResults > 0 {
+		query = query.Limit(filter.MaxResults)
+	}
+
+	if err := query.Find(&cloudSGs).Error; err != nil {
+		return nil, err
+	}
+
+	// 转换为cloudprovider.SecurityGroup格式
+	sgs := make([]*cloudprovider.SecurityGroup, len(cloudSGs))
+	for i, sg := range cloudSGs {
+		var tags map[string]string
+		if sg.Tags != nil {
+			json.Unmarshal(sg.Tags, &tags)
+		}
+
+		sgs[i] = &cloudprovider.SecurityGroup{
+			ID:          sg.SecurityGroupID,
+			Name:        sg.Name,
+			Description: sg.Description,
+			VPCID:       sg.VPCID,
+			Tags:        tags,
+		}
+	}
+
+	return sgs, nil
+}
+
+// ListSecurityGroupsFromCloud 从云平台实时获取安全组列表
+func (s *NetworkService) ListSecurityGroupsFromCloud(ctx context.Context, accountID uint, filter cloudprovider.SGFilter) ([]*cloudprovider.SecurityGroup, error) {
 	provider, err := s.getProvider(ctx, accountID)
 	if err != nil {
 		return nil, err
 	}
 
 	return provider.ListSecurityGroups(ctx, filter)
+}
+
+// GetSecurityGroup 获取单个安全组详情（从本地数据库）
+func (s *NetworkService) GetSecurityGroup(ctx context.Context, accountID uint, sgID string) (*cloudprovider.SecurityGroup, error) {
+	var cloudSG model.CloudSecurityGroup
+
+	err := s.db.WithContext(ctx).
+		Where("cloud_account_id = ?", accountID).
+		Where("security_group_id = ?", sgID).
+		First(&cloudSG).Error
+
+	if err == gorm.ErrRecordNotFound {
+		return nil, cloudprovider.NewCloudError(cloudprovider.ErrResourceNotFound, "security group not found", sgID)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	var tags map[string]string
+	if cloudSG.Tags != nil {
+		json.Unmarshal(cloudSG.Tags, &tags)
+	}
+
+	return &cloudprovider.SecurityGroup{
+		ID:          cloudSG.SecurityGroupID,
+		Name:        cloudSG.Name,
+		Description: cloudSG.Description,
+		VPCID:       cloudSG.VPCID,
+		Tags:        tags,
+	}, nil
 }
 
 // CreateEIP 分配弹性 IP
@@ -134,17 +512,104 @@ func (s *NetworkService) CreateEIP(ctx context.Context, accountID uint, config c
 		return nil, err
 	}
 
-	return provider.AllocateEIP(ctx, config)
+	eip, err := provider.AllocateEIP(ctx, config)
+	if err != nil {
+		return nil, err
+	}
+
+	// 记录状态变更日志
+	stateLog := &model.ResourceStateLog{
+		ResourceType:   "eip",
+		ResourceID:     eip.ID,
+		ResourceName:   eip.Address,
+		CloudAccountID: accountID,
+		PreviousStatus: "",
+		CurrentStatus:  eip.Status,
+		OperationType:  "create",
+		Reason:         "弹性IP申请",
+	}
+	if err := s.logStateChange(ctx, stateLog); err != nil {
+		// 日志记录失败不影响主流程
+	}
+
+	return eip, nil
 }
 
-// ListEIPs 列出弹性 IP
+// ListEIPs 列出弹性 IP（从本地数据库获取同步后的数据）
+// 这是设计文档要求的正确实现：资源列表应从本地数据库获取
 func (s *NetworkService) ListEIPs(ctx context.Context, accountID uint, filter cloudprovider.EIPFilter) ([]*cloudprovider.EIP, error) {
+	var cloudEIPs []model.CloudEIP
+
+	query := s.db.WithContext(ctx).Where("cloud_account_id = ?", accountID)
+
+	// 应用过滤器
+	if filter.RegionID != "" {
+		query = query.Where("region_id = ?", filter.RegionID)
+	}
+	if filter.EIPID != "" {
+		query = query.Where("eip_id = ?", filter.EIPID)
+	}
+	if filter.Status != "" {
+		query = query.Where("status = ?", filter.Status)
+	}
+
+	// 排除已删除的资源
+	query = query.Where("status != ?", "terminated")
+
+	if err := query.Find(&cloudEIPs).Error; err != nil {
+		return nil, err
+	}
+
+	// 转换为cloudprovider.EIP格式
+	eips := make([]*cloudprovider.EIP, len(cloudEIPs))
+	for i, eip := range cloudEIPs {
+		eips[i] = &cloudprovider.EIP{
+			ID:         eip.EIPID,
+			Address:    eip.Address,
+			Bandwidth:  eip.Bandwidth,
+			Status:     eip.Status,
+			ResourceID: eip.ResourceID,
+			RegionID:   eip.RegionID,
+		}
+	}
+
+	return eips, nil
+}
+
+// ListEIPsFromCloud 从云平台实时获取EIP列表
+func (s *NetworkService) ListEIPsFromCloud(ctx context.Context, accountID uint, filter cloudprovider.EIPFilter) ([]*cloudprovider.EIP, error) {
 	provider, err := s.getProvider(ctx, accountID)
 	if err != nil {
 		return nil, err
 	}
 
 	return provider.ListEIPs(ctx, filter)
+}
+
+// GetEIP 获取单个EIP详情（从本地数据库）
+func (s *NetworkService) GetEIP(ctx context.Context, accountID uint, eipID string) (*cloudprovider.EIP, error) {
+	var cloudEIP model.CloudEIP
+
+	err := s.db.WithContext(ctx).
+		Where("cloud_account_id = ?", accountID).
+		Where("eip_id = ?", eipID).
+		First(&cloudEIP).Error
+
+	if err == gorm.ErrRecordNotFound {
+		return nil, cloudprovider.NewCloudError(cloudprovider.ErrResourceNotFound, "eip not found", eipID)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return &cloudprovider.EIP{
+		ID:         cloudEIP.EIPID,
+		Address:    cloudEIP.Address,
+		Bandwidth:  cloudEIP.Bandwidth,
+		Status:     cloudEIP.Status,
+		ResourceID: cloudEIP.ResourceID,
+		RegionID:   cloudEIP.RegionID,
+	}, nil
 }
 
 // ListRegions 列出区域
@@ -375,42 +840,142 @@ func (s *NetworkService) DeleteSecurityGroupRule(ctx context.Context, accountID 
 
 // DeleteSecurityGroup 删除安全组
 func (s *NetworkService) DeleteSecurityGroup(ctx context.Context, accountID uint, sgID string) error {
+	// 先获取当前状态用于日志记录
+	sg, err := s.GetSecurityGroup(ctx, accountID, sgID)
+	if err != nil {
+		return err
+	}
+
 	provider, err := s.getProvider(ctx, accountID)
 	if err != nil {
 		return err
 	}
 
-	return provider.DeleteSecurityGroup(ctx, sgID)
+	if err := provider.DeleteSecurityGroup(ctx, sgID); err != nil {
+		return err
+	}
+
+	// 记录状态变更日志
+	stateLog := &model.ResourceStateLog{
+		ResourceType:   "security_group",
+		ResourceID:     sgID,
+		ResourceName:   sg.Name,
+		CloudAccountID: accountID,
+		PreviousStatus: "available",
+		CurrentStatus:  "terminated",
+		OperationType:  "delete",
+		Reason:         "安全组删除",
+	}
+	if err := s.logStateChange(ctx, stateLog); err != nil {
+		// 日志记录失败不影响主流程
+	}
+
+	return nil
 }
 
 // ========== EIP 扩展操作 ==========
 
 // BindEIP 绑定弹性IP
 func (s *NetworkService) BindEIP(ctx context.Context, accountID uint, eipID, resourceID, resourceType string) error {
+	// 先获取当前状态用于日志记录
+	eip, err := s.GetEIP(ctx, accountID, eipID)
+	if err != nil {
+		return err
+	}
+
 	provider, err := s.getProvider(ctx, accountID)
 	if err != nil {
 		return err
 	}
 
-	return provider.BindEIP(ctx, eipID, resourceID, resourceType)
+	if err := provider.BindEIP(ctx, eipID, resourceID, resourceType); err != nil {
+		return err
+	}
+
+	// 记录状态变更日志
+	stateLog := &model.ResourceStateLog{
+		ResourceType:   "eip",
+		ResourceID:     eipID,
+		ResourceName:   eip.Address,
+		CloudAccountID: accountID,
+		PreviousStatus: eip.Status,
+		CurrentStatus:  "in-use",
+		OperationType:  "bind",
+		Reason:         "弹性IP绑定到" + resourceType + ":" + resourceID,
+	}
+	if err := s.logStateChange(ctx, stateLog); err != nil {
+		// 日志记录失败不影响主流程
+	}
+
+	return nil
 }
 
 // UnbindEIP 解绑弹性IP
 func (s *NetworkService) UnbindEIP(ctx context.Context, accountID uint, eipID string) error {
+	// 先获取当前状态用于日志记录
+	eip, err := s.GetEIP(ctx, accountID, eipID)
+	if err != nil {
+		return err
+	}
+
 	provider, err := s.getProvider(ctx, accountID)
 	if err != nil {
 		return err
 	}
 
-	return provider.UnbindEIP(ctx, eipID)
+	if err := provider.UnbindEIP(ctx, eipID); err != nil {
+		return err
+	}
+
+	// 记录状态变更日志
+	stateLog := &model.ResourceStateLog{
+		ResourceType:   "eip",
+		ResourceID:     eipID,
+		ResourceName:   eip.Address,
+		CloudAccountID: accountID,
+		PreviousStatus: eip.Status,
+		CurrentStatus:  "available",
+		OperationType:  "unbind",
+		Reason:         "弹性IP解绑",
+	}
+	if err := s.logStateChange(ctx, stateLog); err != nil {
+		// 日志记录失败不影响主流程
+	}
+
+	return nil
 }
 
 // DeleteEIP 删除弹性IP
 func (s *NetworkService) DeleteEIP(ctx context.Context, accountID uint, eipID string) error {
+	// 先获取当前状态用于日志记录
+	eip, err := s.GetEIP(ctx, accountID, eipID)
+	if err != nil {
+		return err
+	}
+
 	provider, err := s.getProvider(ctx, accountID)
 	if err != nil {
 		return err
 	}
 
-	return provider.ReleaseEIP(ctx, eipID)
+	if err := provider.ReleaseEIP(ctx, eipID); err != nil {
+		return err
+	}
+
+	// 记录状态变更日志
+	stateLog := &model.ResourceStateLog{
+		ResourceType:   "eip",
+		ResourceID:     eipID,
+		ResourceName:   eip.Address,
+		CloudAccountID: accountID,
+		PreviousStatus: eip.Status,
+		CurrentStatus:  "terminated",
+		OperationType:  "delete",
+		Reason:         "弹性IP释放",
+	}
+	if err := s.logStateChange(ctx, stateLog); err != nil {
+		// 日志记录失败不影响主流程
+	}
+
+	return nil
 }
