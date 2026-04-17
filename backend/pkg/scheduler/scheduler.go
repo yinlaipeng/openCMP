@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"context"
+	"strconv"
 	"sync"
 	"time"
 
@@ -277,15 +278,7 @@ func formatInt(i int) string {
 }
 
 func intToStr(i int) string {
-	if i == 0 {
-		return "0"
-	}
-	result := ""
-	for i > 0 {
-		result = string('0'+i%10) + result
-		i /= 10
-	}
-	return result
+	return strconv.Itoa(i)
 }
 
 func convertWeekDay(day string) string {

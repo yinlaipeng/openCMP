@@ -10,7 +10,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func setupTestDB(t *testing.T) *gorm.DB {
+func setupMappingTestDB(t *testing.T) *gorm.DB {
 	db, err := gorm.Open(sqlite.Open("file:test?cache=shared&mode=memory"), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("failed to connect database: %v", err)
@@ -23,7 +23,7 @@ func setupTestDB(t *testing.T) *gorm.DB {
 }
 
 func TestMatchRule_AllMatch(t *testing.T) {
-	db := setupTestDB(t)
+	db := setupMappingTestDB(t)
 	logger := zap.NewNop()
 	service := NewResourceMappingService(db, logger)
 
@@ -91,7 +91,7 @@ func TestMatchRule_AllMatch(t *testing.T) {
 }
 
 func TestMatchRule_AnyMatch(t *testing.T) {
-	db := setupTestDB(t)
+	db := setupMappingTestDB(t)
 	logger := zap.NewNop()
 	service := NewResourceMappingService(db, logger)
 
@@ -148,7 +148,7 @@ func TestMatchRule_AnyMatch(t *testing.T) {
 }
 
 func TestMatchRule_KeyMatch(t *testing.T) {
-	db := setupTestDB(t)
+	db := setupMappingTestDB(t)
 	logger := zap.NewNop()
 	service := NewResourceMappingService(db, logger)
 
@@ -213,7 +213,7 @@ func TestMatchRule_KeyMatch(t *testing.T) {
 }
 
 func TestMatchTag_ExactMatch(t *testing.T) {
-	db := setupTestDB(t)
+	db := setupMappingTestDB(t)
 	logger := zap.NewNop()
 	service := NewResourceMappingService(db, logger)
 
@@ -260,7 +260,7 @@ func TestMatchTag_ExactMatch(t *testing.T) {
 }
 
 func TestMatchTag_RegexMatch(t *testing.T) {
-	db := setupTestDB(t)
+	db := setupMappingTestDB(t)
 	logger := zap.NewNop()
 	service := NewResourceMappingService(db, logger)
 
@@ -307,7 +307,7 @@ func TestMatchTag_RegexMatch(t *testing.T) {
 }
 
 func TestParseResourceTags(t *testing.T) {
-	db := setupTestDB(t)
+	db := setupMappingTestDB(t)
 	logger := zap.NewNop()
 	service := NewResourceMappingService(db, logger)
 
