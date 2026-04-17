@@ -8,6 +8,9 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/go-sql-driver/mysql"
@@ -22,6 +25,7 @@ import (
 	"github.com/opencmp/opencmp/internal/service"
 	initutils "github.com/opencmp/opencmp/internal/utils"
 	_ "github.com/opencmp/opencmp/pkg/cloudprovider/adapters/alibaba" // 引入阿里云适配器以注册
+	"github.com/opencmp/opencmp/pkg/scheduler"
 	pkgutils "github.com/opencmp/opencmp/pkg/utils"
 )
 
@@ -93,6 +97,9 @@ func main() {
 		&model.GroupRole{},
 		&model.GroupProject{},
 		&model.AuthSource{},
+		&model.Policy{},
+		&model.PolicyStatement{},
+		&model.RolePolicy{},
 		&model.SecurityAlert{},
 		&model.MessageType{},
 		&model.Message{},
@@ -101,20 +108,36 @@ func main() {
 		&model.Robot{},
 		&model.Receiver{},
 		&model.ReceiverChannel{},
-		&model.SyncPolicy{},    // 添加同步策略模型
-		&model.ScheduledTask{}, // 添加定时任务模型
-		&model.OperationLog{},  // 添加操作日志模型
-		&model.Bill{},          // 添加账单模型
-		&model.Order{},         // 添加订单模型
-		&model.Budget{},        // 添加预算模型
-		&model.CostAnomaly{},   // 添加成本异常模型
-		&model.RenewalResource{}, // 添加续费资源模型
-			&model.CloudSubscription{}, // 添加云订阅模型
-			&model.CloudUser{},         // 添加云用户模型
-			&model.CloudUserGroup{},    // 添加云用户组模型
-			&model.CloudProject{},      // 添加云上项目模型
-			&model.CloudDisk{},         // 添加云硬盘模型
-			&model.CloudSnapshot{},     // 添加云快照模型
+		&model.SyncPolicy{},    // 同步策略模型
+		&model.Rule{},          // 同步规则模型
+		&model.RuleTag{},       // 规则标签模型
+		&model.ScheduledTask{}, // 定时任务模型
+		&model.SyncLog{},       // 同步日志模型
+		&model.CloudSubscription{}, // 云订阅模型
+		&model.CloudUser{},         // 云用户模型
+		&model.CloudUserGroup{},    // 云用户组模型
+		&model.CloudProject{},      // 云上项目模型
+		&model.CloudVM{},           // 云虚拟机模型
+		&model.CloudVPC{},          // 云VPC模型
+		&model.CloudSubnet{},       // 云子网模型
+		&model.CloudSecurityGroup{},// 云安全组模型
+		&model.CloudEIP{},          // 云弹性IP模型
+		&model.CloudImage{},        // 云镜像模型
+		&model.CloudDisk{},         // 云硬盘模型
+		&model.CloudSnapshot{},     // 云快照模型
+		&model.CloudRDS{},          // 云RDS模型
+		&model.CloudRedis{},        // 云Redis模型
+		&model.OperationLog{},      // 操作日志模型
+		&model.HostTemplate{},      // 主机模版模型
+		&model.AutoscalingGroup{},  // 弹性伸缩组模型
+		&model.Bill{},              // 账单模型
+		&model.Order{},             // 订单模型
+		&model.Budget{},            // 预算模型
+		&model.CostAnomaly{},       // 成本异常模型
+		&model.RenewalResource{},   // 续费资源模型
+		&model.AlertPolicy{},       // 告警策略模型
+		&model.AlertHistory{},      // 告警历史模型
+		&model.MonitorResource{},   // 监控资源模型
 	); err != nil {
 		log.Fatalf("failed to migrate database: %v", err)
 	}
@@ -134,6 +157,11 @@ func main() {
 		logger.Warn("failed to init default data", zap.Error(err))
 	}
 
+	// 初始化并启动定时任务调度器
+	taskScheduler := scheduler.NewScheduler(db, logger)
+	taskScheduler.Start()
+	logger.Info("task scheduler initialized and started")
+
 	// 初始化 Gin
 	gin.SetMode(cfg.Server.Mode)
 	r := gin.New()
@@ -152,6 +180,8 @@ func main() {
 		c.Next()
 	})
 	v1.Use(middleware.AuthMiddleware(logger))
+	v1.Use(middleware.PermissionMiddleware(db, logger))      // 权限检查中间件
+	v1.Use(middleware.ProjectIsolationMiddleware(db, logger)) // 项目隔离中间件
 	{
 		// 云账户路由
 		cloudAccountHandler := handler.NewCloudAccountHandler(db, logger)
@@ -169,6 +199,7 @@ func main() {
 			cloudAccountGroup.PATCH("/:id/status", cloudAccountHandler.UpdateStatus)
 			cloudAccountGroup.POST("/:id/test-connection-with-credentials", cloudAccountHandler.TestConnectionWithCredentials)
 			cloudAccountGroup.PATCH("/:id/attributes", cloudAccountHandler.UpdateAttributes)
+				cloudAccountGroup.GET("/resource-types", cloudAccountHandler.GetSupportedResourceTypes)
 
 			// 云账户资源相关路由
 			cloudAccountResourcesHandler := handler.NewCloudAccountResourcesHandler(db, logger)
@@ -313,6 +344,50 @@ func main() {
 			storageGroup.GET("/cloud-snapshots", storageHandler.ListCloudSnapshots)
 			storageGroup.POST("/cloud-snapshots", storageHandler.CreateCloudSnapshot)
 			storageGroup.DELETE("/cloud-snapshots/:id", storageHandler.DeleteCloudSnapshot)
+		}
+
+		// 数据库资源路由
+		databaseHandler := handler.NewDatabaseHandler(db, logger)
+		databaseGroup := v1.Group("/database")
+		{
+			// RDS 实例
+			databaseGroup.POST("/rds", databaseHandler.CreateRDS)
+			databaseGroup.GET("/rds", databaseHandler.ListRDS)
+			databaseGroup.GET("/rds/:id", databaseHandler.GetRDS)
+			databaseGroup.DELETE("/rds/:id", databaseHandler.DeleteRDS)
+			databaseGroup.POST("/rds/:id/action", databaseHandler.RDSAction)
+			databaseGroup.POST("/rds/:id/resize", databaseHandler.ResizeRDS)
+			databaseGroup.POST("/rds/:id/backups", databaseHandler.CreateRDSBackup)
+			databaseGroup.GET("/rds/:id/backups", databaseHandler.ListRDSBackups)
+
+			// 缓存实例 (Redis/Memcached)
+			databaseGroup.POST("/cache", databaseHandler.CreateCache)
+			databaseGroup.GET("/cache", databaseHandler.ListCache)
+			databaseGroup.DELETE("/cache/:id", databaseHandler.DeleteCache)
+			databaseGroup.POST("/cache/:id/action", databaseHandler.CacheAction)
+			databaseGroup.POST("/cache/:id/resize", databaseHandler.ResizeCache)
+			databaseGroup.POST("/cache/:id/backups", databaseHandler.CreateCacheBackup)
+		}
+
+		// 中间件资源路由
+		middlewareHandler := handler.NewMiddlewareHandler(db, logger)
+		middlewareGroup := v1.Group("/middleware")
+		{
+			// Kafka 实例
+			middlewareGroup.POST("/kafka", middlewareHandler.CreateKafka)
+			middlewareGroup.GET("/kafka", middlewareHandler.ListKafka)
+			middlewareGroup.GET("/kafka/:id", middlewareHandler.GetKafka)
+			middlewareGroup.DELETE("/kafka/:id", middlewareHandler.DeleteKafka)
+			middlewareGroup.POST("/kafka/:id/action", middlewareHandler.KafkaAction)
+			middlewareGroup.POST("/kafka/:id/resize", middlewareHandler.ResizeKafka)
+
+			// Elasticsearch 实例
+			middlewareGroup.POST("/elasticsearch", middlewareHandler.CreateElasticsearch)
+			middlewareGroup.GET("/elasticsearch", middlewareHandler.ListElasticsearch)
+			middlewareGroup.GET("/elasticsearch/:id", middlewareHandler.GetElasticsearch)
+			middlewareGroup.DELETE("/elasticsearch/:id", middlewareHandler.DeleteElasticsearch)
+			middlewareGroup.POST("/elasticsearch/:id/action", middlewareHandler.ElasticsearchAction)
+			middlewareGroup.POST("/elasticsearch/:id/resize", middlewareHandler.ResizeElasticsearch)
 		}
 
 		// IAM 认证与安全路由
@@ -539,12 +614,46 @@ func main() {
 			scheduledTaskGroup.POST("/:id/execute", scheduledTaskHandler.Execute)
 		}
 
+		// 同步日志路由
+		syncLogService := service.NewSyncLogService(db, logger)
+		syncLogHandler := handler.NewSyncLogHandler(syncLogService, logger)
+		syncLogGroup := v1.Group("/sync-logs")
+		{
+			syncLogGroup.GET("", syncLogHandler.ListSyncLogs)
+			syncLogGroup.GET("/:id", syncLogHandler.GetSyncLog)
+			syncLogGroup.GET("/statistics", syncLogHandler.GetSyncStatistics)
+			syncLogGroup.GET("/latest", syncLogHandler.GetLatestSyncLog)
+		}
+
 		// 操作日志路由
 		operationLogHandler := handler.NewOperationLogHandler(service.NewOperationLogService(db))
 		operationLogGroup := v1.Group("/operation-logs")
 		{
 			operationLogGroup.GET("", operationLogHandler.GetOperationLogs)
 			operationLogGroup.GET("/:resource_type/:resource_id", operationLogHandler.GetResourceOperationLogs)
+		}
+
+		// 监控告警路由
+		monitorHandler := handler.NewMonitorHandler(db, logger)
+		monitorGroup := v1.Group("/monitor")
+		{
+			// 告警策略
+			monitorGroup.GET("/alert-policies", monitorHandler.ListAlertPolicies)
+			monitorGroup.POST("/alert-policies", monitorHandler.CreateAlertPolicy)
+			monitorGroup.GET("/alert-policies/:id", monitorHandler.GetAlertPolicy)
+			monitorGroup.PUT("/alert-policies/:id", monitorHandler.UpdateAlertPolicy)
+			monitorGroup.DELETE("/alert-policies/:id", monitorHandler.DeleteAlertPolicy)
+			monitorGroup.POST("/alert-policies/:id/toggle", monitorHandler.ToggleAlertPolicy)
+
+			// 告警历史
+			monitorGroup.GET("/alert-history", monitorHandler.ListAlertHistory)
+			monitorGroup.POST("/alert-history/:id/resolve", monitorHandler.ResolveAlert)
+			monitorGroup.POST("/alert-history/:id/ignore", monitorHandler.IgnoreAlert)
+
+			// 监控资源
+			monitorGroup.GET("/resources", monitorHandler.ListMonitorResources)
+			monitorGroup.POST("/resources/sync", monitorHandler.SyncMonitorResources)
+			monitorGroup.GET("/resources/:id/metrics", monitorHandler.GetResourceMetrics)
 		}
 
 		// 费用中心路由
@@ -602,10 +711,38 @@ func main() {
 
 	// 启动服务
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)
-	logger.Info("starting server", zap.String("addr", addr))
-	if err := r.Run(addr); err != nil {
-		log.Fatalf("failed to start server: %v", err)
+	logger.Info("开始启动服务", zap.String("addr", addr))
+
+	// 使用优雅启动/关闭模式
+	srv := &http.Server{
+		Addr:    addr,
+		Handler: r,
 	}
+
+	// 启动服务（在goroutine中）
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("服务启动失败: %v", err)
+		}
+	}()
+
+	// 等待中断信号（优雅关闭）
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+	<-quit
+	logger.Info("正在关闭服务...")
+
+	// 停止调度器
+	taskScheduler.Stop()
+	logger.Info("任务调度器已停止")
+
+	// 关闭HTTP服务（最多等待5秒）
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		logger.Error("服务强制关闭", zap.Error(err))
+	}
+	logger.Info("服务已关闭")
 }
 
 func loadConfig(path string) (*Config, error) {

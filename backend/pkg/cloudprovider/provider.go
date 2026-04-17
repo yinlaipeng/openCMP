@@ -2,10 +2,11 @@ package cloudprovider
 
 // ICloudProvider 云提供商总接口
 type ICloudProvider interface {
-	ICompute  // 计算资源
-	INetwork  // 网络资源
-	IStorage  // 存储资源
-	IDatabase // 数据服务
+	ICompute     // 计算资源
+	INetwork     // 网络资源
+	IStorage     // 存储资源
+	IDatabase    // 数据服务
+	IMiddleware  // 中间件服务
 
 	// 云厂商信息
 	GetCloudInfo() CloudInfo

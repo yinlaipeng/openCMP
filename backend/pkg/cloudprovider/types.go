@@ -35,6 +35,7 @@ type VirtualMachine struct {
 	OSName            string            `json:"os_name"`            // Operating system name
 	BillingMethod     string            `json:"billing_method"`   // Billing method (pay-as-you-go, subscription, etc.)
 	Platform          string            `json:"platform"`         // Cloud platform (alibaba, tencent, aws, azure)
+	AccountName       string            `json:"account_name"`     // Cloud account name
 	ProjectID         string            `json:"project_id"`       // Associated project ID
 	VPCID             string            `json:"vpc_id"`
 	SubnetID          string            `json:"subnet_id"`
@@ -48,6 +49,7 @@ type VirtualMachine struct {
 	CreatedAt         time.Time         `json:"created_at"`
 	RegionID          string            `json:"region_id"`
 	ZoneID            string            `json:"zone_id"`
+	CloudAccountID    uint              `json:"cloud_account_id"` // 所属云账号ID
 }
 
 // VMCreateConfig 虚拟机创建配置
@@ -365,4 +367,88 @@ type AutoscalingGroup struct {
 	Tags            map[string]string `json:"tags"`                      // 标签
 	CreatedAt       time.Time         `json:"created_at"`                // 创建时间
 	UpdatedAt       time.Time         `json:"updated_at"`                // 更新时间
+}
+
+// KafkaInstance Kafka消息队列实例
+type KafkaInstance struct {
+	ID             string            `json:"id"`
+	Name           string            `json:"name"`
+	Label          string            `json:"label"`
+	Status         string            `json:"status"`
+	Version        string            `json:"version"`
+	Storage        string            `json:"storage"`
+	Bandwidth      string            `json:"bandwidth"`
+	Endpoint       string            `json:"endpoint"`
+	Retention      string            `json:"retention"`
+	BillingMethod  string            `json:"billing_method"`
+	Platform       string            `json:"platform"`
+	AccountName    string            `json:"account_name"`
+	ProjectID      string            `json:"project_id"`
+	RegionID       string            `json:"region_id"`
+	ZoneID         string            `json:"zone_id"`
+	Tags           map[string]string `json:"tags"`
+	CreatedAt      time.Time         `json:"created_at"`
+}
+
+// KafkaConfig Kafka创建配置
+type KafkaConfig struct {
+	Name          string            `json:"name"`
+	Version       string            `json:"version"`
+	Storage       int               `json:"storage"`    // GB
+	Bandwidth     int               `json:"bandwidth"`  // MB/s
+	Retention     int               `json:"retention"`  // hours
+	VPCID         string            `json:"vpc_id"`
+	SubnetID      string            `json:"subnet_id"`
+	ZoneID        string            `json:"zone_id"`
+	Tags          map[string]string `json:"tags"`
+}
+
+// KafkaFilter Kafka过滤条件
+type KafkaFilter struct {
+	InstanceID string `json:"instance_id"`
+	Status     string `json:"status"`
+	Version    string `json:"version"`
+	RegionID   string `json:"region_id"`
+}
+
+// ElasticsearchInstance Elasticsearch实例
+type ElasticsearchInstance struct {
+	ID            string            `json:"id"`
+	Name          string            `json:"name"`
+	Label         string            `json:"label"`
+	Status        string            `json:"status"`
+	InstanceType  string            `json:"instance_type"`
+	Config        string            `json:"config"`
+	Version       string            `json:"version"`
+	Storage       string            `json:"storage"`
+	BillingMethod string            `json:"billing_method"`
+	Platform      string            `json:"platform"`
+	AccountName   string            `json:"account_name"`
+	ProjectID     string            `json:"project_id"`
+	RegionID      string            `json:"region_id"`
+	ZoneID        string            `json:"zone_id"`
+	Tags          map[string]string `json:"tags"`
+	CreatedAt     time.Time         `json:"created_at"`
+}
+
+// ElasticsearchConfig Elasticsearch创建配置
+type ElasticsearchConfig struct {
+	Name         string            `json:"name"`
+	Version      string            `json:"version"`
+	InstanceType string            `json:"instance_type"`
+	NodeCount    int               `json:"node_count"`
+	Storage      int               `json:"storage"`    // GB
+	VPCID        string            `json:"vpc_id"`
+	SubnetID     string            `json:"subnet_id"`
+	ZoneID       string            `json:"zone_id"`
+	Tags         map[string]string `json:"tags"`
+}
+
+// ElasticsearchFilter Elasticsearch过滤条件
+type ElasticsearchFilter struct {
+	InstanceID   string `json:"instance_id"`
+	Status       string `json:"status"`
+	Version      string `json:"version"`
+	InstanceType string `json:"instance_type"`
+	RegionID     string `json:"region_id"`
 }

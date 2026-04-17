@@ -381,6 +381,58 @@ func (p *AWSProvider) UnbindEIP(ctx context.Context, eipID string) error {
 	return cloudprovider.NewCloudError(cloudprovider.ErrUnsupportedOperation, "UnbindEIP not implemented", "")
 }
 
+// ============================================
+// Middleware methods (Kafka/Elasticsearch 未实现)
+// ============================================
+
+func (p *AWSProvider) CreateKafkaInstance(ctx context.Context, config cloudprovider.KafkaConfig) (*cloudprovider.KafkaInstance, error) {
+	return nil, cloudprovider.NewCloudError(cloudprovider.ErrUnsupportedOperation, "CreateKafkaInstance not implemented", "")
+}
+
+func (p *AWSProvider) DeleteKafkaInstance(ctx context.Context, instanceID string) error {
+	return cloudprovider.NewCloudError(cloudprovider.ErrUnsupportedOperation, "DeleteKafkaInstance not implemented", instanceID)
+}
+
+func (p *AWSProvider) StartKafkaInstance(ctx context.Context, instanceID string) error {
+	return cloudprovider.NewCloudError(cloudprovider.ErrUnsupportedOperation, "StartKafkaInstance not implemented", instanceID)
+}
+
+func (p *AWSProvider) StopKafkaInstance(ctx context.Context, instanceID string) error {
+	return cloudprovider.NewCloudError(cloudprovider.ErrUnsupportedOperation, "StopKafkaInstance not implemented", instanceID)
+}
+
+func (p *AWSProvider) ResizeKafkaInstance(ctx context.Context, instanceID string, spec cloudprovider.KafkaSpec) error {
+	return cloudprovider.NewCloudError(cloudprovider.ErrUnsupportedOperation, "ResizeKafkaInstance not implemented", instanceID)
+}
+
+func (p *AWSProvider) ListKafkaInstances(ctx context.Context, filter cloudprovider.KafkaFilter) ([]*cloudprovider.KafkaInstance, error) {
+	return []*cloudprovider.KafkaInstance{}, nil
+}
+
+func (p *AWSProvider) CreateElasticsearchInstance(ctx context.Context, config cloudprovider.ElasticsearchConfig) (*cloudprovider.ElasticsearchInstance, error) {
+	return nil, cloudprovider.NewCloudError(cloudprovider.ErrUnsupportedOperation, "CreateElasticsearchInstance not implemented", "")
+}
+
+func (p *AWSProvider) DeleteElasticsearchInstance(ctx context.Context, instanceID string) error {
+	return cloudprovider.NewCloudError(cloudprovider.ErrUnsupportedOperation, "DeleteElasticsearchInstance not implemented", instanceID)
+}
+
+func (p *AWSProvider) StartElasticsearchInstance(ctx context.Context, instanceID string) error {
+	return cloudprovider.NewCloudError(cloudprovider.ErrUnsupportedOperation, "StartElasticsearchInstance not implemented", instanceID)
+}
+
+func (p *AWSProvider) StopElasticsearchInstance(ctx context.Context, instanceID string) error {
+	return cloudprovider.NewCloudError(cloudprovider.ErrUnsupportedOperation, "StopElasticsearchInstance not implemented", instanceID)
+}
+
+func (p *AWSProvider) ResizeElasticsearchInstance(ctx context.Context, instanceID string, spec cloudprovider.ElasticsearchSpec) error {
+	return cloudprovider.NewCloudError(cloudprovider.ErrUnsupportedOperation, "ResizeElasticsearchInstance not implemented", instanceID)
+}
+
+func (p *AWSProvider) ListElasticsearchInstances(ctx context.Context, filter cloudprovider.ElasticsearchFilter) ([]*cloudprovider.ElasticsearchInstance, error) {
+	return []*cloudprovider.ElasticsearchInstance{}, nil
+}
+
 func init() {
 	cloudprovider.RegisterProvider("aws", NewAWSProvider)
 }
