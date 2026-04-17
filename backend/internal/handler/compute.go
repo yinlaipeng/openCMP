@@ -8,6 +8,7 @@ import (
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 
+	"github.com/opencmp/opencmp/internal/middleware"
 	"github.com/opencmp/opencmp/internal/service"
 	"github.com/opencmp/opencmp/pkg/cloudprovider"
 )
@@ -77,16 +78,11 @@ func (h *ComputeHandler) CreateVM(c *gin.Context) {
 
 // ListVMs 列出虚拟机
 func (h *ComputeHandler) ListVMs(c *gin.Context) {
-	accountIDStr := c.Query("account_id")
-	if accountIDStr == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "account_id is required"})
-		return
-	}
-
-	accountID, err := strconv.ParseUint(accountIDStr, 10, 32)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid account_id"})
-		return
+	// 获取项目过滤信息
+	projectFilter := middleware.GetProjectFilter(c)
+	var projectIDs []int64
+	if !projectFilter.AllProjectsVisible {
+		projectIDs = projectFilter.ProjectIDs
 	}
 
 	filter := cloudprovider.VMListFilter{
@@ -95,7 +91,32 @@ func (h *ComputeHandler) ListVMs(c *gin.Context) {
 		RegionID: c.Query("region_id"),
 	}
 
-	vms, err := h.service.ListVMs(c.Request.Context(), uint(accountID), filter)
+	// account_id 可选，如果不传则查询所有云账号的虚拟机
+	accountIDStr := c.Query("account_id")
+	if accountIDStr == "" {
+		// 查询所有云账号的虚拟机
+		vms, err := h.service.ListAllVMs(c.Request.Context(), filter, projectIDs)
+		if err != nil {
+			h.logger.Error("failed to list all vms", zap.Error(err))
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"items": vms,
+			"total": len(vms),
+		})
+		return
+	}
+
+	// 查询指定云账号的虚拟机
+	accountID, err := strconv.ParseUint(accountIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid account_id"})
+		return
+	}
+
+	vms, err := h.service.ListVMs(c.Request.Context(), uint(accountID), filter, projectIDs)
 	if err != nil {
 		h.logger.Error("failed to list vms", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

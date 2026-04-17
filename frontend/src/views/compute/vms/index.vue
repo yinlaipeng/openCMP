@@ -1,241 +1,132 @@
 <template>
-  <div class="vms-page">
-    <el-card class="page-card glass">
-      <template #header>
-        <div class="card-header">
-          <div class="header-left">
-            <span class="title">虚拟机管理</span>
-            <el-tag size="small" type="info" class="count-tag">共 {{ total }} 台</el-tag>
-          </div>
-          <div class="header-right">
-            <el-button type="primary" class="create-btn" @click="handleCreate">
-              <el-icon><Plus /></el-icon>
-              创建虚拟机
-            </el-button>
-          </div>
-        </div>
-      </template>
+  <div class="vms-container">
+    <div class="page-header">
+      <h2>虚拟机管理</h2>
+      <el-button type="primary" @click="handleCreate">
+        <el-icon><Plus /></el-icon>
+        创建虚拟机
+      </el-button>
+    </div>
 
-      <!-- Collapsible Query Area -->
-      <div class="query-section">
-        <el-collapse v-model="queryExpanded">
-          <el-collapse-item name="query">
-            <template #title>
-              <div class="query-title">
-                <el-icon><Search /></el-icon>
-                <span>查询条件</span>
-                <el-tag v-if="hasActiveQuery" size="small" type="warning">已筛选</el-tag>
-              </div>
-            </template>
-            <el-form :inline="true" :model="queryForm" class="query-form">
-              <el-form-item label="云账户">
-                <el-input v-model="queryForm.account_id" placeholder="请输入云账户 ID" clearable />
-              </el-form-item>
-              <el-form-item label="名称">
-                <el-input v-model="queryForm.name" placeholder="虚拟机名称" clearable />
-              </el-form-item>
-              <el-form-item label="状态">
-                <el-select v-model="queryForm.status" placeholder="选择状态" clearable>
-                  <el-option label="运行中" value="Running" />
-                  <el-option label="已停止" value="Stopped" />
-                  <el-option label="启动中" value="Starting" />
-                  <el-option label="停止中" value="Stopping" />
-                  <el-option label="创建中" value="Pending" />
-                </el-select>
-              </el-form-item>
-              <el-form-item>
-                <el-button type="primary" @click="loadVMs">
-                  <el-icon><Search /></el-icon>
-                  查询
-                </el-button>
-                <el-button @click="resetQuery">
-                  <el-icon><RefreshRight /></el-icon>
-                  重置
-                </el-button>
-              </el-form-item>
-            </el-form>
-          </el-collapse-item>
-        </el-collapse>
-      </div>
-
-      <!-- Empty State -->
-      <el-empty v-if="!loading && vms.length === 0" description="暂无虚拟机数据">
-        <el-button type="primary" @click="handleCreate">
-          <el-icon><Plus /></el-icon>
-          创建第一台虚拟机
-        </el-button>
-      </el-empty>
-
-      <!-- Table -->
-      <el-table
-        v-if="vms.length > 0 || loading"
-        :data="vms"
-        v-loading="loading"
-        style="width: 100%"
-        @row-dblclick="showDetails"
-        class="vms-table"
-      >
-        <el-table-column prop="name" label="名称" min-width="150">
-          <template #default="{ row }">
-            <el-link type="primary" :underline="false" @click="showDetails(row)">
-              {{ row.name }}
-            </el-link>
-          </template>
-        </el-table-column>
-
-        <el-table-column prop="status" label="状态" width="100">
-          <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)" class="status-tag">
-              {{ getStatusName(row.status) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="IP" width="200">
-          <template #default="{ row }">
-            <div class="ip-cell">
-              <div v-if="row.private_ip" class="ip-item">
-                <el-tag size="small" type="info" effect="plain">内网</el-tag>
-                <span class="ip-value font-mono">{{ row.private_ip }}</span>
-              </div>
-              <div v-if="row.public_ip" class="ip-item">
-                <el-tag size="small" type="success" effect="plain">公网</el-tag>
-                <span class="ip-value font-mono">{{ row.public_ip }}</span>
-              </div>
-              <div v-if="!row.private_ip && !row.public_ip" class="no-ip">-</div>
-            </div>
-          </template>
-        </el-table-column>
-
-        <el-table-column prop="os_name" label="系统" width="120">
-          <template #default="{ row }">
-            <span class="os-name">{{ row.os_name || '未知' }}</span>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="密码" width="120">
-          <template #default="{ row }">
-            <el-popover
-              placement="top"
-              title="密码信息"
-              :width="200"
-              trigger="hover"
-            >
-              <div class="password-hint">密码信息将在安全通道中提供</div>
-              <template #reference>
-                <el-button link size="small" class="password-btn">
-                  <el-icon><Hide /></el-icon>
-                  <span>点击获取</span>
-                </el-button>
-              </template>
-            </el-popover>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="安全组" min-width="150">
-          <template #default="{ row }">
-            <el-tooltip
-              v-if="row.security_group_names && row.security_group_names.length > 0"
-              effect="dark"
-              placement="top"
-            >
-              <template #content>
-                <div v-for="sg in row.security_group_names" :key="sg" class="sg-tooltip-item">
-                  {{ sg }}
-                </div>
-              </template>
-              <div class="sg-tags">
-                <el-tag
-                  v-for="sg in row.security_group_names?.slice(0, 2)"
-                  :key="sg"
-                  size="small"
-                  type="info"
-                  effect="plain"
-                  class="sg-tag"
-                >
-                  {{ sg }}
-                </el-tag>
-                <el-tag
-                  v-if="row.security_group_names && row.security_group_names.length > 2"
-                  size="small"
-                  type="info"
-                  effect="plain"
-                >
-                  +{{ row.security_group_names.length - 2 }}
-                </el-tag>
-              </div>
-            </el-tooltip>
-            <span v-else class="no-data">-</span>
-          </template>
-        </el-table-column>
-
-        <el-table-column prop="billing_method" label="计费方式" width="120">
-          <template #default="{ row }">
-            <span class="billing">{{ row.billing_method || '按量付费' }}</span>
-          </template>
-        </el-table-column>
-
-        <el-table-column prop="platform" label="平台" width="120">
-          <template #default="{ row }">
-            <el-tag size="small" effect="plain">{{ row.platform || '未知' }}</el-tag>
-          </template>
-        </el-table-column>
-
-        <el-table-column prop="project_id" label="项目" width="150">
-          <template #default="{ row }">
-            <span class="project-name">{{ row.project_id || '未分配' }}</span>
-          </template>
-        </el-table-column>
-
-        <el-table-column prop="region_id" label="区域" width="150">
-          <template #default="{ row }">
-            <span class="region font-mono">{{ row.region_id }}</span>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="操作" width="250" fixed="right">
-          <template #default="{ row }">
-            <div class="operation-buttons">
-              <el-button
-                size="small"
-                type="success"
-                @click="openVNC(row)"
-                class="vnc-btn"
-              >
-                <el-icon><Monitor /></el-icon>
-                远程控制
-              </el-button>
-
-              <VMActionDropdown
-                :vm="row"
-                :account-id="parseInt(queryForm.account_id)"
-                @remote-control="openVNC(row)"
-                @refresh="loadVMs"
-                @vm-action="handleVmAction"
-              />
-            </div>
-          </template>
-        </el-table-column>
-      </el-table>
-
-      <el-pagination
-        v-if="vms.length > 0"
-        v-model:current-page="currentPage"
-        v-model:page-size="pageSize"
-        :page-sizes="[10, 20, 50, 100]"
-        :total="total"
-        layout="total, sizes, prev, pager, next, jumper"
-        class="pagination"
-        @size-change="handleSizeChange"
-        @current-change="handleCurrentChange"
-      />
+    <el-card class="filter-card">
+      <el-form :inline="true" :model="queryForm" @submit.prevent="loadVMs">
+        <el-form-item label="云账户">
+          <CloudAccountSelector
+            v-model:value="queryForm.account_id"
+            placeholder="请选择云账户"
+            @change="handleAccountChange"
+          />
+        </el-form-item>
+        <el-form-item label="名称">
+          <el-input v-model="queryForm.name" placeholder="虚拟机名称" clearable />
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="queryForm.status" placeholder="选择状态" clearable>
+            <el-option label="运行中" value="Running" />
+            <el-option label="已停止" value="Stopped" />
+            <el-option label="启动中" value="Starting" />
+            <el-option label="停止中" value="Stopping" />
+            <el-option label="创建中" value="Pending" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="loadVMs">查询</el-button>
+          <el-button @click="resetQuery">重置</el-button>
+        </el-form-item>
+      </el-form>
     </el-card>
+
+    <el-table
+      :data="vms"
+      v-loading="loading"
+      style="width: 100%"
+      row-key="id"
+    >
+      <el-table-column label="名称" min-width="150">
+        <template #default="{ row }">
+          <el-link type="primary" :underline="false" @click="showDetails(row)">
+            {{ row.name }}
+          </el-link>
+        </template>
+      </el-table-column>
+
+      <el-table-column label="平台/云账号" width="150">
+        <template #default="{ row }">
+          <div class="platform-cell">
+            <el-tag size="small" :type="getPlatformType(row.platform)" effect="plain">
+              {{ getPlatformLabel(row.platform) }}
+            </el-tag>
+            <span class="account-name">{{ row.account_name || '-' }}</span>
+          </div>
+        </template>
+      </el-table-column>
+
+      <el-table-column prop="status" label="状态" width="100">
+        <template #default="{ row }">
+          <el-tag :type="getStatusType(row.status)">
+            {{ getStatusName(row.status) }}
+          </el-tag>
+        </template>
+      </el-table-column>
+
+      <el-table-column label="IP" width="200">
+        <template #default="{ row }">
+          <div v-if="row.private_ip">{{ row.private_ip }}</div>
+          <div v-if="row.public_ip">{{ row.public_ip }}</div>
+          <span v-if="!row.private_ip && !row.public_ip">-</span>
+        </template>
+      </el-table-column>
+
+      <el-table-column prop="os_name" label="系统" width="120">
+        <template #default="{ row }">
+          {{ row.os_name || '未知' }}
+        </template>
+      </el-table-column>
+
+      <el-table-column prop="billing_method" label="计费" width="100">
+        <template #default="{ row }">
+          {{ row.billing_method || '按量付费' }}
+        </template>
+      </el-table-column>
+
+      <el-table-column prop="region_id" label="区域" width="120" />
+
+      <el-table-column label="操作" width="200" fixed="right">
+        <template #default="{ row }">
+          <el-button size="small" type="success" @click="openVNC(row)">远程控制</el-button>
+          <el-dropdown trigger="click" @command="(cmd: string) => handleDropdownCommand(cmd, row)">
+            <el-button size="small">
+              操作<el-icon class="el-icon--right"><arrow-down /></el-icon>
+            </el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="start" v-if="row.status === 'Stopped'">启动</el-dropdown-item>
+                <el-dropdown-item command="stop" v-if="row.status === 'Running'">停止</el-dropdown-item>
+                <el-dropdown-item command="reboot">重启</el-dropdown-item>
+                <el-dropdown-item divided command="delete">删除</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </template>
+      </el-table-column>
+    </el-table>
+
+    <el-pagination
+      v-model:current-page="currentPage"
+      v-model:page-size="pageSize"
+      :total="total"
+      :page-sizes="[10, 20, 50, 100]"
+      layout="total, sizes, prev, pager, next, jumper"
+      @size-change="handleSizeChange"
+      @current-change="handleCurrentChange"
+      class="pagination"
+    />
 
     <!-- VM 详情模态框 -->
     <VMModal
       v-model="detailsModalVisible"
       :vm-id="selectedVM?.id || ''"
-      :account-id="parseInt(queryForm.account_id)"
+      :account-id="queryForm.account_id || 0"
       @close="detailsModalVisible = false"
     />
 
@@ -244,7 +135,7 @@
       v-model="vncModalVisible"
       :vm-id="selectedVM?.id || ''"
       :vm-name="selectedVM?.name || ''"
-      :account-id="parseInt(queryForm.account_id)"
+      :account-id="queryForm.account_id || 0"
       @close="vncModalVisible = false"
     />
 
@@ -257,23 +148,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
-import { ElMessage, ElMessageBox, ElPagination } from 'element-plus'
-import {
-  Plus,
-  Hide,
-  Monitor,
-  ArrowRight,
-  CaretRight,
-  Search,
-  RefreshRight
-} from '@element-plus/icons-vue'
+import { ref, reactive, onMounted } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Plus, ArrowDown } from '@element-plus/icons-vue'
 import { getVMs, vmAction, deleteVM } from '@/api/compute'
 import type { VirtualMachine } from '@/types'
 import VMModal from '@/components/vm/VMModal.vue'
 import VNCConsole from '@/components/vm/VNCConsole.vue'
-import VMActionDropdown from '@/components/vm/VMActionDropdown.vue'
 import CreateVMModal from '@/components/vm/CreateVMModal.vue'
+import CloudAccountSelector from '@/components/common/CloudAccountSelector.vue'
 
 // 响应式数据
 const vms = ref<VirtualMachine[]>([])
@@ -282,26 +165,42 @@ const detailsModalVisible = ref(false)
 const vncModalVisible = ref(false)
 const createModalVisible = ref(false)
 const selectedVM = ref<VirtualMachine | null>(null)
-const queryExpanded = ref(['query'])
 
 // 分页数据
 const currentPage = ref(1)
-const pageSize = ref(10)
+const pageSize = ref(20)
 const total = ref(0)
 
 // 查询表单
 const queryForm = reactive({
-  account_id: '',
+  account_id: null as number | null,
   name: '',
   status: ''
 })
 
-// 检查是否有活跃查询
-const hasActiveQuery = computed(() => {
-  return queryForm.account_id || queryForm.name || queryForm.status
-})
+// 平台类型映射
+const platformLabels: Record<string, string> = {
+  alibaba: '阿里云',
+  tencent: '腾讯云',
+  aws: 'AWS',
+  azure: 'Azure'
+}
 
-// 方法
+const platformTypes: Record<string, 'primary' | 'warning' | 'success' | 'info'> = {
+  alibaba: 'primary',
+  tencent: 'warning',
+  aws: 'success',
+  azure: 'info'
+}
+
+const getPlatformLabel = (platform: string): string => {
+  return platformLabels[platform] || platform || '未知'
+}
+
+const getPlatformType = (platform: string): 'primary' | 'warning' | 'success' | 'info' => {
+  return platformTypes[platform] || 'info'
+}
+
 const getStatusName = (status: string) => {
   const map: Record<string, string> = {
     Running: '运行中',
@@ -323,28 +222,26 @@ const getStatusType = (status: string) => {
   return ''
 }
 
-const loadVMs = async () => {
-  if (!queryForm.account_id) {
-    ElMessage.warning('请先输入云账户 ID')
-    return
-  }
+const handleAccountChange = (accountId: number | null) => {
+  queryForm.account_id = accountId
+  loadVMs()
+}
 
+const loadVMs = async () => {
   loading.value = true
   try {
     const params: any = {
-      account_id: parseInt(queryForm.account_id),
+      page: currentPage.value,
+      size: pageSize.value
     }
 
+    if (queryForm.account_id) params.account_id = queryForm.account_id
     if (queryForm.name) params.name = queryForm.name
     if (queryForm.status) params.status = queryForm.status
 
-    // 模拟分页参数
-    params.page = currentPage.value
-    params.size = pageSize.value
-
     const res = await getVMs(params)
     vms.value = Array.isArray(res) ? res : res.items || res
-    total.value = vms.value.length // 实际使用中应该是后端返回的总数
+    total.value = res.total || vms.value.length
   } catch (e) {
     console.error(e)
     ElMessage.error('加载虚拟机列表失败')
@@ -357,30 +254,34 @@ const handleCreate = () => {
   createModalVisible.value = true
 }
 
-const handleAction = async (row: VirtualMachine, action: string) => {
-  try {
-    await ElMessageBox.confirm(`确定要${action === 'start' ? '启动' : '停止'}该虚拟机吗？`, '提示', { type: 'warning' })
-    await vmAction(row.id, parseInt(queryForm.account_id), action as any)
-    ElMessage.success(`${action === 'start' ? '启动' : '停止'}成功`)
-    loadVMs()
-  } catch (e: any) {
-    if (e !== 'cancel') {
-      console.error(e)
-      ElMessage.error(`操作失败: ${e.message}`)
+const handleDropdownCommand = async (command: string, row: VirtualMachine) => {
+  if (command === 'delete') {
+    try {
+      await ElMessageBox.confirm('确定要删除该虚拟机吗？', '提示', { type: 'warning' })
+      const accountId = row.cloud_account_id || queryForm.account_id
+      if (accountId) {
+        await deleteVM(row.id, accountId)
+        ElMessage.success('删除成功')
+        loadVMs()
+      }
+    } catch (e: any) {
+      if (e !== 'cancel') {
+        ElMessage.error(`删除失败: ${e.message}`)
+      }
     }
-  }
-}
-
-const handleDelete = async (row: VirtualMachine) => {
-  try {
-    await ElMessageBox.confirm('确定要删除该虚拟机吗？', '提示', { type: 'warning' })
-    await deleteVM(row.id, parseInt(queryForm.account_id))
-    ElMessage.success('删除成功')
-    loadVMs()
-  } catch (e: any) {
-    if (e !== 'cancel') {
-      console.error(e)
-      ElMessage.error(`删除失败: ${e.message}`)
+  } else {
+    try {
+      await ElMessageBox.confirm(`确定要${command === 'start' ? '启动' : command === 'stop' ? '停止' : '重启'}该虚拟机吗？`, '提示', { type: 'warning' })
+      const accountId = row.cloud_account_id || queryForm.account_id
+      if (accountId) {
+        await vmAction(row.id, accountId, command as any)
+        ElMessage.success('操作成功')
+        loadVMs()
+      }
+    } catch (e: any) {
+      if (e !== 'cancel') {
+        ElMessage.error(`操作失败: ${e.message}`)
+      }
     }
   }
 }
@@ -396,7 +297,7 @@ const openVNC = (row: VirtualMachine) => {
 }
 
 const resetQuery = () => {
-  queryForm.account_id = ''
+  queryForm.account_id = null
   queryForm.name = ''
   queryForm.status = ''
   currentPage.value = 1
@@ -405,6 +306,7 @@ const resetQuery = () => {
 
 const handleSizeChange = (size: number) => {
   pageSize.value = size
+  currentPage.value = 1
   loadVMs()
 }
 
@@ -413,234 +315,54 @@ const handleCurrentChange = (page: number) => {
   loadVMs()
 }
 
-const handleVmAction = (action: string, data?: any) => {
-  console.log('VM action triggered:', action, data)
-  // 处理特定的 VM 操作
-}
-
 const handleCreateSuccess = (vm: VirtualMachine) => {
   ElMessage.success(`${vm.name} 创建成功`)
   loadVMs()
 }
 
 onMounted(() => {
-  // 可以从项目上下文获取默认账户ID
   loadVMs()
 })
-
-// 双击行查看详情
-const onRowDoubleClick = (row: VirtualMachine) => {
-  showDetails(row)
-}
 </script>
 
 <style scoped>
-.vms-page {
-  height: 100%;
-  padding: var(--space-4);
+.vms-container {
+  padding: 20px;
 }
 
-.page-card {
-  height: 100%;
-}
-
-.page-card.glass {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(16px);
-  border-radius: var(--radius-lg);
-}
-
-.card-header {
+.page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 20px;
 }
 
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
+.page-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
 }
 
-.header-right {
-  display: flex;
-  gap: var(--space-2);
+.filter-card {
+  margin-bottom: 20px;
 }
 
-.title {
-  font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-foreground);
+.pagination {
+  margin-top: 20px;
+  text-align: right;
 }
 
-.count-tag {
-  font-family: var(--font-mono);
-}
-
-.create-btn {
-  transition: all var(--duration-fast) var(--ease-out);
-}
-
-.create-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.2);
-}
-
-/* Query Section */
-.query-section {
-  margin-bottom: var(--space-4);
-}
-
-.query-title {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-weight: var(--font-weight-medium);
-}
-
-.query-form {
-  padding: var(--space-2) 0;
-}
-
-/* Table Styles */
-.vms-table {
-  border-radius: var(--radius-md);
-}
-
-.el-table :deep(.el-table__cell) {
-  padding: var(--space-3) var(--space-2);
-}
-
-/* Status Tag */
-.status-tag {
-  font-weight: var(--font-weight-medium);
-}
-
-/* IP Cell */
-.ip-cell {
+.platform-cell {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: 4px;
 }
 
-.ip-item {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-}
-
-.ip-value {
-  font-family: var(--font-mono);
-  font-size: var(--font-size-sm);
-}
-
-.no-ip {
-  color: var(--color-muted);
-}
-
-/* OS Name */
-.os-name {
-  font-size: var(--font-size-sm);
-}
-
-/* Password Button */
-.password-btn {
-  transition: opacity var(--duration-fast);
-}
-
-.password-btn:hover {
-  opacity: 0.8;
-}
-
-.password-hint {
-  color: var(--color-muted);
-  font-size: var(--font-size-sm);
-}
-
-/* Security Group Tags */
-.sg-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-}
-
-.sg-tag {
-  font-size: var(--font-size-xs);
-}
-
-.sg-tooltip-item {
-  padding: var(--space-1) 0;
-}
-
-/* No Data */
-.no-data {
-  color: var(--color-muted);
-}
-
-/* Region */
-.region {
-  font-size: var(--font-size-sm);
-}
-
-/* Operation Buttons */
-.operation-buttons {
-  display: flex;
-  gap: var(--space-2);
-  align-items: center;
-}
-
-.operation-buttons > * {
-  margin-right: 0 !important;
-}
-
-.vnc-btn {
-  transition: all var(--duration-fast) var(--ease-out);
-}
-
-.vnc-btn:hover {
-  transform: scale(1.05);
-}
-
-/* Pagination */
-.pagination {
-  margin-top: var(--space-6);
-  display: flex;
-  justify-content: flex-end;
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-  .vms-page {
-    padding: var(--space-2);
-  }
-
-  .card-header {
-    flex-direction: column;
-    gap: var(--space-2);
-    align-items: flex-start;
-  }
-
-  .header-right {
-    width: 100%;
-  }
-
-  .create-btn {
-    width: 100%;
-  }
-
-  .operation-buttons {
-    flex-direction: column;
-    gap: var(--space-1);
-  }
-}
-
-@media (max-width: 375px) {
-  .title {
-    font-size: var(--font-size-lg);
-  }
-
-  .el-table {
-    font-size: var(--font-size-xs);
-  }
+.account-name {
+  font-size: 12px;
+  color: var(--text-color-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>
