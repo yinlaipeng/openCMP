@@ -9,6 +9,7 @@ import (
 type Bill struct {
 	ID             uint      `gorm:"primaryKey" json:"id"`
 	CloudAccountID uint      `gorm:"index;not null" json:"cloud_account_id"`
+	ProjectID      *uint     `gorm:"index" json:"project_id"`              // 项目归属（从资源标签解析）
 	BillingCycle   string    `gorm:"type:varchar(20);not null" json:"billing_cycle"` // 2026-04
 	ProductType    string    `gorm:"type:varchar(50)" json:"product_type"`
 	ProductName    string    `gorm:"size:200" json:"product_name"`

@@ -384,3 +384,218 @@ func (s *FinanceService) GetAccountBalance(ctx context.Context, cloudAccountID u
 
 	return billingProvider.GetAccountBalance()
 }
+
+// ========== 成本聚合统计 ==========
+
+// CostAggregation 成本聚合结果
+type CostAggregation struct {
+	Key    string  `json:"key"`     // 聚合键（项目名/账号名/服务名）
+	Name   string  `json:"name"`    // 显示名称
+	Cost   float64 `json:"cost"`    // 成本金额
+	Count  int     `json:"count"`   // 记录数量
+	Ratio  float64 `json:"ratio"`   // 占比（百分比）
+}
+
+// GetCostByProject 按项目统计成本
+func (s *FinanceService) GetCostByProject(ctx context.Context, startDate, endDate string) ([]CostAggregation, error) {
+	var results []CostAggregation
+
+	// 基础查询：按project_id分组
+	query := `
+		SELECT
+			COALESCE(p.name, '未归属') as name,
+			COALESCE(b.project_id, 0) as key,
+			SUM(b.total_cost) as cost,
+			COUNT(*) as count
+		FROM finance_bills b
+		LEFT JOIN projects p ON b.project_id = p.id
+		WHERE b.billing_cycle BETWEEN ? AND ?
+		GROUP BY b.project_id, p.name
+		ORDER BY cost DESC
+	`
+
+	if err := s.db.Raw(query, startDate, endDate).Scan(&results).Error; err != nil {
+		return nil, err
+	}
+
+	// 计算总成本和占比
+	var totalCost float64
+	for _, r := range results {
+		totalCost += r.Cost
+	}
+	for i := range results {
+		if totalCost > 0 {
+			results[i].Ratio = (results[i].Cost / totalCost) * 100
+		}
+		results[i].Key = results[i].Name // 使用名称作为key
+	}
+
+	return results, nil
+}
+
+// GetCostByAccount 按云账号统计成本
+func (s *FinanceService) GetCostByAccount(ctx context.Context, startDate, endDate string) ([]CostAggregation, error) {
+	var results []CostAggregation
+
+	query := `
+		SELECT
+			ca.name as name,
+			ca.id as key,
+			SUM(b.total_cost) as cost,
+			COUNT(*) as count
+		FROM finance_bills b
+		JOIN cloud_accounts ca ON b.cloud_account_id = ca.id
+		WHERE b.billing_cycle BETWEEN ? AND ?
+		GROUP BY b.cloud_account_id, ca.name
+		ORDER BY cost DESC
+	`
+
+	if err := s.db.Raw(query, startDate, endDate).Scan(&results).Error; err != nil {
+		return nil, err
+	}
+
+	// 计算总成本和占比
+	var totalCost float64
+	for _, r := range results {
+		totalCost += r.Cost
+	}
+	for i := range results {
+		if totalCost > 0 {
+			results[i].Ratio = (results[i].Cost / totalCost) * 100
+		}
+	}
+
+	return results, nil
+}
+
+// GetCostByService 按服务类型统计成本
+func (s *FinanceService) GetCostByService(ctx context.Context, startDate, endDate string) ([]CostAggregation, error) {
+	var results []CostAggregation
+
+	query := `
+		SELECT
+			b.product_type as key,
+			b.product_name as name,
+			SUM(b.total_cost) as cost,
+			COUNT(*) as count
+		FROM finance_bills b
+		WHERE b.billing_cycle BETWEEN ? AND ?
+		GROUP BY b.product_type, b.product_name
+		ORDER BY cost DESC
+	`
+
+	if err := s.db.Raw(query, startDate, endDate).Scan(&results).Error; err != nil {
+		return nil, err
+	}
+
+	// 计算总成本和占比
+	var totalCost float64
+	for _, r := range results {
+		totalCost += r.Cost
+	}
+	for i := range results {
+		if totalCost > 0 {
+			results[i].Ratio = (results[i].Cost / totalCost) * 100
+		}
+	}
+
+	return results, nil
+}
+
+// CostTrendPoint 成本趋势数据点
+type CostTrendPoint struct {
+	Date    string  `json:"date"`    // 日期（YYYY-MM 或 YYYY-MM-DD）
+	Cost    float64 `json:"cost"`    // 成本
+	Budget  float64 `json:"budget"`  // 预算（可选）
+	Change  float64 `json:"change"`  // 环比变化率
+}
+
+// GetCostTrend 获取成本趋势数据（用于图表）
+func (s *FinanceService) GetCostTrend(ctx context.Context, cloudAccountID uint, months int) ([]CostTrendPoint, error) {
+	var results []CostTrendPoint
+
+	// 计算起始周期（前N个月）
+	startDate := time.Now().AddDate(0, -months, 0).Format("2006-01")
+	endDate := time.Now().Format("2006-01")
+
+	query := `
+		SELECT
+			billing_cycle as date,
+			SUM(total_cost) as cost
+		FROM finance_bills
+		WHERE billing_cycle BETWEEN ? AND ?
+	`
+	if cloudAccountID > 0 {
+		query += " AND cloud_account_id = ?"
+	}
+	query += " GROUP BY billing_cycle ORDER BY billing_cycle"
+
+	if cloudAccountID > 0 {
+		if err := s.db.Raw(query, startDate, endDate, cloudAccountID).Scan(&results).Error; err != nil {
+			return nil, err
+		}
+	} else {
+		if err := s.db.Raw(query, startDate, endDate).Scan(&results).Error; err != nil {
+			return nil, err
+		}
+	}
+
+	// 计算环比变化率
+	for i := 1; i < len(results); i++ {
+		if results[i-1].Cost > 0 {
+			results[i].Change = ((results[i].Cost - results[i-1].Cost) / results[i-1].Cost) * 100
+		}
+	}
+
+	return results, nil
+}
+
+// GetCostSummary 获取成本概览（用于Dashboard）
+func (s *FinanceService) GetCostSummary(ctx context.Context, cloudAccountID uint) (map[string]interface{}, error) {
+	currentMonth := time.Now().Format("2006-01")
+	lastMonth := time.Now().AddDate(0, -1, 0).Format("2006-01")
+
+	// 当前月成本
+	var currentCost float64
+	query := s.db.Model(&model.Bill{}).Where("billing_cycle = ?", currentMonth)
+	if cloudAccountID > 0 {
+		query = query.Where("cloud_account_id = ?", cloudAccountID)
+	}
+	query.Select("SUM(total_cost)").Scan(&currentCost)
+
+	// 上月成本
+	var lastCost float64
+	query = s.db.Model(&model.Bill{}).Where("billing_cycle = ?", lastMonth)
+	if cloudAccountID > 0 {
+		query = query.Where("cloud_account_id = ?", cloudAccountID)
+	}
+	query.Select("SUM(total_cost)").Scan(&lastCost)
+
+	// 计算环比变化
+	var changeRate float64
+	if lastCost > 0 {
+		changeRate = ((currentCost - lastCost) / lastCost) * 100
+	}
+
+	// 预算执行进度（如果有）
+	var budget model.Budget
+	budgetQuery := s.db.Model(&model.Budget{}).Where("cloud_account_id = ? AND status = ?", cloudAccountID, "active")
+	if cloudAccountID > 0 {
+		budgetQuery = budgetQuery.Where("cloud_account_id = ?", cloudAccountID)
+	}
+	budgetQuery.First(&budget)
+
+	budgetUsage := 0.0
+	if budget.Amount > 0 {
+		budgetUsage = (currentCost / budget.Amount) * 100
+	}
+
+	return map[string]interface{}{
+		"current_month_cost": currentCost,
+		"last_month_cost":    lastCost,
+		"change_rate":        changeRate,
+		"budget_amount":      budget.Amount,
+		"budget_usage":       budgetUsage,
+		"currency":           "CNY",
+	}, nil
+}

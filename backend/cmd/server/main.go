@@ -682,6 +682,13 @@ func main() {
 			financeGroup.GET("/cost/reports", financeHandler.GetCostReports)
 			financeGroup.POST("/cost/reports/generate", financeHandler.GenerateCostReport)
 
+			// 成本聚合统计
+			financeGroup.GET("/cost/by-project", financeHandler.GetCostByProject)
+			financeGroup.GET("/cost/by-account", financeHandler.GetCostByAccount)
+			financeGroup.GET("/cost/by-service", financeHandler.GetCostByService)
+			financeGroup.GET("/cost/trend", financeHandler.GetCostTrend)
+			financeGroup.GET("/cost/summary", financeHandler.GetCostSummary)
+
 			// 预算
 			financeGroup.GET("/budgets", financeHandler.GetBudgets)
 			financeGroup.POST("/budgets", financeHandler.CreateBudget)

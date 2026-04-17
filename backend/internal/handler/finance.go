@@ -4,6 +4,7 @@ package handler
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -387,4 +388,101 @@ func (h *FinanceHandler) GetAccountBalance(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, balance)
+}
+
+// ========== 成本聚合统计 ==========
+
+// GetCostByProject 按项目统计成本
+func (h *FinanceHandler) GetCostByProject(c *gin.Context) {
+	startDate := c.Query("start_date")
+	endDate := c.Query("end_date")
+
+	if startDate == "" {
+		startDate = time.Now().AddDate(0, -6, 0).Format("2006-01")
+	}
+	if endDate == "" {
+		endDate = time.Now().Format("2006-01")
+	}
+
+	results, err := h.service.GetCostByProject(c.Request.Context(), startDate, endDate)
+	if err != nil {
+		h.logger.Error("failed to get cost by project", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, results)
+}
+
+// GetCostByAccount 按云账号统计成本
+func (h *FinanceHandler) GetCostByAccount(c *gin.Context) {
+	startDate := c.Query("start_date")
+	endDate := c.Query("end_date")
+
+	if startDate == "" {
+		startDate = time.Now().AddDate(0, -6, 0).Format("2006-01")
+	}
+	if endDate == "" {
+		endDate = time.Now().Format("2006-01")
+	}
+
+	results, err := h.service.GetCostByAccount(c.Request.Context(), startDate, endDate)
+	if err != nil {
+		h.logger.Error("failed to get cost by account", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, results)
+}
+
+// GetCostByService 按服务类型统计成本
+func (h *FinanceHandler) GetCostByService(c *gin.Context) {
+	startDate := c.Query("start_date")
+	endDate := c.Query("end_date")
+
+	if startDate == "" {
+		startDate = time.Now().AddDate(0, -6, 0).Format("2006-01")
+	}
+	if endDate == "" {
+		endDate = time.Now().Format("2006-01")
+	}
+
+	results, err := h.service.GetCostByService(c.Request.Context(), startDate, endDate)
+	if err != nil {
+		h.logger.Error("failed to get cost by service", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, results)
+}
+
+// GetCostTrend 获取成本趋势
+func (h *FinanceHandler) GetCostTrend(c *gin.Context) {
+	cloudAccountID, _ := strconv.ParseUint(c.Query("cloud_account_id"), 10, 32)
+	months, _ := strconv.Atoi(c.DefaultQuery("months", "6"))
+
+	results, err := h.service.GetCostTrend(c.Request.Context(), uint(cloudAccountID), months)
+	if err != nil {
+		h.logger.Error("failed to get cost trend", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, results)
+}
+
+// GetCostSummary 获取成本概览
+func (h *FinanceHandler) GetCostSummary(c *gin.Context) {
+	cloudAccountID, _ := strconv.ParseUint(c.Query("cloud_account_id"), 10, 32)
+
+	summary, err := h.service.GetCostSummary(c.Request.Context(), uint(cloudAccountID))
+	if err != nil {
+		h.logger.Error("failed to get cost summary", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, summary)
 }
