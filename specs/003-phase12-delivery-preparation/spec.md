@@ -26,10 +26,10 @@
 - [x] Changes committed and pushed
 
 #### P1: 文档完善
-- [ ] API文档更新（Swagger/OpenAPI）
+- [x] API文档更新（Swagger/OpenAPI）
 - [x] 部署指南编写
-- [ ] 用户手册编写
-- [ ] 开发者文档完善
+- [x] 用户手册编写
+- [x] 开发者文档完善
 - [x] README.md更新
 - [ ] 所有文档审查通过
 
