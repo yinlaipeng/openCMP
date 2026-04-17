@@ -1,2 +1,11 @@
 # 忽略参考截图目录
 参考截图/
+
+# Ralph Wiggum directories (logs and temporary files)
+logs/
+history/
+completion_log/
+
+# Keep scripts and constitution tracked
+# .specify/memory/constitution.md - track this
+# scripts/ralph-loop*.sh - track these

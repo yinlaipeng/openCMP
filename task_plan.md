@@ -4,9 +4,272 @@
 实现 openCMP 多云管理平台的完整功能落地，前端页面与后端 API 真实对接，云厂商适配器调用真实 SDK，实现从云账号添加 → 资源同步 → 资源管理的完整业务流程。
 
 ## Current Phase
-Phase 17 - 项目全面完善（Phase A/B/C/D/E 已完成）
+Phase 27 - 前端页面样式统一检查与修复 (Complete)
+Next: 执行specs/目录中的开发Specs
+
+## Specs (Ralph Wiggum)
+开发Specs基于设计文档创建，按优先级执行：
+- [specs/001-phase10-resource-management/spec.md](specs/001-phase10-resource-management/spec.md) - High Priority
+- [specs/002-phase11-integration-verification/spec.md](specs/002-phase11-integration-verification/spec.md) - High Priority
+- [specs/003-phase12-delivery-preparation/spec.md](specs/003-phase12-delivery-preparation/spec.md) - Medium Priority
+- [specs/004-resource-project-mapping/spec.md](specs/004-resource-project-mapping/spec.md) - Medium Priority
+- [specs/005-billing-cost-analysis/spec.md](specs/005-billing-cost-analysis/spec.md) - Medium Priority
+- [specs/006-monitoring-alerts/spec.md](specs/006-monitoring-alerts/spec.md) - Low Priority
 
 ## Phases
+
+### Phase 27: 前端页面样式统一检查与修复
+- **目标**: 检查所有资源列表页面的样式统一性，参考主机模版页面的样式进行统一
+- **参考页面**: frontend/src/views/compute/host-templates/index.vue
+- **参考技能**: ui-ux-pro-max (spacing-scale, consistency, touch-target-size)
+- **Status:** complete ✅
+- [x] **检查完成** ✅ - 4个Agent并行检查，发现汇总完成
+- [x] **P0修复: 补全筛选区和分页** ✅
+  - images/index.vue: 添加筛选区、分页、padding ✅
+  - eips/index.vue: 添加筛选区、分页、padding ✅
+  - rds/instances/index.vue: 添加分页、修改padding ✅
+  - redis/instances/index.vue: 添加分页、修改padding ✅
+  - vpcs/index.vue: 添加分页、修改padding ✅
+  - subnets/index.vue: 添加分页、修改padding ✅
+  - policies/index.vue: 添加分页、修改padding ✅
+  - resources/vms/index.vue: 添加分页、修改padding ✅
+- [x] **P1修复: 统一页头和卡片结构** ✅
+  - compute/vms/index.vue: el-card header改为.page-header，el-collapse改为.filter-card ✅
+  - storage/cloud/disks/index.vue: page-header、filter-card、row-key、pagination class ✅
+  - cloud-accounts/index.vue: page-header、添加filter-card筛选区、row-key ✅
+  - sync-policies/index.vue: page-header、筛选表单独立为.filter-card、row-key ✅
+- **修复成果**:
+  - 12个页面统一为标准样式结构
+  - 容器统一使用 `padding: 20px`
+  - 页头统一使用独立 `.page-header` div (不再使用 el-card header slot)
+  - 筛选区统一使用 `el-card.filter-card` 包裹
+  - 分页统一使用 `.pagination` class + `text-align: right`
+  - 表格统一添加 `row-key="id"`
+
+## Phases
+
+### Phase 25: 多角色Agent验证与设计审查
+- **目标**: 创建不同角色的Agent智能体，从多个角度验证项目完成程度，审查设计文档，检查资源展示问题
+- **Status:** complete
+- [x] **V1: 启动并行验证Agent** ✅（手动验证完成）
+- [x] **V2: 收集验证报告并汇总** ✅
+- [x] **V3: 根据验证结果制定修复计划** ✅
+- [ ] **V4: 执行关键问题修复** 🔄
+- **验证报告**: docs/superpowers/specs/2026-04-16-multi-agent-verification-report.md
+- **设计文档**: openCMP综合设计文档.md
+- **关键发现**:
+  - **核心问题**: 资源列表（VM/VPC等）直接调用云平台API，应改为查询本地数据库（CloudVM/CloudVPC等表）
+  - **权限问题**: PermissionMiddleware和ProjectIsolationMiddleware已实现但未在main.go中注册
+  - **前端问题**: 云账号选择器应使用CloudAccountSelector组件而非手动输入ID
+
+### Phase 26: 关键问题修复实施
+- **目标**: 修复验证发现的P0级别问题
+- **Status:** complete
+- [x] **P0-1: 修改资源列表数据来源** ✅ - 从本地数据库获取
+  - ComputeService.ListVMs → 查询CloudVM表
+  - NetworkService.ListVPCs → 查询CloudVPC表
+  - NetworkService.ListSubnets → 查询CloudSubnet表
+  - NetworkService.ListSecurityGroups → 查询CloudSecurityGroup表
+  - NetworkService.ListEIPs → 查询CloudEIP表
+- [x] **P0-2: 注册权限中间件** ✅ - 在main.go中添加
+  - PermissionMiddleware已注册
+  - ProjectIsolationMiddleware已注册
+- [x] **P0-3: Service层应用项目过滤** ✅ - 使用projectIDs参数
+  - ComputeService.ListVMs添加projectIDs参数
+  - NetworkService.ListVPCs添加projectIDs参数
+  - NetworkService.ListSubnets添加projectIDs参数
+  - Handler层使用GetProjectFilter提取project_ids并传递给Service
+- [x] **P1-1: 前端云账号选择器** ✅ - 使用CloudAccountSelector组件
+  - compute/vms/index.vue已改用CloudAccountSelector组件
+  - 其他页面（VPC/Subnet/RDS/Redis）已使用该组件
+
+### Phase 24: 监控与费用模块完善
+- **目标**: 完善监控告警和费用中心模块
+- **Status:** complete
+- [x] **M1: 监控模型** ✅
+  - 创建backend/internal/model/monitor.go
+  - AlertPolicy/AlertHistory/MonitorResource模型
+- [x] **M2: 监控Handler/Service** ✅
+  - 创建backend/internal/handler/monitor.go
+  - 创建backend/internal/service/monitor.go
+  - 告警策略CRUD/告警历史/监控资源同步API
+- [x] **M3: 监控路由注册** ✅
+  - 在main.go添加/monitor路由
+- [x] **M4: 前端监控API** ✅
+  - 创建frontend/src/api/monitor.ts
+- [x] **M5: 前端告警策略页面更新** ✅
+  - 使用真实API替换Mock数据
+  - 添加创建/编辑/删除/启用/禁用功能
+- [x] **M6: 前端VM监控页面更新** ✅
+  - 使用真实API替换Mock数据
+  - 添加云账号选择器、同步、查看指标功能
+- [x] **B1: 费用中心验证** ✅
+  - 阿里云billing adapter已实现
+  - 前端账单/续费页面已使用真实API
+  - 后端finance service正确调用billing provider
+
+### Phase 22: 数据库资源管理实现
+- **目标**: 完善数据库资源管理模块（RDS/Redis）的业务流程
+- **Status:** complete
+- [x] **D1: 阿里云RDS适配器** ✅
+  - 创建backend/pkg/cloudprovider/adapters/alibaba/rds.go
+  - 实现IRDS接口：ListRDSInstances/CreateRDSInstance/DeleteRDSInstance等
+  - 使用阿里云RDS SDK真实调用
+- [x] **D2: 阿里云Redis适配器** ✅
+  - 创建backend/pkg/cloudprovider/adapters/alibaba/redis.go
+  - 实现IElasticCache接口：ListCacheInstances/CreateCacheInstance等
+  - 使用阿里云RDS SDK（Redis通过相似API模式管理）
+- [x] **D3: 数据库Handler/Service** ✅
+  - 创建backend/internal/handler/database.go
+  - 创建backend/internal/service/database.go
+  - 实现RDS/Redis完整CRUD和操作API
+- [x] **D4: 数据库路由注册** ✅
+  - 在main.go添加/database/rds和/database/cache路由
+- [x] **D5: 前端数据库API** ✅
+  - 创建frontend/src/api/database.ts
+  - 实现listRDS/createRDS/deleteRDS等API函数
+- [x] **D6: 前端RDS页面更新** ✅
+  - 添加CloudAccountSelector组件
+  - 使用真实API调用替换Mock数据
+  - 添加创建/删除/操作/调整规格/备份功能
+- [x] **D7: 前端Redis页面更新** ✅
+  - 添加CloudAccountSelector组件
+  - 使用真实API调用替换Mock数据
+  - 添加创建/删除/重启/调整规格/备份功能
+
+### Phase 21: 资源管理业务流程实现
+- **目标**: 完善核心资源管理模块（VM/网络/存储）的业务流程
+- **Status:** complete
+- [x] **P1: VM生命周期管理** ✅
+  - 前端VM列表页面使用真实API
+  - VM创建/启动/停止/重启/删除完整流程
+  - VM详情模态框（基本信息/安全组/网络/磁盘/快照/日志）
+  - 阿里云adapter使用真实SDK调用
+- [x] **P2: 网络资源管理** ✅
+  - VPC页面更新：添加云账号选择器，调用真实API
+  - Subnet页面更新：添加云账号选择器，调用真实API
+  - 后端VPC/Subnet/SecurityGroup/EIP handler完整实现
+  - 阿里云VPC adapter使用真实SDK调用
+- [x] **P3: 存储资源管理** ✅
+  - 云硬盘管理页面完整实现
+  - 支持创建/删除/挂载/卸载/扩容/快照
+  - 支持同步云平台数据
+  - 阿里云Disk adapter使用真实SDK调用
+
+### Phase 20: 前后端集成与验证
+- **目标**: 完善前端与后端API的集成，验证核心业务流程
+- **Status:** complete
+- [x] **H1: 数据库迁移集成** ✅
+  - 更新migration.go添加所有新模型
+  - 包含SyncLog/Rule/RuleTag/CloudVM等同步资源模型
+- [x] **H2: 同步API集成** ✅
+  - 更新cloud_account.go handler支持sync_mode参数
+  - 前端已有SyncCloudAccountOptions接口
+  - 后端正确解析mode并调用SyncResourcesWithMode
+- [x] **H3: 同步日志API** ✅
+  - 创建backend/internal/handler/sync_log.go
+  - 创建frontend/src/api/sync-log.ts
+  - 添加sync-logs路由到main.go
+- [x] **H4: 前端同步日志页面** ✅
+  - 创建frontend/src/views/cloud-accounts/sync-logs.vue
+  - 添加路由和侧边栏菜单
+  - 实现统计卡片、日志列表、详情弹窗
+
+### Phase 19: 核心流程修复实施
+
+### Phase 18: 全量前后端API交互与业务逻辑审查
+- **目标**: 全面扫描前后端代码，检查所有API交互是否真实对接，验证业务逻辑实现完整性
+- **Status:** complete
+- [x] **Task 0: 创建审查计划** - 规划审查范围和方法
+- [x] **Task 1: 云账户管理模块审查**
+  - 前端按钮/API对应关系 ✅
+  - 后端接口实现状态 ✅
+  - 云账号添加流程验证 ✅
+  - 同步功能真实性（调用SDK）✅
+  - 测试连接功能 ✅
+  - 同步资源类型完整性 ⚠️（缺少Disk/Snapshot/RDS/Redis）
+- [x] **Task 2: 同步策略模块审查**
+  - 创建同步策略逻辑 ✅ 已有域选择
+  - 规则配置与业务流程匹配 ✅
+  - 增量/全量同步逻辑实现 ⚠️ 后端未区分处理
+  - 资源标签映射规则实现 ❌ 未实现
+- [x] **Task 3: 定时任务模块审查**
+  - 任务调度器实现状态 ❌ 缺少后台Cron调度器
+  - 任务执行与云账号同步关联 ✅
+  - 执行状态跟踪 ⚠️ 缺少日志
+- [x] **Task 4: 资源同步核心流程审查**
+  - 标签解析与项目归属映射 ❌ 未实现
+  - 增量同步 vs 全量同步实现 ⚠️ 前端传递参数，后端未区分
+  - 同步日志记录 ❌ 未实现
+  - 云账号同步状态更新 ⚠️ 只更新Status
+- [x] **Task 5: API权限验证流程审查**
+  - JWT认证中间件 ✅ 已实现
+  - 权限检查中间件 ⚠️ 只有AdminOnly，缺少通用权限检查
+  - 项目隔离验证 ❌ 未实现
+  - RBAC权限矩阵实现 ⚠️ 模型存在，检查逻辑缺失
+- [x] **Task 6: IAM模块审查**
+  - 域管理功能 ✅
+  - 项目管理功能 ✅
+  - 用户/组/角色管理 ✅
+  - 权限策略配置 ✅
+- [x] **Task 7: 费用中心模块审查**
+  - 阿里云BSS API对接 ⚠️ 发送请求但返回Mock数据
+  - 账单/订单/续费同步 ⚠️ Mock数据
+  - 成本分析实现 ⚠️ Mock数据
+- [x] **Task 8: 消息中心模块审查**（未深度审查）
+- [x] **Task 9: 云厂商适配器完整性审查**
+  - 阿里云：Compute ✅ Network ✅ Storage ⚠️ Database ❌ Middleware ❌
+  - 腾讯云：Compute ⚠️ Network ⚠️ Storage ❌ Database ❌
+  - AWS：Compute ⚠️ Network ⚠️ Storage ❌ Database ❌
+  - Azure：Compute ⚠️ Network ⚠️ Storage ❌ Database ❌
+- [x] **Task 10: 创建修复计划** ✅
+- **详细报告**: docs/superpowers/specs/2026-04-15-api-interaction-review.md
+- **修复计划**: docs/superpowers/specs/2026-04-15-fix-implementation-plan.md
+
+### Phase 19: 核心流程修复实施
+- **目标**: 修复Phase 18发现的严重问题
+- **Status:** complete
+- [x] **F1: 创建后台Cron调度器** (P0) ✅
+  - 创建backend/pkg/scheduler/scheduler.go和task_runner.go
+  - 使用robfig/cron/v3库
+  - 支持动态添加/删除任务
+  - 在main.go中启动调度器，服务启动时加载所有active任务
+- [x] **F2: 实现通用权限检查中间件** (P0) ✅
+  - 创建backend/internal/middleware/permission.go
+  - 解析请求路径提取资源和操作
+  - 查询用户角色和权限进行验证
+  - 系统管理员跳过权限检查
+- [x] **F3: 实现项目隔离验证** (P0) ✅
+  - 创建backend/internal/middleware/project_isolation.go
+  - 获取用户所属项目列表（直接+通过组）
+  - 注入project_ids到context供service层使用
+  - 系统管理员和财务人员（账单API）跳过隔离
+- [x] **F4: 修复BSS API返回真实数据** (P0) ✅
+  - 修改billing.go解析真实JSON响应
+  - 定义响应结构体（BillListResponse等）
+  - 实现parseXxxResponse解析真实数据
+  - 添加错误处理
+- [x] **G1: 实现资源标签解析与项目归属映射** (P1) ✅
+  - 创建backend/internal/service/resource_mapping.go
+  - 实现DetermineProjectAttribution函数
+  - 支持all_match/any_match/key_match条件类型
+  - 支持正则表达式和精确匹配
+  - 添加BatchDetermineProjectAttribution批量处理
+- [x] **G2: 实现增量/全量同步差异逻辑** (P1) ✅
+  - 创建backend/internal/service/cloud_account.go SyncResourcesWithMode
+  - 增量同步：新资源INSERT，已存在资源SKIP
+  - 全量同步：新资源INSERT，已存在UPDATE，云平台已删除标记terminated
+  - 添加convertTagsToJSON辅助函数
+- [x] **G3: 实现同步日志记录** (P1) ✅
+  - 创建backend/internal/model/sync_log.go
+  - 创建backend/internal/service/sync_log.go
+  - 实现StartSyncLog/CompleteSyncLog/UpdateSyncLogProgress
+  - 支持详细日志记录和统计
+- [x] **G4: 扩展同步资源类型** (P1) ✅
+  - 扩展storage.go模型：CloudDisk/CloudSnapshot添加ProjectID/Tags/RegionID
+  - 创建cloud_resources_sync.go模型：CloudVM/CloudVPC/CloudSubnet/CloudSecurityGroup/CloudEIP/CloudImage/CloudRDS/CloudRedis
+  - 添加syncDisks/syncSnapshots/syncRDS/syncRedis同步函数
+  - 扩展ScheduledTask模型：添加Enabled/SyncPolicyID字段
 
 ### Phase 17: 项目全面完善
 - **目标**: 根据全面审查结果，系统性完善项目各模块功能

@@ -5,6 +5,7 @@ import (
 	"io"
 
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
+	"github.com/aliyun/alibaba-cloud-sdk-go/services/rds"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/vpc"
 	"github.com/opencmp/opencmp/pkg/cloudprovider"
 )
@@ -14,6 +15,7 @@ type AlibabaProvider struct {
 	config    cloudprovider.CloudAccountConfig
 	ecsClient *ecs.Client
 	vpcClient *vpc.Client
+	rdsClient *rds.Client
 	regionID  string
 }
 
@@ -43,10 +45,16 @@ func NewAlibabaProvider(config cloudprovider.CloudAccountConfig) (cloudprovider.
 		return nil, err
 	}
 
+	rdsClient, err := rds.NewClientWithAccessKey(regionID, accessKeyID, accessKeySecret)
+	if err != nil {
+		return nil, err
+	}
+
 	return &AlibabaProvider{
 		config:    config,
 		ecsClient: ecsClient,
 		vpcClient: vpcClient,
+		rdsClient: rdsClient,
 		regionID:  regionID,
 	}, nil
 }
@@ -215,150 +223,6 @@ func (p *AlibabaProvider) ListFileSystems(ctx context.Context) ([]*cloudprovider
 	return nil, cloudprovider.NewCloudError(
 		cloudprovider.ErrUnsupportedOperation,
 		"ListFileSystems not implemented",
-		"",
-	)
-}
-
-// CreateRDSInstance 创建 RDS 实例（未实现）
-func (p *AlibabaProvider) CreateRDSInstance(ctx context.Context, config cloudprovider.RDSConfig) (*cloudprovider.RDSInstance, error) {
-	return nil, cloudprovider.NewCloudError(
-		cloudprovider.ErrUnsupportedOperation,
-		"CreateRDSInstance not implemented",
-		"",
-	)
-}
-
-// DeleteRDSInstance 删除 RDS 实例（未实现）
-func (p *AlibabaProvider) DeleteRDSInstance(ctx context.Context, instanceID string) error {
-	return cloudprovider.NewCloudError(
-		cloudprovider.ErrUnsupportedOperation,
-		"DeleteRDSInstance not implemented",
-		"",
-	)
-}
-
-// StartRDSInstance 启动 RDS 实例（未实现）
-func (p *AlibabaProvider) StartRDSInstance(ctx context.Context, instanceID string) error {
-	return cloudprovider.NewCloudError(
-		cloudprovider.ErrUnsupportedOperation,
-		"StartRDSInstance not implemented",
-		"",
-	)
-}
-
-// StopRDSInstance 停止 RDS 实例（未实现）
-func (p *AlibabaProvider) StopRDSInstance(ctx context.Context, instanceID string) error {
-	return cloudprovider.NewCloudError(
-		cloudprovider.ErrUnsupportedOperation,
-		"StopRDSInstance not implemented",
-		"",
-	)
-}
-
-// RebootRDSInstance 重启 RDS 实例（未实现）
-func (p *AlibabaProvider) RebootRDSInstance(ctx context.Context, instanceID string) error {
-	return cloudprovider.NewCloudError(
-		cloudprovider.ErrUnsupportedOperation,
-		"RebootRDSInstance not implemented",
-		"",
-	)
-}
-
-// ResizeRDSInstance 调整 RDS 实例规格（未实现）
-func (p *AlibabaProvider) ResizeRDSInstance(ctx context.Context, instanceID string, spec cloudprovider.RDSpec) error {
-	return cloudprovider.NewCloudError(
-		cloudprovider.ErrUnsupportedOperation,
-		"ResizeRDSInstance not implemented",
-		"",
-	)
-}
-
-// CreateRDSBackup 创建 RDS 备份（未实现）
-func (p *AlibabaProvider) CreateRDSBackup(ctx context.Context, instanceID string, name string) (*cloudprovider.RDSBackup, error) {
-	return nil, cloudprovider.NewCloudError(
-		cloudprovider.ErrUnsupportedOperation,
-		"CreateRDSBackup not implemented",
-		"",
-	)
-}
-
-// RestoreRDSFromBackup 从备份恢复 RDS（未实现）
-func (p *AlibabaProvider) RestoreRDSFromBackup(ctx context.Context, backupID string, config cloudprovider.RDSConfig) (*cloudprovider.RDSInstance, error) {
-	return nil, cloudprovider.NewCloudError(
-		cloudprovider.ErrUnsupportedOperation,
-		"RestoreRDSFromBackup not implemented",
-		"",
-	)
-}
-
-// ListRDSInstances 列出 RDS 实例（未实现）
-func (p *AlibabaProvider) ListRDSInstances(ctx context.Context, filter cloudprovider.RDSFilter) ([]*cloudprovider.RDSInstance, error) {
-	return nil, cloudprovider.NewCloudError(
-		cloudprovider.ErrUnsupportedOperation,
-		"ListRDSInstances not implemented",
-		"",
-	)
-}
-
-// ListRDSBackups 列出 RDS 备份（未实现）
-func (p *AlibabaProvider) ListRDSBackups(ctx context.Context, instanceID string) ([]*cloudprovider.RDSBackup, error) {
-	return nil, cloudprovider.NewCloudError(
-		cloudprovider.ErrUnsupportedOperation,
-		"ListRDSBackups not implemented",
-		"",
-	)
-}
-
-// CreateCacheInstance 创建缓存实例（未实现）
-func (p *AlibabaProvider) CreateCacheInstance(ctx context.Context, config cloudprovider.CacheConfig) (*cloudprovider.CacheInstance, error) {
-	return nil, cloudprovider.NewCloudError(
-		cloudprovider.ErrUnsupportedOperation,
-		"CreateCacheInstance not implemented",
-		"",
-	)
-}
-
-// DeleteCacheInstance 删除缓存实例（未实现）
-func (p *AlibabaProvider) DeleteCacheInstance(ctx context.Context, instanceID string) error {
-	return cloudprovider.NewCloudError(
-		cloudprovider.ErrUnsupportedOperation,
-		"DeleteCacheInstance not implemented",
-		"",
-	)
-}
-
-// RebootCacheInstance 重启缓存实例（未实现）
-func (p *AlibabaProvider) RebootCacheInstance(ctx context.Context, instanceID string) error {
-	return cloudprovider.NewCloudError(
-		cloudprovider.ErrUnsupportedOperation,
-		"RebootCacheInstance not implemented",
-		"",
-	)
-}
-
-// ResizeCacheInstance 调整缓存实例规格（未实现）
-func (p *AlibabaProvider) ResizeCacheInstance(ctx context.Context, instanceID string, spec cloudprovider.CacheSpec) error {
-	return cloudprovider.NewCloudError(
-		cloudprovider.ErrUnsupportedOperation,
-		"ResizeCacheInstance not implemented",
-		"",
-	)
-}
-
-// CreateCacheBackup 创建缓存备份（未实现）
-func (p *AlibabaProvider) CreateCacheBackup(ctx context.Context, instanceID string) (*cloudprovider.CacheBackup, error) {
-	return nil, cloudprovider.NewCloudError(
-		cloudprovider.ErrUnsupportedOperation,
-		"CreateCacheBackup not implemented",
-		"",
-	)
-}
-
-// ListCacheInstances 列出缓存实例（未实现）
-func (p *AlibabaProvider) ListCacheInstances(ctx context.Context, filter cloudprovider.CacheFilter) ([]*cloudprovider.CacheInstance, error) {
-	return nil, cloudprovider.NewCloudError(
-		cloudprovider.ErrUnsupportedOperation,
-		"ListCacheInstances not implemented",
 		"",
 	)
 }

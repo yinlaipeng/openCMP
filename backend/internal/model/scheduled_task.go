@@ -16,7 +16,9 @@ type ScheduledTask struct {
 	ValidFrom      *time.Time     `json:"valid_from,omitempty"`                        // 有效开始时间
 	ValidUntil     *time.Time     `json:"valid_until,omitempty"`                       // 有效结束时间
 	Status         string         `gorm:"size:20;default:active" json:"status"`        // 状态：active, inactive
+	Enabled        bool           `gorm:"default:true" json:"enabled"`                 // 是否启用
 	CloudAccountID *uint          `gorm:"index" json:"cloud_account_id"`               // 关联的云账户ID
+	SyncPolicyID   *uint          `gorm:"index" json:"sync_policy_id"`                 // 关联的同步策略ID
 	CreatedAt      time.Time      `json:"created_at"`
 	UpdatedAt      time.Time      `json:"updated_at"`
 	DeletedAt      gorm.DeletedAt `gorm:"index" json:"-"`

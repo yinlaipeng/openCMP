@@ -1,257 +1,250 @@
 <template>
-  <div class="eips-page">
-    <el-card class="page-card">
-      <template #header>
-        <div class="card-header">
-          <span class="title">弹性公网IP列表</span>
-        </div>
-      </template>
+  <div class="eips-container">
+    <div class="page-header">
+      <h2>弹性公网IP管理</h2>
+      <el-button type="primary" @click="handleCreate">申请弹性IP</el-button>
+    </div>
 
-      <el-tabs v-model="activeTab">
-        <el-tab-pane label="全部" name="all">
-          <el-table :data="allEips" v-loading="loading">
-            <el-table-column label="名称" width="180">
-              <template #default="{ row }">
-                <el-link @click="viewDetail(row)">{{ row.name }}</el-link>
-              </template>
-            </el-table-column>
-            <el-table-column prop="status" label="状态" width="100">
-              <template #default="{ row }">
-                <el-tag :type="getStatusType(row.status)">{{ row.status }}</el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="tags" label="标签" width="150" />
-            <el-table-column prop="ip" label="IP" width="150" />
-            <el-table-column prop="bandwidth" label="带宽" width="100">
-              <template #default="{ row }">
-                {{ row.bandwidth }} Mbps
-              </template>
-            </el-table-column>
-            <el-table-column prop="billing_method" label="计费方式" width="120" />
-            <el-table-column prop="platform" label="平台" width="100" />
-            <el-table-column prop="account" label="云账号" width="150" />
-            <el-table-column prop="bound_resource" label="绑定资源" width="150" />
-            <el-table-column prop="project" label="项目" width="120" />
-            <el-table-column prop="region" label="区域" width="120" />
-            <el-table-column label="操作" width="200">
-              <template #default="{ row }">
-                <el-button size="small" @click="handleEdit(row)">编辑</el-button>
-                <el-button size="small" type="primary" @click="handleBind(row)">绑定</el-button>
-                <el-button size="small" @click="handleUnbind(row)">解绑</el-button>
-                <el-button size="small" type="danger" @click="handleDelete(row)">释放</el-button>
-              </template>
-            </el-table-column>
-          </el-table>
-        </el-tab-pane>
-        <el-tab-pane label="本地idc" name="local_idc">
-          <el-table :data="localIdcEips" v-loading="loading">
-            <el-table-column label="名称" width="180">
-              <template #default="{ row }">
-                <el-link @click="viewDetail(row)">{{ row.name }}</el-link>
-              </template>
-            </el-table-column>
-            <el-table-column prop="status" label="状态" width="100">
-              <template #default="{ row }">
-                <el-tag :type="getStatusType(row.status)">{{ row.status }}</el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="tags" label="标签" width="150" />
-            <el-table-column prop="ip" label="IP" width="150" />
-            <el-table-column prop="bandwidth" label="带宽" width="100">
-              <template #default="{ row }">
-                {{ row.bandwidth }} Mbps
-              </template>
-            </el-table-column>
-            <el-table-column prop="billing_method" label="计费方式" width="120" />
-            <el-table-column prop="platform" label="平台" width="100" />
-            <el-table-column prop="account" label="云账号" width="150" />
-            <el-table-column prop="bound_resource" label="绑定资源" width="150" />
-            <el-table-column prop="project" label="项目" width="120" />
-            <el-table-column prop="region" label="区域" width="120" />
-            <el-table-column label="操作" width="200">
-              <template #default="{ row }">
-                <el-button size="small" @click="handleEdit(row)">编辑</el-button>
-                <el-button size="small" type="primary" @click="handleBind(row)">绑定</el-button>
-                <el-button size="small" @click="handleUnbind(row)">解绑</el-button>
-                <el-button size="small" type="danger" @click="handleDelete(row)">释放</el-button>
-              </template>
-            </el-table-column>
-          </el-table>
-        </el-tab-pane>
-        <el-tab-pane label="公有云" name="public_cloud">
-          <el-table :data="publicCloudEips" v-loading="loading">
-            <el-table-column label="名称" width="180">
-              <template #default="{ row }">
-                <el-link @click="viewDetail(row)">{{ row.name }}</el-link>
-              </template>
-            </el-table-column>
-            <el-table-column prop="status" label="状态" width="100">
-              <template #default="{ row }">
-                <el-tag :type="getStatusType(row.status)">{{ row.status }}</el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="tags" label="标签" width="150" />
-            <el-table-column prop="ip" label="IP" width="150" />
-            <el-table-column prop="bandwidth" label="带宽" width="100">
-              <template #default="{ row }">
-                {{ row.bandwidth }} Mbps
-              </template>
-            </el-table-column>
-            <el-table-column prop="billing_method" label="计费方式" width="120" />
-            <el-table-column prop="platform" label="平台" width="100" />
-            <el-table-column prop="account" label="云账号" width="150" />
-            <el-table-column prop="bound_resource" label="绑定资源" width="150" />
-            <el-table-column prop="project" label="项目" width="120" />
-            <el-table-column prop="region" label="区域" width="120" />
-            <el-table-column label="操作" width="200">
-              <template #default="{ row }">
-                <el-button size="small" @click="handleEdit(row)">编辑</el-button>
-                <el-button size="small" type="primary" @click="handleBind(row)">绑定</el-button>
-                <el-button size="small" @click="handleUnbind(row)">解绑</el-button>
-                <el-button size="small" type="danger" @click="handleDelete(row)">释放</el-button>
-              </template>
-            </el-table-column>
-          </el-table>
-        </el-tab-pane>
-      </el-tabs>
+    <el-card class="filter-card">
+      <el-form :inline="true" :model="filters" @submit.prevent="loadEips">
+        <el-form-item label="云账号">
+          <CloudAccountSelector
+            v-model:value="filters.account_id"
+            placeholder="选择云账号"
+            @change="handleAccountChange"
+          />
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="filters.status" placeholder="选择状态" clearable>
+            <el-option label="已绑定" value="In-Use" />
+            <el-option label="未绑定" value="Available" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="IP地址">
+          <el-input v-model="filters.ip" placeholder="IP地址搜索" clearable />
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="loadEips">查询</el-button>
+          <el-button @click="resetFilters">重置</el-button>
+        </el-form-item>
+      </el-form>
     </el-card>
 
+    <el-table
+      :data="eips"
+      v-loading="loading"
+      style="width: 100%"
+      row-key="id"
+    >
+      <el-table-column label="名称" min-width="150">
+        <template #default="{ row }">
+          <el-link type="primary" @click="viewDetail(row)">{{ row.name }}</el-link>
+        </template>
+      </el-table-column>
+      <el-table-column label="平台/云账号" width="150">
+        <template #default="{ row }">
+          <div class="platform-cell">
+            <el-tag size="small" :type="getPlatformType(row.platform)" effect="plain">
+              {{ getPlatformLabel(row.platform) }}
+            </el-tag>
+            <span class="account-name">{{ row.account_name || '-' }}</span>
+          </div>
+        </template>
+      </el-table-column>
+      <el-table-column prop="status" label="状态" width="100">
+        <template #default="{ row }">
+          <el-tag :type="getStatusType(row.status)">{{ row.status }}</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column prop="address" label="IP地址" width="150" />
+      <el-table-column prop="bandwidth" label="带宽" width="100">
+        <template #default="{ row }">
+          {{ row.bandwidth }} Mbps
+        </template>
+      </el-table-column>
+      <el-table-column prop="resource_id" label="绑定资源" width="150">
+        <template #default="{ row }">
+          {{ row.resource_id || '-' }}
+        </template>
+      </el-table-column>
+      <el-table-column prop="region_id" label="区域" width="120" />
+      <el-table-column label="操作" width="200" fixed="right">
+        <template #default="{ row }">
+          <el-button size="small" @click="handleBind(row)" v-if="row.status === 'Available'">绑定</el-button>
+          <el-button size="small" @click="handleUnbind(row)" v-if="row.status === 'In-Use'">解绑</el-button>
+          <el-button size="small" type="danger" @click="handleDelete(row)">释放</el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+
+    <el-pagination
+      v-model:current-page="pagination.page"
+      v-model:page-size="pagination.pageSize"
+      :total="pagination.total"
+      :page-sizes="[10, 20, 50, 100]"
+      layout="total, sizes, prev, pager, next, jumper"
+      @size-change="handleSizeChange"
+      @current-change="handleCurrentChange"
+      class="pagination"
+    />
+
     <!-- Detail Modal -->
-    <el-dialog v-model="detailDialogVisible" title="弹性公网IP详情" width="600px">
+    <el-dialog v-model="detailVisible" title="弹性公网IP详情" width="600px">
       <el-descriptions :column="2" border>
         <el-descriptions-item label="ID">{{ selectedEip?.id }}</el-descriptions-item>
         <el-descriptions-item label="名称">{{ selectedEip?.name }}</el-descriptions-item>
         <el-descriptions-item label="状态">{{ selectedEip?.status }}</el-descriptions-item>
-        <el-descriptions-item label="标签">{{ selectedEip?.tags }}</el-descriptions-item>
-        <el-descriptions-item label="IP地址">{{ selectedEip?.ip }}</el-descriptions-item>
+        <el-descriptions-item label="IP地址">{{ selectedEip?.address }}</el-descriptions-item>
         <el-descriptions-item label="带宽">{{ selectedEip?.bandwidth }} Mbps</el-descriptions-item>
-        <el-descriptions-item label="计费方式">{{ selectedEip?.billing_method }}</el-descriptions-item>
-        <el-descriptions-item label="平台">{{ selectedEip?.platform }}</el-descriptions-item>
-        <el-descriptions-item label="云账号">{{ selectedEip?.account }}</el-descriptions-item>
-        <el-descriptions-item label="绑定资源">{{ selectedEip?.bound_resource }}</el-descriptions-item>
-        <el-descriptions-item label="项目">{{ selectedEip?.project }}</el-descriptions-item>
-        <el-descriptions-item label="区域">{{ selectedEip?.region }}</el-descriptions-item>
+        <el-descriptions-item label="绑定资源">{{ selectedEip?.resource_id || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="区域">{{ selectedEip?.region_id }}</el-descriptions-item>
+        <el-descriptions-item label="云账号">{{ selectedEip?.account_name }}</el-descriptions-item>
       </el-descriptions>
       <template #footer>
-        <el-button @click="detailDialogVisible = false">关闭</el-button>
+        <el-button @click="detailVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- Bind Modal -->
+    <el-dialog v-model="bindVisible" title="绑定弹性IP" width="400px">
+      <el-form :model="bindForm" label-width="100px">
+        <el-form-item label="资源类型">
+          <el-select v-model="bindForm.resource_type" placeholder="选择资源类型">
+            <el-option label="ECS实例" value="ecs" />
+            <el-option label="SLB实例" value="slb" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="资源ID">
+          <el-input v-model="bindForm.resource_id" placeholder="输入资源ID" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="bindVisible = false">取消</el-button>
+        <el-button type="primary" @click="confirmBind">确定</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- Create Modal -->
+    <el-dialog v-model="createVisible" title="申请弹性IP" width="400px">
+      <el-form :model="createForm" label-width="100px">
+        <el-form-item label="带宽(Mbps)">
+          <el-input-number v-model="createForm.bandwidth" :min="1" :max="1000" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="createVisible = false">取消</el-button>
+        <el-button type="primary" @click="confirmCreate">申请</el-button>
       </template>
     </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import CloudAccountSelector from '@/components/common/CloudAccountSelector.vue'
+import { getEIPs, createEIP, bindEIP, unbindEIP, deleteEIP } from '@/api/network'
 
 interface EIP {
   id: string
   name: string
   status: string
-  tags: string
-  ip: string
+  address: string
   bandwidth: number
-  billing_method: string
+  resource_id: string
+  resource_type: string
+  region_id: string
   platform: string
-  account: string
-  bound_resource: string
-  project: string
-  region: string
+  account_name: string
+  cloud_account_id: number
 }
 
-const allEips = ref<EIP[]>([])
-const localIdcEips = ref<EIP[]>([])
-const publicCloudEips = ref<EIP[]>([])
+const eips = ref<EIP[]>([])
 const loading = ref(false)
-const activeTab = ref('all')
-const detailDialogVisible = ref(false)
+const detailVisible = ref(false)
+const bindVisible = ref(false)
+const createVisible = ref(false)
 const selectedEip = ref<EIP | null>(null)
 
+// 分页数据
+const pagination = reactive({
+  page: 1,
+  pageSize: 20,
+  total: 0
+})
+
+// 筛选条件
+const filters = reactive({
+  account_id: null as number | null,
+  status: '',
+  ip: ''
+})
+
+// 绑定表单
+const bindForm = reactive({
+  eip_id: '',
+  resource_type: 'ecs',
+  resource_id: ''
+})
+
+// 创建表单
+const createForm = reactive({
+  account_id: 0,
+  bandwidth: 100
+})
+
+// 平台类型映射
+const platformLabels: Record<string, string> = {
+  alibaba: '阿里云',
+  tencent: '腾讯云',
+  aws: 'AWS',
+  azure: 'Azure'
+}
+
+const platformTypes: Record<string, 'primary' | 'warning' | 'success' | 'info'> = {
+  alibaba: 'primary',
+  tencent: 'warning',
+  aws: 'success',
+  azure: 'info'
+}
+
+const getPlatformLabel = (platform: string): string => {
+  return platformLabels[platform] || platform || '未知'
+}
+
+const getPlatformType = (platform: string): 'primary' | 'warning' | 'success' | 'info' => {
+  return platformTypes[platform] || 'info'
+}
+
 const getStatusType = (status: string) => {
-  switch (status.toLowerCase()) {
-    case 'available':
-      return 'success'
-    case 'in-use':
-      return 'primary'
-    case 'binding':
-    case 'pending':
-      return 'warning'
-    case 'error':
-      return 'danger'
-    default:
-      return 'info'
-  }
+  if (status === 'Available' || status === 'available') return 'success'
+  if (status === 'In-Use' || status === 'in-use') return 'primary'
+  if (status === 'Associating' || status === 'Unassociating') return 'warning'
+  if (status === 'Error' || status === 'error') return 'danger'
+  return 'info'
+}
+
+const handleAccountChange = (accountId: number | null) => {
+  filters.account_id = accountId
 }
 
 const loadEips = async () => {
   loading.value = true
   try {
-    // Mock data
-    const eipsData: EIP[] = [
-      {
-        id: 'eip-1',
-        name: 'eip-web-01',
-        status: 'In-Use',
-        tags: 'web,prod',
-        ip: '47.98.123.45',
-        bandwidth: 100,
-        billing_method: '按量付费',
-        platform: '阿里云',
-        account: 'Aliyun Account 1',
-        bound_resource: 'vm-web-01',
-        project: 'Project A',
-        region: 'cn-hangzhou'
-      },
-      {
-        id: 'eip-2',
-        name: 'eip-app-01 (本地IDC)',
-        status: 'Available',
-        tags: 'app,idc',
-        ip: '10.10.10.100',
-        bandwidth: 200,
-        billing_method: '包年包月',
-        platform: '本地IDC',
-        account: 'Local IDC Account',
-        bound_resource: '-',
-        project: 'Project B',
-        region: '本地机房'
-      },
-      {
-        id: 'eip-3',
-        name: 'eip-db-01',
-        status: 'In-Use',
-        tags: 'db',
-        ip: '119.28.123.67',
-        bandwidth: 50,
-        billing_method: '按量付费',
-        platform: '阿里云',
-        account: 'Aliyun Account 1',
-        bound_resource: 'vm-db-01',
-        project: 'Project A',
-        region: 'cn-shanghai'
-      },
-      {
-        id: 'eip-4',
-        name: 'eip-api-01',
-        status: 'Available',
-        tags: 'api',
-        ip: '120.55.45.89',
-        bandwidth: 100,
-        billing_method: '包年包月',
-        platform: '阿里云',
-        account: 'Aliyun Account 1',
-        bound_resource: '-',
-        project: 'Project C',
-        region: 'cn-beijing'
-      }
-    ]
-    allEips.value = eipsData
-    localIdcEips.value = eipsData.filter(e => e.platform.toLowerCase().includes('idc') || e.region.includes('本地'))
-    publicCloudEips.value = eipsData.filter(e => !e.platform.toLowerCase().includes('idc') && !e.region.includes('本地'))
+    const params: any = {
+      page: pagination.page,
+      size: pagination.pageSize
+    }
+    if (filters.account_id) params.account_id = filters.account_id
+    if (filters.status) params.status = filters.status
+    if (filters.ip) params.ip = filters.ip
+
+    const res = await getEIPs(params)
+    eips.value = res.items || res
+    pagination.total = res.total || eips.value.length
   } catch (e) {
     console.error(e)
-    allEips.value = []
-    localIdcEips.value = []
-    publicCloudEips.value = []
+    ElMessage.error('加载弹性IP列表失败')
   } finally {
     loading.value = false
   }
@@ -259,19 +252,57 @@ const loadEips = async () => {
 
 const viewDetail = (row: EIP) => {
   selectedEip.value = row
-  detailDialogVisible.value = true
+  detailVisible.value = true
 }
 
-const handleEdit = (row: EIP) => {
-  ElMessage.info(`编辑弹性IP: ${row.name}`)
+const handleCreate = () => {
+  if (!filters.account_id) {
+    ElMessage.warning('请先选择云账号')
+    return
+  }
+  createForm.account_id = filters.account_id
+  createVisible.value = true
+}
+
+const confirmCreate = async () => {
+  try {
+    await createEIP(createForm.account_id, { bandwidth: createForm.bandwidth })
+    ElMessage.success('申请成功')
+    createVisible.value = false
+    loadEips()
+  } catch (e) {
+    ElMessage.error('申请失败')
+  }
 }
 
 const handleBind = (row: EIP) => {
-  ElMessage.info(`绑定弹性IP: ${row.name}`)
+  selectedEip.value = row
+  bindForm.eip_id = row.id
+  bindForm.resource_type = 'ecs'
+  bindForm.resource_id = ''
+  bindVisible.value = true
 }
 
-const handleUnbind = (row: EIP) => {
-  ElMessage.info(`解绑弹性IP: ${row.name}`)
+const confirmBind = async () => {
+  try {
+    await bindEIP(filters.account_id!, bindForm.eip_id, bindForm.resource_id, bindForm.resource_type)
+    ElMessage.success('绑定成功')
+    bindVisible.value = false
+    loadEips()
+  } catch (e) {
+    ElMessage.error('绑定失败')
+  }
+}
+
+const handleUnbind = async (row: EIP) => {
+  try {
+    await ElMessageBox.confirm('确认解绑此弹性IP?', '提示', { type: 'warning' })
+    await unbindEIP(filters.account_id!, row.id)
+    ElMessage.success('解绑成功')
+    loadEips()
+  } catch (e) {
+    if (e !== 'cancel') ElMessage.error('解绑失败')
+  }
 }
 
 const handleDelete = async (row: EIP) => {
@@ -281,13 +312,31 @@ const handleDelete = async (row: EIP) => {
       cancelButtonText: '取消',
       type: 'warning'
     })
-    allEips.value = allEips.value.filter(e => e.id !== row.id)
-    localIdcEips.value = localIdcEips.value.filter(e => e.id !== row.id)
-    publicCloudEips.value = publicCloudEips.value.filter(e => e.id !== row.id)
+    await deleteEIP(filters.account_id!, row.id)
     ElMessage.success('释放成功')
+    loadEips()
   } catch (e) {
-    console.error(e)
+    if (e !== 'cancel') ElMessage.error('释放失败')
   }
+}
+
+const resetFilters = () => {
+  filters.account_id = null
+  filters.status = ''
+  filters.ip = ''
+  pagination.page = 1
+  loadEips()
+}
+
+const handleSizeChange = (size: number) => {
+  pagination.pageSize = size
+  pagination.page = 1
+  loadEips()
+}
+
+const handleCurrentChange = (page: number) => {
+  pagination.page = page
+  loadEips()
 }
 
 onMounted(() => {
@@ -296,22 +345,43 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.eips-page {
-  height: 100%;
+.eips-container {
+  padding: 20px;
 }
 
-.page-card {
-  height: 100%;
-}
-
-.card-header {
+.page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 20px;
 }
 
-.title {
+.page-header h2 {
+  margin: 0;
   font-size: 18px;
-  font-weight: bold;
+  font-weight: 600;
+}
+
+.filter-card {
+  margin-bottom: 20px;
+}
+
+.pagination {
+  margin-top: 20px;
+  text-align: right;
+}
+
+.platform-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.account-name {
+  font-size: 12px;
+  color: var(--text-color-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>

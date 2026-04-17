@@ -10,7 +10,6 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/opencmp/opencmp/internal/model"
-	"github.com/opencmp/opencmp/internal/service"
 )
 
 // CloudAccountResourcesHandler 云账户资源 Handler
@@ -39,19 +38,69 @@ func (h *CloudAccountResourcesHandler) GetResourceStats(c *gin.Context) {
 		return
 	}
 
-	// 调用服务获取资源统计
-	stats, err := service.GetResourceStatsFromCloud(c.Request.Context(), &account)
-	if err != nil {
-		h.logger.Error("failed to get resource stats", zap.Error(err))
-		c.JSON(http.StatusOK, gin.H{
-			"resources":   getDefaultResources(),
-			"usage_rates": getDefaultUsageRates(),
-			"message":     "无法获取实时数据，显示默认值",
-		})
-		return
-	}
+	// 从同步后的数据库获取资源统计
+	stats := h.getSyncedResourceStats(uint(id))
 
 	c.JSON(http.StatusOK, stats)
+}
+
+// getSyncedResourceStats 从数据库获取同步后的资源统计
+func (h *CloudAccountResourcesHandler) getSyncedResourceStats(cloudAccountID uint) map[string]interface{} {
+	// 统计各类资源数量
+	var vmCount, vpcCount, subnetCount, sgCount, eipCount, imageCount, diskCount, snapshotCount, rdsCount, redisCount int64
+
+	h.db.Model(&model.CloudVM{}).Where("cloud_account_id = ? AND status != ?", cloudAccountID, "terminated").Count(&vmCount)
+	h.db.Model(&model.CloudVPC{}).Where("cloud_account_id = ? AND status != ?", cloudAccountID, "terminated").Count(&vpcCount)
+	h.db.Model(&model.CloudSubnet{}).Where("cloud_account_id = ? AND status != ?", cloudAccountID, "terminated").Count(&subnetCount)
+	h.db.Model(&model.CloudSecurityGroup{}).Where("cloud_account_id = ? AND status != ?", cloudAccountID, "terminated").Count(&sgCount)
+	h.db.Model(&model.CloudEIP{}).Where("cloud_account_id = ? AND status != ?", cloudAccountID, "terminated").Count(&eipCount)
+	h.db.Model(&model.CloudImage{}).Where("cloud_account_id = ?", cloudAccountID).Count(&imageCount)
+	h.db.Model(&model.CloudDisk{}).Where("cloud_account_id = ? AND status != ?", cloudAccountID, "terminated").Count(&diskCount)
+	h.db.Model(&model.CloudSnapshot{}).Where("cloud_account_id = ?", cloudAccountID).Count(&snapshotCount)
+	h.db.Model(&model.CloudRDS{}).Where("cloud_account_id = ? AND status != ?", cloudAccountID, "terminated").Count(&rdsCount)
+	h.db.Model(&model.CloudRedis{}).Where("cloud_account_id = ? AND status != ?", cloudAccountID, "terminated").Count(&redisCount)
+
+	// 统计运行中的虚拟机
+	var vmRunningCount int64
+	h.db.Model(&model.CloudVM{}).Where("cloud_account_id = ? AND status = ?", cloudAccountID, "running").Count(&vmRunningCount)
+
+	// 统计已挂载的磁盘
+	var diskMountedCount int64
+	h.db.Model(&model.CloudDisk{}).Where("cloud_account_id = ? AND vm_id IS NOT NULL AND vm_id != ''", cloudAccountID).Count(&diskMountedCount)
+
+	// 统计已绑定的EIP
+	var eipBoundCount int64
+	h.db.Model(&model.CloudEIP{}).Where("cloud_account_id = ? AND resource_id IS NOT NULL AND resource_id != ''", cloudAccountID).Count(&eipBoundCount)
+
+	return map[string]interface{}{
+		"resources": map[string]int64{
+			"vms":             vmCount,
+			"vms_running":     vmRunningCount,
+			"vpcs":            vpcCount,
+			"subnets":         subnetCount,
+			"security_groups": sgCount,
+			"eips":            eipCount,
+			"eips_bound":      eipBoundCount,
+			"images":          imageCount,
+			"disks":           diskCount,
+			"disks_mounted":   diskMountedCount,
+			"snapshots":       snapshotCount,
+			"rds":             rdsCount,
+			"redis":           redisCount,
+		},
+		"usage_rates": map[string]float64{
+			"vm_running_rate":   float64(vmRunningCount) / float64(max(vmCount, 1)) * 100,
+			"disk_mounted_rate": float64(diskMountedCount) / float64(max(diskCount, 1)) * 100,
+			"eip_bound_rate":    float64(eipBoundCount) / float64(max(eipCount, 1)) * 100,
+		},
+	}
+}
+
+func max(a, b int64) int64 {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 // GetPermissions 获取权限列表

@@ -22,6 +22,7 @@ type CloudAccount struct {
 	LastSync                 *time.Time     `json:"last_sync,omitempty"`
 	SyncTime                 string         `gorm:"size:50" json:"sync_time"`
 	DomainID                 uint           `gorm:"index;default:1" json:"domain_id"`                                // 默认分配到默认域
+	SyncPolicyID             *uint          `gorm:"index" json:"sync_policy_id"`                                     // 绑定的同步策略ID
 	ResourceAssignmentMethod string         `gorm:"size:50;default:'tag_mapping'" json:"resource_assignment_method"` // tag_mapping/project_mapping/manual_assignment
 	CreatedAt                time.Time      `json:"created_at"`
 	UpdatedAt                time.Time      `json:"updated_at"`

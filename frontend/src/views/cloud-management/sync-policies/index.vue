@@ -1,17 +1,15 @@
 <template>
-  <div class="sync-policies-page">
-    <el-card class="page-card">
-      <template #header>
-        <div class="card-header">
-          <span class="title">同步策略</span>
-          <el-button type="primary" @click="showCreateDialog">
-            <el-icon><Plus /></el-icon>
-            添加策略
-          </el-button>
-        </div>
-      </template>
+  <div class="sync-policies-container">
+    <div class="page-header">
+      <h2>同步策略</h2>
+      <el-button type="primary" @click="showCreateDialog">
+        <el-icon><Plus /></el-icon>
+        添加策略
+      </el-button>
+    </div>
 
-      <el-form :inline="true" :model="queryForm" class="query-form">
+    <el-card class="filter-card">
+      <el-form :inline="true" :model="queryForm" @submit.prevent="loadPolicies">
         <el-form-item label="名称">
           <el-input v-model="queryForm.name" placeholder="策略名称" clearable />
         </el-form-item>
@@ -26,76 +24,77 @@
           <el-button @click="resetQuery">重置</el-button>
         </el-form-item>
       </el-form>
-
-      <!-- 空状态 -->
-      <EmptyState
-        v-if="!loading && policies.length === 0"
-        title="暂无同步策略"
-        description="当前没有任何同步策略，点击下方按钮创建策略"
-        :icon="Document"
-        createButtonText="添加策略"
-        @create="showCreateDialog"
-      />
-
-      <!-- 数据表格 -->
-      <el-table :data="policies" v-loading="loading" style="width: 100%" v-if="policies.length > 0 || loading">
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="name" label="名称" width="180" />
-        <el-table-column prop="scope" label="应用范围" width="150">
-          <template #default="{ row }">
-            <el-tag>{{ getScopeText(row.scope) }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="rules" label="规则数量" width="100">
-          <template #default="{ row }">
-            <el-tag type="info">{{ row.rules?.length || 0 }} 条</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="remarks" label="备注" min-width="200" show-overflow-tooltip />
-        <el-table-column prop="enabled" label="状态" width="100">
-          <template #default="{ row }">
-            <el-tag :type="row.enabled ? 'success' : 'info'">
-              {{ row.enabled ? '启用' : '禁用' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="created_at" label="创建时间" width="180">
-          <template #default="{ row }">
-            {{ formatDate(row.created_at) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="140" fixed="right">
-          <template #default="{ row }">
-            <el-button size="small" type="primary" @click="handleView(row)">查看</el-button>
-            <el-dropdown trigger="click" @command="(cmd: string) => handleDropdownCommand(cmd, row)" style="margin-left: 8px">
-              <el-button size="small" link>
-                更多 <el-icon class="el-icon--right"><ArrowDown /></el-icon>
-              </el-button>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item command="edit" :icon="EditPen">编辑</el-dropdown-item>
-                  <el-dropdown-item command="toggle" :icon="row.enabled ? CircleClose : CircleCheck">
-                    {{ row.enabled ? '禁用' : '启用' }}
-                  </el-dropdown-item>
-                  <el-dropdown-item command="delete" :icon="Delete" divided>删除</el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-          </template>
-        </el-table-column>
-      </el-table>
-
-      <el-pagination
-        v-model:current-page="pagination.currentPage"
-        v-model:page-size="pagination.pageSize"
-        :total="pagination.total"
-        :page-sizes="[10, 20, 50]"
-        layout="total, sizes, prev, pager, next"
-        @size-change="handleSizeChange"
-        @current-change="handleCurrentChange"
-        class="pagination"
-      />
     </el-card>
+
+    <!-- 空状态 -->
+    <EmptyState
+      v-if="!loading && policies.length === 0"
+      title="暂无同步策略"
+      description="当前没有任何同步策略，点击下方按钮创建策略"
+      :icon="Document"
+      createButtonText="添加策略"
+      @create="showCreateDialog"
+    />
+
+    <!-- 数据表格 -->
+    <el-table
+      :data="policies"
+      v-loading="loading"
+      style="width: 100%"
+      row-key="id"
+      v-if="policies.length > 0 || loading"
+    >
+      <el-table-column prop="id" label="ID" width="80" />
+      <el-table-column prop="name" label="名称" min-width="150" />
+      <el-table-column prop="rules" label="规则数量" width="100">
+        <template #default="{ row }">
+          <el-tag type="info">{{ row.rules?.length || 0 }} 条</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column prop="remarks" label="备注" min-width="200" show-overflow-tooltip />
+      <el-table-column prop="enabled" label="状态" width="100">
+        <template #default="{ row }">
+          <el-tag :type="row.enabled ? 'success' : 'info'">
+            {{ row.enabled ? '启用' : '禁用' }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column prop="created_at" label="创建时间" width="180">
+        <template #default="{ row }">
+          {{ formatDate(row.created_at) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="操作" width="140" fixed="right">
+        <template #default="{ row }">
+          <el-button size="small" type="primary" @click="handleView(row)">查看</el-button>
+          <el-dropdown trigger="click" @command="(cmd: string) => handleDropdownCommand(cmd, row)" style="margin-left: 8px">
+            <el-button size="small" link>
+              更多 <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+            </el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="edit" :icon="EditPen">编辑</el-dropdown-item>
+                <el-dropdown-item command="toggle" :icon="row.enabled ? CircleClose : CircleCheck">
+                  {{ row.enabled ? '禁用' : '启用' }}
+                </el-dropdown-item>
+                <el-dropdown-item command="delete" :icon="Delete" divided>删除</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </template>
+      </el-table-column>
+    </el-table>
+
+    <el-pagination
+      v-model:current-page="currentPage"
+      v-model:page-size="pageSize"
+      :total="total"
+      :page-sizes="[10, 20, 50, 100]"
+      layout="total, sizes, prev, pager, next, jumper"
+      @size-change="handleSizeChange"
+      @current-change="handleCurrentChange"
+      class="pagination"
+    />
 
     <!-- 创建/编辑对话框 -->
     <el-dialog
@@ -107,14 +106,6 @@
       <el-form :model="form" :rules="rules" ref="formRef" label-width="100px">
         <el-form-item label="策略名称" prop="name">
           <el-input v-model="form.name" placeholder="请输入策略名称" />
-        </el-form-item>
-
-        <el-form-item label="应用范围" prop="scope">
-          <el-select v-model="form.scope" placeholder="请选择应用范围" style="width: 100%">
-            <el-option label="全部云账号" value="all" />
-            <el-option label="指定云账号" value="specified" />
-            <el-option label="指定资源类型" value="resource_type" />
-          </el-select>
         </el-form-item>
 
         <el-form-item label="备注">
@@ -241,7 +232,7 @@ import { Plus, Delete, Document, ArrowDown, EditPen, CircleCheck, CircleClose } 
 import { getSyncPolicies, getSyncPolicy, createSyncPolicy, updateSyncPolicy, deleteSyncPolicy, updateSyncPolicyStatus } from '@/api/sync-policy'
 import { getDomains } from '@/api/iam'
 import { getProjects } from '@/api/project'
-import type { SyncPolicy, CreateSyncPolicyRequest, Rule, RuleTag } from '@/types/sync-policy'
+import type { SyncPolicy, CreateSyncPolicyRequest } from '@/types/sync-policy'
 import EmptyState from '@/components/common/EmptyState.vue'
 
 interface TagItem {
@@ -268,12 +259,12 @@ const submitting = ref(false)
 const formRef = ref<FormInstance>()
 const currentPolicy = ref<SyncPolicy | null>(null)
 
-const pagination = reactive({
-  currentPage: 1,
-  pageSize: 20,
-  total: 0
-})
+// 分页数据
+const currentPage = ref(1)
+const pageSize = ref(20)
+const total = ref(0)
 
+// 查询表单
 const queryForm = reactive({
   name: '',
   enabled: undefined as boolean | undefined
@@ -290,20 +281,22 @@ const form = reactive<CreateSyncPolicyRequest & { rules: RuleForm[] }>({
 
 const rules = {
   name: [{ required: true, message: '请输入策略名称', trigger: 'blur' }],
-  scope: [{ required: true, message: '请选择应用范围', trigger: 'change' }],
   domain_id: [{ required: true, message: '请选择所属域', trigger: 'change' }]
 }
 
 const loadPolicies = async () => {
   loading.value = true
   try {
-    const params = {
-      limit: pagination.pageSize,
-      offset: (pagination.currentPage - 1) * pagination.pageSize
+    const params: any = {
+      limit: pageSize.value,
+      offset: (currentPage.value - 1) * pageSize.value
     }
+    if (queryForm.name) params.name = queryForm.name
+    if (queryForm.enabled !== undefined) params.enabled = queryForm.enabled
+
     const res = await getSyncPolicies(params)
     policies.value = res.items || []
-    pagination.total = res.total || 0
+    total.value = res.total || 0
   } catch (e) {
     console.error(e)
     ElMessage.error('加载策略列表失败')
@@ -421,7 +414,7 @@ const handleEdit = async (row: SyncPolicy) => {
       resource_mapping: r.resource_mapping,
       target_project_id: r.target_project_id,
       target_project_name: r.target_project_name,
-      tags: r.tags?.map(t => ({ key: t.key, value: t.value })) || []
+      tags: r.tags?.map(t => ({ tag_key: t.key, tag_value: t.value })) || []
     })) || []
     currentPolicy.value = detail
     showDialog.value = true
@@ -445,9 +438,7 @@ const handleToggle = async (row: SyncPolicy) => {
 
 const handleDelete = async (row: SyncPolicy) => {
   try {
-    await ElMessageBox.confirm(`确定要删除策略 "${row.name}" 吗？`, '提示', {
-      type: 'warning'
-    })
+    await ElMessageBox.confirm(`确定要删除策略 "${row.name}" 吗？`, '提示', { type: 'warning' })
     await deleteSyncPolicy(row.id)
     ElMessage.success('删除成功')
     loadPolicies()
@@ -459,7 +450,6 @@ const handleDelete = async (row: SyncPolicy) => {
   }
 }
 
-// 处理下拉菜单命令
 const handleDropdownCommand = (command: string, row: SyncPolicy) => {
   switch (command) {
     case 'edit':
@@ -480,7 +470,6 @@ const handleSubmit = async () => {
     if (!valid) return
     submitting.value = true
     try {
-      // 转换规则格式以匹配API
       const submitData = {
         name: form.name,
         remarks: form.remarks,
@@ -518,16 +507,18 @@ const handleSubmit = async () => {
 const resetQuery = () => {
   queryForm.name = ''
   queryForm.enabled = undefined
+  currentPage.value = 1
   loadPolicies()
 }
 
 const handleSizeChange = (size: number) => {
-  pagination.pageSize = size
+  pageSize.value = size
+  currentPage.value = 1
   loadPolicies()
 }
 
 const handleCurrentChange = (page: number) => {
-  pagination.currentPage = page
+  currentPage.value = page
   loadPolicies()
 }
 
@@ -539,32 +530,30 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.sync-policies-page {
-  height: 100%;
+.sync-policies-container {
+  padding: 20px;
 }
 
-.page-card {
-  height: 100%;
-}
-
-.card-header {
+.page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 20px;
 }
 
-.title {
+.page-header h2 {
+  margin: 0;
   font-size: 18px;
-  font-weight: bold;
+  font-weight: 600;
 }
 
-.query-form {
+.filter-card {
   margin-bottom: 20px;
 }
 
 .pagination {
   margin-top: 20px;
-  justify-content: flex-end;
+  text-align: right;
 }
 
 .rules-container {

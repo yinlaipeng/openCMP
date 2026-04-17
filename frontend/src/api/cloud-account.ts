@@ -88,7 +88,7 @@ export function updateCloudAccountStatus(id: number, enabled: boolean) {
 // 更新云账号属性
 export interface UpdateCloudAccountAttributes {
   auto_sync?: boolean
-  sync_policy?: string
+  sync_policy_id?: number | null
   sync_interval?: number
   sync_resource_types?: string[]
 }
@@ -151,6 +151,19 @@ export interface ResourceStatsResponse {
 export function getResourceStats(id: number) {
   return request<ResourceStatsResponse>({
     url: `/cloud-accounts/${id}/resource-stats`,
+    method: 'get'
+  })
+}
+
+// 获取支持的资源类型列表
+export interface ResourceType {
+  id: string
+  name: string
+}
+
+export function getSupportedResourceTypes() {
+  return request<{ items: ResourceType[], total: number }>({
+    url: '/cloud-accounts/resource-types',
     method: 'get'
   })
 }

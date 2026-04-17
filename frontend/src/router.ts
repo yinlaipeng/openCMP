@@ -136,6 +136,12 @@ const routes = [
         meta: { title: '定时同步任务', icon: 'Timer' }
       },
       {
+        path: '/sync-logs',
+        name: 'SyncLogs',
+        component: () => import('@/views/cloud-accounts/sync-logs.vue'),
+        meta: { title: '同步日志', icon: 'Document' }
+      },
+      {
         path: '/compute',
         name: 'Compute',
         component: () => import('@/views/compute/index.vue'), // Parent component that renders children

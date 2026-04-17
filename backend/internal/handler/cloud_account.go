@@ -307,12 +307,25 @@ func (h *CloudAccountHandler) TestConnection(c *gin.Context) {
 	})
 }
 
+// SyncRequest 同步请求参数
+type SyncRequest struct {
+	Mode          string   `json:"mode"`           // full 或 incremental
+	ResourceTypes []string `json:"resource_types"` // 可选的资源类型列表
+}
+
 // Sync 同步云账户资源
 func (h *CloudAccountHandler) Sync(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
+	}
+
+	// 解析请求参数
+	var syncReq SyncRequest
+	if err := c.ShouldBindJSON(&syncReq); err != nil {
+		// 如果没有请求体，使用默认值（增量同步）
+		syncReq.Mode = "incremental"
 	}
 
 	account, err := h.service.GetCloudAccount(c.Request.Context(), uint(id))
@@ -327,7 +340,20 @@ func (h *CloudAccountHandler) Sync(c *gin.Context) {
 		return
 	}
 
-	stats, err := h.service.SyncResources(c.Request.Context(), account)
+	// 根据请求参数选择同步模式
+	syncMode := model.SyncModeIncremental
+	if syncReq.Mode == "full" {
+		syncMode = model.SyncModeFull
+	}
+
+	// 获取要同步的资源类型列表
+	resourceTypes := syncReq.ResourceTypes
+	// 如果选择了"all"，清空列表表示同步所有类型
+	if len(resourceTypes) == 1 && resourceTypes[0] == "all" {
+		resourceTypes = nil
+	}
+
+	stats, err := h.service.SyncResourcesWithMode(c.Request.Context(), account, syncMode, model.SyncTriggerManual, nil, resourceTypes)
 	if err != nil {
 		h.logger.Error("failed to sync cloud account resources", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -335,8 +361,10 @@ func (h *CloudAccountHandler) Sync(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message":    "sync completed",
-		"statistics": stats,
+		"message":        "sync completed",
+		"statistics":     stats,
+		"sync_mode":      string(syncMode),
+		"resource_types": syncReq.ResourceTypes,
 	})
 }
 
@@ -423,6 +451,40 @@ func (h *CloudAccountHandler) UpdateStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "status updated", "enabled": req.Enabled})
 }
 
+// GetSupportedResourceTypes 获取支持的资源类型列表
+func (h *CloudAccountHandler) GetSupportedResourceTypes(c *gin.Context) {
+	// 返回所有支持的资源类型
+	resourceTypes := []map[string]string{
+		{"id": "subnet", "name": "IP子网"},
+		{"id": "vm", "name": "主机"},
+		{"id": "load_balancer", "name": "负载均衡实例"},
+		{"id": "oss", "name": "对象存储"},
+		{"id": "rds", "name": "RDS"},
+		{"id": "redis", "name": "缓存"},
+		{"id": "nat_gateway", "name": "NAT网关"},
+		{"id": "file_storage", "name": "文件存储"},
+		{"id": "waf", "name": "WAF策略"},
+		{"id": "mongodb", "name": "MongoDB实例"},
+		{"id": "elasticsearch", "name": "Elasticsearch"},
+		{"id": "kafka", "name": "Kafka"},
+		{"id": "k8s", "name": "K8s集群"},
+		{"id": "vpc_peering", "name": "VPC互联网络"},
+		{"id": "cdn", "name": "内容分发网络"},
+		{"id": "dns", "name": "DNS解析"},
+		{"id": "image", "name": "镜像"},
+		{"id": "disk", "name": "云硬盘"},
+		{"id": "snapshot", "name": "快照"},
+		{"id": "vpc", "name": "VPC"},
+		{"id": "security_group", "name": "安全组"},
+		{"id": "eip", "name": "弹性公网IP"},
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"items": resourceTypes,
+		"total": len(resourceTypes),
+	})
+}
+
 // UpdateAttributes 更新云账户属性
 func (h *CloudAccountHandler) UpdateAttributes(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
@@ -445,7 +507,7 @@ func (h *CloudAccountHandler) UpdateAttributes(c *gin.Context) {
 
 	var req struct {
 		AutoSync         bool     `json:"auto_sync"`
-		SyncPolicy       string   `json:"sync_policy"`
+		SyncPolicyID     *uint    `json:"sync_policy_id"`
 		SyncInterval     int      `json:"sync_interval"`
 		SyncResourceTypes []string `json:"sync_resource_types"`
 	}
@@ -454,14 +516,19 @@ func (h *CloudAccountHandler) UpdateAttributes(c *gin.Context) {
 		return
 	}
 
-	// 更新属性 - 存储到 description 或扩展字段
-	// TODO: 需要在 CloudAccount model 中添加属性字段
+	// 更新云账户的同步策略绑定
+	account.SyncPolicyID = req.SyncPolicyID
+	if err := h.service.UpdateCloudAccount(c.Request.Context(), account); err != nil {
+		h.logger.Error("failed to update cloud account sync policy", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message":           "attributes updated",
-		"auto_sync":         req.AutoSync,
-		"sync_policy":       req.SyncPolicy,
-		"sync_interval":     req.SyncInterval,
+		"message":             "attributes updated",
+		"auto_sync":           req.AutoSync,
+		"sync_policy_id":      req.SyncPolicyID,
+		"sync_interval":       req.SyncInterval,
 		"sync_resource_types": req.SyncResourceTypes,
 	})
 }

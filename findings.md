@@ -5,6 +5,245 @@
 - 不再使用模拟接口，实现真实的云厂商 SDK 调用
 - 完成从云账号添加 → 资源同步 → 资源管理的完整业务流程
 
+## Phase 27: 前端页面样式统一性检查 (2026-04-17)
+
+### 标准样式结构 (host-templates/index.vue) - ui-ux-pro-max 参考
+```
+模板结构：
+├── div.xxx-container { padding: 20px }
+│   ├── div.page-header { flex布局, margin-bottom: 20px }
+│   │   ├── h2 标题
+│   │   └── el-button 操作按钮
+│   ├── el-card.filter-card { margin-bottom: 20px }
+│   │   └── el-form inline筛选表单
+│   ├── el-table { width: 100%, row-key="id" }
+│   └── el-pagination.pagination { margin-top: 20px, text-align: right }
+```
+
+**ui-ux-pro-max 关键规则**:
+- `spacing-scale`: 使用 8dp 间距系统 (20px = 2.5 × 8dp)
+- `container-width`: 内容区域保持一致
+- `consistency`: 同一产品内所有页面使用相同样式
+- `z-index-management`: 定义分层 z-index
+- `touch-target-size`: 触控目标 ≥44×44pt
+
+### P0修复已完成 (2026-04-17)
+
+已修复8个页面添加筛选区/分页/padding：
+- images/index.vue ✅
+- eips/index.vue ✅  
+- rds/instances/index.vue ✅
+- redis/instances/index.vue ✅
+- vpcs/index.vue ✅
+- subnets/index.vue ✅
+- policies/index.vue ✅
+- resources/vms/index.vue ✅
+
+### P1深度问题发现 (ui-ux-pro-max 分析)
+
+| 页面 | 问题类型 | 具体问题 |
+|------|---------|---------|
+| **vms/index.vue** | 结构差异 | 使用el-collapse折叠查询而非.filter-card el-card；使用el-card header slot而非独立.page-header |
+| **storage/cloud/disks/index.vue** | 多项问题 | el-card header slot；inline pagination样式；缺少row-key；筛选区非el-card结构 |
+| **cloud-accounts/index.vue** | 缺少筛选 | el-card header slot；无.filter-card筛选卡片；缺少row-key |
+| **sync-policies/index.vue** | 结构差异 | el-card header slot；筛选表单直接嵌入el-card而非独立.filter-card；缺少row-key |
+| **compute/vms/index.vue** | 特殊结构 | 使用折叠式筛选(el-collapse)，与其他页面不统一 |
+
+**推荐修复方案**:
+1. 统一将 el-card header slot 改为独立 `.page-header` div
+2. 筛选区统一使用 `.filter-card` el-card 包裹
+3. 表格统一添加 `row-key` 属性
+4. 分页统一使用 `.pagination { text-align: right }` class
+
+### 待修复页面清单 (P1级别)
+
+| 页面 | 需要修复 |
+|------|---------|
+| compute/vms/index.vue | page-header结构、el-collapse改为filter-card |
+| storage/cloud/disks/index.vue | page-header、filter-card、row-key、pagination class |
+| cloud-accounts/index.vue | page-header、添加filter-card、row-key |
+| sync-policies/index.vue | page-header、filter-card结构、row-key |
+
+---
+
+## Phase 25: 多角色验证核心发现 (2026-04-16)
+
+### 核心问题：资源列表数据来源错误
+
+**设计文档要求**：
+> 资源同步流程：云平台API → 解析标签 → 项目归属映射 → 写入数据库 → **本地展示**
+
+**实际实现**：
+- `ComputeService.ListVMs` (compute.go:61-68) → 直接调用 `provider.ListVMs`
+- `NetworkService.ListVPCs` → 直接调用 `provider.ListVPCs`
+- 所有资源列表都是实时查询云平台API，而非查询本地数据库
+
+**已有本地存储模型**（未使用）：
+- `CloudVM` (sync_cloud_vms表) - 同步后的虚拟机数据
+- `CloudVPC` (sync_cloud_vpcs表) - 同步后的VPC数据
+- `CloudSubnet` (sync_cloud_subnets表) - 同步后的子网数据
+- 等等...
+
+### 权限中间件未注册问题
+
+**已实现但未注册**：
+| 中间件 | 实现文件 | 注册状态 |
+|--------|---------|---------|
+| `PermissionMiddleware` | middleware/permission.go | ❌ main.go未注册 |
+| `ProjectIsolationMiddleware` | middleware/project_isolation.go | ❌ main.go未注册 |
+
+**影响**: 所有API对登录用户开放，权限控制失效。
+
+### 业务流程完整度评估
+
+| 流程步骤 | 状态 | 实现位置 |
+|---------|------|---------|
+| 定时任务调度器 | ✅ | scheduler.go |
+| 同步服务 | ✅ | cloud_account.go:SyncResourcesWithMode |
+| 标签解析 | ✅ | resource_mapping.go:DetermineProjectAttribution |
+| 项目归属映射 | ✅ | 支持3种匹配条件 |
+| 增量/全量同步 | ✅ | syncMode参数 |
+| 同步日志 | ✅ | sync_log.go |
+| 权限中间件 | ⚠️ 代码实现但未注册 | permission.go |
+| 项目隔离 | ⚠️ 代码实现但未注册 | project_isolation.go |
+
+### 修复优先级
+
+**P0 (必须修复)**:
+1. 资源列表数据来源 → 改为查询本地数据库
+2. 注册权限中间件 → 在main.go中添加
+3. Service层项目过滤 → 使用ApplyProjectFilter
+
+**P1 (应该修复)**:
+4. 前端云账号选择器 → 使用CloudAccountSelector组件
+5. 验证其他资源列表表头
+
+### 详细验证报告
+- docs/superpowers/specs/2026-04-16-multi-agent-verification-report.md
+
+## Phase 19: P0问题修复结果 (2026-04-15)
+
+### 修复完成状态
+
+**F1: 后台Cron调度器** ✅
+- 实现文件：`backend/pkg/scheduler/scheduler.go`
+- 功能：
+  - 使用robfig/cron/v3库
+  - 支持多种频率：once/daily/weekly/monthly/custom/hourly
+  - 动态添加/删除/更新任务
+  - 服务启动时加载所有active任务
+  - 优雅关闭时停止调度器
+
+**F2: 通用权限检查中间件** ✅
+- 实现文件：`backend/internal/middleware/permission.go`
+- 功能：
+  - 解析请求路径自动提取资源和操作
+  - HTTP方法映射：GET→list/get, POST→create, PUT→update, DELETE→delete
+  - 系统管理员跳过权限检查
+  - 查询用户角色和权限进行验证
+  - 提供辅助函数GetUserPermissions/GetUserRoleIDs
+
+**F3: 项目隔离验证中间件** ✅
+- 实现文件：`backend/internal/middleware/project_isolation.go`
+- 功能：
+  - 获取用户所属项目列表（直接+通过用户组）
+  - 注入project_ids到context供service层使用
+  - 系统管理员跳过隔离（all_projects_visible=true）
+  - 财务人员对账单API跳过隔离
+  - 提供service层过滤辅助函数ApplyProjectFilter/ProjectIsolationScope
+
+**F4: BSS API真实数据解析** ✅
+- 实现文件：`backend/pkg/cloudprovider/adapters/alibaba/billing.go`
+- 功能：
+  - 定义完整响应结构体（5种）
+  - 解析真实JSON响应
+  - 返回真实数据而非mock
+  - 优雅处理解析失败（返回空列表而非错误）
+
+### 编译验证
+所有修改编译成功，无错误。
+
+### 待执行P1任务
+1. G1: 资源标签解析与项目归属映射
+2. G2: 增量/全量同步差异逻辑
+3. G3: 同步日志记录
+4. G4: 扩展同步资源类型（Disk/Snapshot/RDS/Redis）
+
+## Phase 18: 全量前后端API交互审查发现 (2026-04-15)
+
+### 审查总结
+
+**已实现且真实对接的功能：**
+1. 云账户管理完整CRUD - 真实数据库操作
+2. 阿里云VM/VPC/Subnet/SG/EIP/Image管理 - 真实SDK调用
+3. 同步策略CRUD（含域选择） - 前端已有domain_id字段
+4. 定时任务CRUD及手动执行 - Execute方法调用SyncResources
+5. JWT认证中间件 - Token解析和用户信息注入
+6. 前端完整页面功能 - 所有按钮有对应API调用
+
+**未实现或需要修复的严重问题（P0）：**
+1. **后台Cron调度器缺失** - 定时任务只能手动触发，无自动执行
+2. **通用权限检查中间件缺失** - 只有AdminOnlyMiddleware，无基于permission的访问控制
+3. **项目隔离验证缺失** - 用户应只能看到所属项目的资源，未实现WHERE project_id过滤
+4. **BSS API返回Mock数据** - 账单/订单/成本数据是硬编码mock，不是真实API解析
+
+**未实现的高优先级问题（P1）：**
+1. **资源标签解析与项目归属映射** - SyncResources不读取同步策略，不解析Tags
+2. **增量/全量同步差异处理** - 前端传递mode参数，后端未区分处理逻辑
+3. **同步日志记录** - 无SyncLog模型和记录逻辑
+4. **同步资源类型不完整** - Disk/Snapshot/RDS/Redis未同步
+
+### 同步策略模块特别说明
+
+**用户需求：创建同步策略需添加域选择**
+
+**审查发现：前端已有域选择功能！**
+- `frontend/src/views/cloud-management/sync-policies/index.vue` 第124-128行
+- 表单有 `domain_id` 字段，下拉框选择域
+- 后端Handler/Service支持 `DomainID` 字段
+- **结论：此需求已实现，无需额外开发**
+
+### 资源同步核心流程缺失环节
+
+业务逻辑应为：
+```
+[定时任务调度器触发] -> [读取账号绑定的定时任务配置] -> [读取账号绑定的同步策略]
+-> [解析资源标签(Tags)] -> [应用同步策略的标签映射规则 → 确定项目归属]
+-> [状态对比 + 数据处理] -> [写入同步日志] -> [更新云账号同步状态]
+```
+
+**当前实现状态：**
+| 步骤 | 状态 |
+|------|------|
+| 定时任务调度器触发 | ❌ 缺少Cron Scheduler |
+| 读取账号定时任务配置 | ✅ Execute方法读取 |
+| 读取账号同步策略 | ❌ 未实现 |
+| 解析资源标签 | ❌ 未实现 |
+| 应用标签映射规则 | ❌ 未实现 |
+| 增量/全量同步差异 | ⚠️ 未区分 |
+| 已删除资源标记 | ❌ 未实现 |
+| 写入同步日志 | ❌ 未实现 |
+| 更新云账号同步状态 | ⚠️ 只更新Status |
+
+### API权限验证流程缺失环节
+
+业务逻辑应为：
+```
+[JWT认证中间件] -> [权限检查中间件] -> [项目隔离验证] -> [Handler处理]
+```
+
+**当前实现状态：**
+| 步骤 | 状态 |
+|------|------|
+| JWT认证中间件 | ✅ 已实现 |
+| 权限检查中间件 | ⚠️ 只有AdminOnly |
+| 项目隔离验证 | ❌ 未实现 |
+| RBAC权限矩阵 | ⚠️ 模型存在，检查逻辑缺失 |
+
+### 修复计划已创建
+
+详见：`docs/superpowers/specs/2026-04-15-fix-implementation-plan.md`
+
 ## Phase 16: 云账户管理增强需求分析 (2026-04-14)
 
 ### 功能需求拆解

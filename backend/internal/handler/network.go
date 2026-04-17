@@ -8,6 +8,7 @@ import (
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 
+	"github.com/opencmp/opencmp/internal/middleware"
 	"github.com/opencmp/opencmp/internal/service"
 	"github.com/opencmp/opencmp/pkg/cloudprovider"
 )
@@ -78,7 +79,14 @@ func (h *NetworkHandler) ListVPCs(c *gin.Context) {
 		RegionID: c.Query("region_id"),
 	}
 
-	vpcs, err := h.service.ListVPCs(c.Request.Context(), uint(accountID), filter)
+	// 获取项目过滤信息
+	projectFilter := middleware.GetProjectFilter(c)
+	var projectIDs []int64
+	if !projectFilter.AllProjectsVisible {
+		projectIDs = projectFilter.ProjectIDs
+	}
+
+	vpcs, err := h.service.ListVPCs(c.Request.Context(), uint(accountID), filter, projectIDs)
 	if err != nil {
 		h.logger.Error("failed to list vpcs", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -167,7 +175,14 @@ func (h *NetworkHandler) ListSubnets(c *gin.Context) {
 		ZoneID: c.Query("zone_id"),
 	}
 
-	subnets, err := h.service.ListSubnets(c.Request.Context(), uint(accountID), filter)
+	// 获取项目过滤信息
+	projectFilter := middleware.GetProjectFilter(c)
+	var projectIDs []int64
+	if !projectFilter.AllProjectsVisible {
+		projectIDs = projectFilter.ProjectIDs
+	}
+
+	subnets, err := h.service.ListSubnets(c.Request.Context(), uint(accountID), filter, projectIDs)
 	if err != nil {
 		h.logger.Error("failed to list subnets", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

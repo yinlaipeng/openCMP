@@ -1,74 +1,87 @@
 <template>
-  <div class="cloud-disks-page">
-    <el-card>
-      <template #header>
-        <div class="card-header">
-          <span class="title">云硬盘列表</span>
-          <div class="header-actions">
-            <el-button type="primary" size="small" @click="showCreateDialog = true">创建云硬盘</el-button>
-            <el-button size="small" @click="handleSync" :loading="syncing">同步云硬盘</el-button>
-          </div>
-        </div>
-      </template>
-
-      <!-- 筛选 -->
-      <div class="filter-bar" style="margin-bottom: 16px;">
-        <el-select v-model="selectedAccountId" placeholder="选择云账号" clearable style="width: 200px;">
-          <el-option v-for="account in cloudAccounts" :key="account.id" :label="account.name" :value="account.id" />
-        </el-select>
-        <el-select v-model="filterStatus" placeholder="状态筛选" clearable style="width: 120px; margin-left: 8px;">
-          <el-option label="可用" value="available" />
-          <el-option label="已挂载" value="in_use" />
-          <el-option label="创建中" value="creating" />
-        </el-select>
-        <el-button size="small" @click="loadCloudDisks" :loading="loading" style="margin-left: 8px;">刷新</el-button>
+  <div class="cloud-disks-container">
+    <div class="page-header">
+      <h2>云硬盘管理</h2>
+      <div class="header-actions">
+        <el-button type="primary" @click="showCreateDialog = true">
+          <el-icon><Plus /></el-icon>
+          创建云硬盘
+        </el-button>
+        <el-button @click="handleSync" :loading="syncing">同步云硬盘</el-button>
       </div>
+    </div>
 
-      <!-- 数据表格 -->
-      <el-table :data="cloudDisks" v-loading="loading" style="width: 100%">
-        <el-table-column prop="disk_id" label="磁盘ID" width="150" />
-        <el-table-column prop="name" label="名称" width="180" />
-        <el-table-column prop="size" label="容量" width="100">
-          <template #default="{ row }">{{ row.size }} GB</template>
-        </el-table-column>
-        <el-table-column prop="type" label="类型" width="100">
-          <template #default="{ row }">
-            <el-tag>{{ getDiskTypeText(row.type) }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="status" label="状态" width="100">
-          <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)">{{ getStatusText(row.status) }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="vm_id" label="挂载实例" width="150">
-          <template #default="{ row }">{{ row.vm_id || '-' }}</template>
-        </el-table-column>
-        <el-table-column prop="zone_id" label="可用区" width="120" />
-        <el-table-column prop="provider_type" label="云平台" width="100" />
-        <el-table-column prop="created_at" label="创建时间" width="160">
-          <template #default="{ row }">{{ formatTime(row.created_at) }}</template>
-        </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
-          <template #default="{ row }">
-            <el-button size="small" link type="primary" @click="handleAttach(row)" v-if="row.status === 'available'">挂载</el-button>
-            <el-button size="small" link type="primary" @click="handleDetach(row)" v-if="row.status === 'in_use'">卸载</el-button>
-            <el-button size="small" link type="primary" @click="handleResize(row)">扩容</el-button>
-            <el-button size="small" link type="primary" @click="handleSnapshot(row)">创建快照</el-button>
-            <el-button size="small" link type="danger" @click="handleDelete(row)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-
-      <el-pagination
-        v-model:current-page="pagination.currentPage"
-        v-model:page-size="pagination.pageSize"
-        :total="pagination.total"
-        :page-sizes="[10, 20, 50]"
-        layout="total, sizes, prev, pager, next"
-        style="margin-top: 16px; justify-content: flex-end;"
-      />
+    <el-card class="filter-card">
+      <el-form :inline="true" :model="queryForm" @submit.prevent="loadCloudDisks">
+        <el-form-item label="云账号">
+          <el-select v-model="queryForm.account_id" placeholder="选择云账号" clearable>
+            <el-option v-for="account in cloudAccounts" :key="account.id" :label="account.name" :value="account.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="queryForm.status" placeholder="状态筛选" clearable>
+            <el-option label="可用" value="available" />
+            <el-option label="已挂载" value="in_use" />
+            <el-option label="创建中" value="creating" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="loadCloudDisks">查询</el-button>
+          <el-button @click="resetQuery">重置</el-button>
+        </el-form-item>
+      </el-form>
     </el-card>
+
+    <el-table
+      :data="cloudDisks"
+      v-loading="loading"
+      style="width: 100%"
+      row-key="id"
+    >
+      <el-table-column prop="disk_id" label="磁盘ID" width="150" />
+      <el-table-column prop="name" label="名称" min-width="150" />
+      <el-table-column prop="size" label="容量" width="100">
+        <template #default="{ row }">{{ row.size }} GB</template>
+      </el-table-column>
+      <el-table-column prop="type" label="类型" width="100">
+        <template #default="{ row }">
+          <el-tag>{{ getDiskTypeText(row.type) }}</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column prop="status" label="状态" width="100">
+        <template #default="{ row }">
+          <el-tag :type="getStatusType(row.status)">{{ getStatusText(row.status) }}</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column prop="vm_id" label="挂载实例" width="150">
+        <template #default="{ row }">{{ row.vm_id || '-' }}</template>
+      </el-table-column>
+      <el-table-column prop="zone_id" label="可用区" width="120" />
+      <el-table-column prop="provider_type" label="云平台" width="100" />
+      <el-table-column prop="created_at" label="创建时间" width="160">
+        <template #default="{ row }">{{ formatTime(row.created_at) }}</template>
+      </el-table-column>
+      <el-table-column label="操作" width="220" fixed="right">
+        <template #default="{ row }">
+          <el-button size="small" link type="primary" @click="handleAttach(row)" v-if="row.status === 'available'">挂载</el-button>
+          <el-button size="small" link type="primary" @click="handleDetach(row)" v-if="row.status === 'in_use'">卸载</el-button>
+          <el-button size="small" link type="primary" @click="handleResize(row)">扩容</el-button>
+          <el-button size="small" link type="primary" @click="handleSnapshot(row)">快照</el-button>
+          <el-button size="small" link type="danger" @click="handleDelete(row)">删除</el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+
+    <el-pagination
+      v-model:current-page="currentPage"
+      v-model:page-size="pageSize"
+      :total="total"
+      :page-sizes="[10, 20, 50, 100]"
+      layout="total, sizes, prev, pager, next, jumper"
+      @size-change="handleSizeChange"
+      @current-change="handleCurrentChange"
+      class="pagination"
+    />
 
     <!-- 创建云硬盘对话框 -->
     <el-dialog v-model="showCreateDialog" title="创建云硬盘" width="500px">
@@ -160,8 +173,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, watch } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Plus } from '@element-plus/icons-vue'
 import { getCloudDisks, createCloudDisk, deleteCloudDisk, attachCloudDisk, detachCloudDisk, resizeCloudDisk, syncCloudDisks, createCloudSnapshot } from '@/api/storage'
 import { getCloudAccounts } from '@/api/cloud-account'
 import type { CloudDisk } from '@/api/storage'
@@ -170,10 +184,17 @@ const cloudDisks = ref<CloudDisk[]>([])
 const loading = ref(false)
 const syncing = ref(false)
 const cloudAccounts = ref<any[]>([])
-const selectedAccountId = ref<number | undefined>()
-const filterStatus = ref<string>('')
 
-const pagination = reactive({ currentPage: 1, pageSize: 20, total: 0 })
+// 分页数据
+const currentPage = ref(1)
+const pageSize = ref(20)
+const total = ref(0)
+
+// 查询表单
+const queryForm = reactive({
+  account_id: undefined as number | undefined,
+  status: ''
+})
 
 // Dialog states
 const showCreateDialog = ref(false)
@@ -202,8 +223,6 @@ onMounted(() => {
   loadCloudDisks()
 })
 
-watch([selectedAccountId, filterStatus, pagination.currentPage, pagination.pageSize], loadCloudDisks)
-
 async function loadCloudAccounts() {
   try {
     const res = await getCloudAccounts({ page: 1, page_size: 100 })
@@ -214,32 +233,38 @@ async function loadCloudAccounts() {
 async function loadCloudDisks() {
   loading.value = true
   try {
-    const res = await getCloudDisks({
-      cloud_account_id: selectedAccountId.value,
-      status: filterStatus.value,
-      page: pagination.currentPage,
-      page_size: pagination.pageSize
-    })
+    const params: any = {
+      page: currentPage.value,
+      page_size: pageSize.value
+    }
+    if (queryForm.account_id) params.cloud_account_id = queryForm.account_id
+    if (queryForm.status) params.status = queryForm.status
+
+    const res = await getCloudDisks(params)
     cloudDisks.value = res.items || []
-    pagination.total = res.total || 0
+    total.value = res.total || 0
   } catch (error) {
     ElMessage.warning('获取云硬盘列表失败')
-  } finally { loading.value = false }
+  } finally {
+    loading.value = false
+  }
 }
 
 async function handleSync() {
-  if (!selectedAccountId.value) {
+  if (!queryForm.account_id) {
     ElMessage.warning('请先选择云账号')
     return
   }
   syncing.value = true
   try {
-    const res = await syncCloudDisks(selectedAccountId.value)
+    const res = await syncCloudDisks(queryForm.account_id)
     ElMessage.success(`同步完成，新增 ${res.count} 条，总计 ${res.total} 条`)
     loadCloudDisks()
   } catch (error) {
     ElMessage.error('同步失败')
-  } finally { syncing.value = false }
+  } finally {
+    syncing.value = false
+  }
 }
 
 async function handleCreate() {
@@ -262,7 +287,9 @@ async function handleCreate() {
     loadCloudDisks()
   } catch (error) {
     ElMessage.error('创建失败')
-  } finally { creating.value = false }
+  } finally {
+    creating.value = false
+  }
 }
 
 function handleAttach(row: CloudDisk) {
@@ -281,7 +308,9 @@ async function handleAttachSubmit() {
     loadCloudDisks()
   } catch {
     ElMessage.error('挂载失败')
-  } finally { attaching.value = false }
+  } finally {
+    attaching.value = false
+  }
 }
 
 function handleDetach(row: CloudDisk) {
@@ -313,7 +342,9 @@ async function handleResizeSubmit() {
     loadCloudDisks()
   } catch {
     ElMessage.error('扩容失败')
-  } finally { resizing.value = false }
+  } finally {
+    resizing.value = false
+  }
 }
 
 function handleSnapshot(row: CloudDisk) {
@@ -331,7 +362,9 @@ async function handleSnapshotSubmit() {
     showSnapshotDialog.value = false
   } catch {
     ElMessage.error('创建快照失败')
-  } finally { creatingSnapshot.value = false }
+  } finally {
+    creatingSnapshot.value = false
+  }
 }
 
 async function handleDelete(row: CloudDisk) {
@@ -343,6 +376,24 @@ async function handleDelete(row: CloudDisk) {
   } catch {
     // canceled
   }
+}
+
+function resetQuery() {
+  queryForm.account_id = undefined
+  queryForm.status = ''
+  currentPage.value = 1
+  loadCloudDisks()
+}
+
+function handleSizeChange(size: number) {
+  pageSize.value = size
+  currentPage.value = 1
+  loadCloudDisks()
+}
+
+function handleCurrentChange(page: number) {
+  currentPage.value = page
+  loadCloudDisks()
 }
 
 function formatTime(time: string): string {
@@ -389,7 +440,34 @@ function getStatusText(status: string): string {
 </script>
 
 <style scoped>
-.card-header { display: flex; justify-content: space-between; align-items: center; }
-.title { font-size: 18px; font-weight: bold; }
-.header-actions { display: flex; gap: 8px; }
+.cloud-disks-container {
+  padding: 20px;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.page-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.filter-card {
+  margin-bottom: 20px;
+}
+
+.pagination {
+  margin-top: 20px;
+  text-align: right;
+}
 </style>

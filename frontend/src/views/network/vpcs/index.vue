@@ -1,20 +1,37 @@
 <template>
-  <div class="vpcs-page">
-    <el-card class="page-card glass">
-      <template #header>
-        <div class="card-header">
-          <div class="header-left">
-            <span class="title">VPC列表</span>
-            <el-tag size="small" type="info" class="count-tag">共 {{ allVpcs.length }} 个</el-tag>
-          </div>
-          <el-button type="primary" class="create-btn" @click="handleCreate">
-            <el-icon><Plus /></el-icon>
-            创建 VPC
-          </el-button>
-        </div>
-      </template>
+  <div class="vpcs-container">
+    <div class="page-header">
+      <h2>VPC管理</h2>
+      <el-button type="primary" @click="handleCreate">
+        <el-icon><Plus /></el-icon>
+        创建 VPC
+      </el-button>
+    </div>
 
-      <el-tabs v-model="activeTab" class="vpc-tabs">
+    <el-card class="filter-card">
+      <el-form :inline="true" :model="filters" @submit.prevent="loadVPCs">
+        <el-form-item label="云账号">
+          <CloudAccountSelector
+            v-model:value="filters.account_id"
+            placeholder="选择云账号"
+            @change="handleAccountChange"
+          />
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="filters.status" placeholder="状态" clearable>
+            <el-option label="可用" value="Available" />
+            <el-option label="创建中" value="Creating" />
+            <el-option label="已删除" value="Deleted" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="loadVPCs">查询</el-button>
+          <el-button @click="resetFilters">重置</el-button>
+        </el-form-item>
+      </el-form>
+    </el-card>
+
+    <el-tabs v-model="activeTab" class="vpc-tabs">
         <el-tab-pane name="all">
           <template #label>
             <span class="tab-label">
@@ -227,14 +244,16 @@
         </el-tab-pane>
       </el-tabs>
 
-      <!-- Empty State -->
-      <el-empty v-if="!loading && allVpcs.length === 0" description="暂无 VPC 数据">
-        <el-button type="primary" @click="handleCreate">
-          <el-icon><Plus /></el-icon>
-          创建第一个 VPC
-        </el-button>
-      </el-empty>
-    </el-card>
+    <el-pagination
+      v-model:current-page="pagination.page"
+      v-model:page-size="pagination.pageSize"
+      :total="pagination.total"
+      :page-sizes="[10, 20, 50, 100]"
+      layout="total, sizes, prev, pager, next, jumper"
+      @size-change="handleSizeChange"
+      @current-change="handleCurrentChange"
+      class="pagination"
+    />
 
     <!-- Detail Modal -->
     <el-dialog v-model="detailDialogVisible" title="VPC详情" width="800px">
@@ -313,7 +332,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   ArrowDown,
@@ -326,20 +345,18 @@ import {
   Delete
 } from '@element-plus/icons-vue'
 import CreateVPCModal from '@/components/network/CreateVPCModal.vue'
+import CloudAccountSelector from '@/components/common/CloudAccountSelector.vue'
+import { getVPCs, getSubnets, getSecurityGroups, deleteVPC } from '@/api/network'
+import { getCloudAccounts } from '@/api/cloud-account'
+import type { VPC, Subnet, SecurityGroup, CloudAccount } from '@/types'
 
-interface ExtendedVPC {
-  id: string
-  name: string
-  status: string
-  cidr: string
-  ipv6_cidr?: string
+interface ExtendedVPC extends VPC {
   subnet_count?: number
+  ipv6_cidr?: string
   allow_internet_access?: boolean
   platform?: string
   account?: string
   domain?: string
-  region_id?: string
-  created_at?: string
 }
 
 const allVpcs = ref<ExtendedVPC[]>([])
@@ -354,10 +371,23 @@ const selectedVPC = ref<ExtendedVPC | null>(null)
 const detailTab = ref('detail')
 const targetDomain = ref('')
 
+// 筛选条件
+const filters = reactive({
+  account_id: null as number | null,
+  status: ''
+})
+
+// 分页数据
+const pagination = reactive({
+  page: 1,
+  pageSize: 20,
+  total: 0
+})
+
 // Detail modal data
-const securityGroups = ref<any[]>([])
+const securityGroups = ref<SecurityGroup[]>([])
 const securityGroupsLoading = ref(false)
-const subnets = ref<any[]>([])
+const subnets = ref<Subnet[]>([])
 const subnetsLoading = ref(false)
 const logs = ref<any[]>([])
 
@@ -378,58 +408,33 @@ const getStatusType = (status: string) => {
 }
 
 const loadVPCs = async () => {
+  if (!filters.account_id) {
+    allVpcs.value = []
+    localIdcVpcs.value = []
+    publicCloudVpcs.value = []
+    return
+  }
+
   loading.value = true
   try {
-    // Mock data - API requires valid cloud account credentials
-    const vpcsData: ExtendedVPC[] = [
-      {
-        id: 'vpc-1',
-        name: 'VPC 1',
-        status: 'Available',
-        cidr: '10.0.0.0/16',
-        ipv6_cidr: '2001:db8::/64',
-        subnet_count: 5,
-        allow_internet_access: true,
-        platform: '阿里云',
-        account: 'Aliyun Account 1',
-        domain: 'Default Domain',
-        region_id: 'cn-hangzhou',
-        created_at: '2024-01-01 10:00:00'
-      },
-      {
-        id: 'vpc-2',
-        name: 'VPC 2 (本地IDC)',
-        status: 'Available',
-        cidr: '10.1.0.0/16',
-        ipv6_cidr: '2001:db8::/64',
-        subnet_count: 3,
-        allow_internet_access: false,
-        platform: '阿里云',
-        account: 'Aliyun Account 1',
-        domain: 'Default Domain',
-        region_id: 'cn-hangzhou',
-        created_at: '2024-01-01 10:00:00'
-      },
-      {
-        id: 'vpc-3',
-        name: 'VPC 3',
-        status: 'Pending',
-        cidr: '10.2.0.0/16',
-        ipv6_cidr: '2001:db8::/64',
-        subnet_count: 2,
-        allow_internet_access: true,
-        platform: '阿里云',
-        account: 'Aliyun Account 1',
-        domain: 'Default Domain',
-        region_id: 'cn-shanghai',
-        created_at: '2024-01-01 10:00:00'
-      }
-    ]
-    allVpcs.value = vpcsData
-    localIdcVpcs.value = vpcsData.filter(vpc => vpc.name.toLowerCase().includes('idc') || vpc.name.toLowerCase().includes('local'))
-    publicCloudVpcs.value = vpcsData.filter(vpc => !vpc.name.toLowerCase().includes('idc') && !vpc.name.toLowerCase().includes('local'))
-  } catch (e) {
-    console.error(e)
+    const res = await getVPCs({
+      account_id: filters.account_id,
+      status: filters.status || undefined,
+      page: pagination.page,
+      size: pagination.pageSize
+    })
+    const vpcsData = Array.isArray(res) ? res : res.items || []
+    pagination.total = res.total || vpcsData.length
+
+    allVpcs.value = vpcsData.map((v: any) => ({
+      ...v,
+      platform: v.platform || '未知',
+      account: v.account_name || '未知'
+    }))
+    localIdcVpcs.value = allVpcs.value.filter(vpc => vpc.name?.toLowerCase().includes('idc') || vpc.name?.toLowerCase().includes('local'))
+    publicCloudVpcs.value = allVpcs.value.filter(vpc => !vpc.name?.toLowerCase().includes('idc') && !vpc.name?.toLowerCase().includes('local'))
+  } catch (error: any) {
+    console.error('Failed to load VPCs:', error)
     allVpcs.value = []
     localIdcVpcs.value = []
     publicCloudVpcs.value = []
@@ -443,29 +448,39 @@ const viewDetail = async (row: ExtendedVPC) => {
   detailDialogVisible.value = true
   detailTab.value = 'detail'
 
-  // Mock data for security groups and subnets (API requires valid cloud account)
-  securityGroupsLoading.value = true
-  securityGroups.value = [
-    { id: 'sg-1', name: 'Security Group 1', status: 'Active' },
-    { id: 'sg-2', name: 'Security Group 2', status: 'Active' }
-  ]
-  securityGroupsLoading.value = false
+  // Load real data from API
+  if (filters.account_id && row.id) {
+    securityGroupsLoading.value = true
+    try {
+      const res = await getSecurityGroups({ account_id: filters.account_id, vpc_id: row.id })
+      securityGroups.value = Array.isArray(res) ? res : res.items || []
+    } catch (error) {
+      console.error('Failed to load security groups:', error)
+      securityGroups.value = []
+    } finally {
+      securityGroupsLoading.value = false
+    }
 
-  subnetsLoading.value = true
-  subnets.value = [
-    { id: 'subnet-1', name: 'Subnet 1', status: 'Available', cidr: '10.0.1.0/24' },
-    { id: 'subnet-2', name: 'Subnet 2', status: 'Available', cidr: '10.0.2.0/24' }
-  ]
-  subnetsLoading.value = false
+    subnetsLoading.value = true
+    try {
+      const res = await getSubnets({ account_id: filters.account_id, vpc_id: row.id })
+      subnets.value = Array.isArray(res) ? res : res.items || []
+    } catch (error) {
+      console.error('Failed to load subnets:', error)
+      subnets.value = []
+    } finally {
+      subnetsLoading.value = false
+    }
+  }
 
-  // Load logs (mock)
   logs.value = [
-    { operation: '创建', operator: 'admin', result: '成功', timestamp: '2024-01-01 10:00:00' }
+    { operation: '创建', operator: 'system', result: '成功', timestamp: row.created_at || '-' }
   ]
 }
 
-const syncStatus = (row: ExtendedVPC) => {
+const syncStatus = async (row: ExtendedVPC) => {
   ElMessage.info(`正在同步 VPC ${row.name} 的状态`)
+  await loadVPCs()
 }
 
 const changeDomain = (row: ExtendedVPC) => {
@@ -486,13 +501,17 @@ const handleDelete = async (row: ExtendedVPC) => {
       cancelButtonText: '取消',
       type: 'warning'
     })
-    // Mock deletion - API requires valid cloud account credentials
-    allVpcs.value = allVpcs.value.filter(v => v.id !== row.id)
-    localIdcVpcs.value = localIdcVpcs.value.filter(v => v.id !== row.id)
-    publicCloudVpcs.value = publicCloudVpcs.value.filter(v => v.id !== row.id)
-    ElMessage.success('删除成功')
-  } catch (e) {
-    console.error(e)
+
+    if (filters.account_id) {
+      await deleteVPC(row.id, filters.account_id)
+      ElMessage.success('删除成功')
+      loadVPCs()
+    }
+  } catch (e: any) {
+    if (e !== 'cancel') {
+      console.error(e)
+      ElMessage.error(`删除失败: ${e.message}`)
+    }
   }
 }
 
@@ -505,129 +524,128 @@ const handleCreateSuccess = (vpc: ExtendedVPC) => {
   loadVPCs()
 }
 
-onMounted(() => {
+const handleAccountChange = (accountId: number | null) => {
+  filters.account_id = accountId
+  if (accountId) {
+    loadVPCs()
+  } else {
+    allVpcs.value = []
+    localIdcVpcs.value = []
+    publicCloudVpcs.value = []
+  }
+}
+
+const resetFilters = () => {
+  filters.account_id = null
+  filters.status = ''
+  pagination.page = 1
+  allVpcs.value = []
+  localIdcVpcs.value = []
+  publicCloudVpcs.value = []
+}
+
+const handleSizeChange = (size: number) => {
+  pagination.pageSize = size
+  pagination.page = 1
   loadVPCs()
+}
+
+const handleCurrentChange = (page: number) => {
+  pagination.page = page
+  loadVPCs()
+}
+
+onMounted(() => {
+  // Wait for account selector to initialize
 })
 </script>
 
 <style scoped>
-.vpcs-page {
-  height: 100%;
-  padding: var(--space-4);
+.vpcs-container {
+  padding: 20px;
 }
 
-.page-card {
-  height: 100%;
-}
-
-.page-card.glass {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(16px);
-  border-radius: var(--radius-lg);
-}
-
-.card-header {
+.page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 20px;
 }
 
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
+.page-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
 }
 
-.title {
-  font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-foreground);
+.filter-card {
+  margin-bottom: 20px;
 }
 
-.count-tag {
-  font-family: var(--font-mono);
-}
-
-.create-btn {
-  transition: all var(--duration-fast) var(--ease-out);
-}
-
-.create-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.2);
-}
-
-/* Tabs Styling */
 .vpc-tabs {
-  margin-top: var(--space-2);
+  margin-top: 0;
+}
+
+.pagination {
+  margin-top: 20px;
+  text-align: right;
 }
 
 .tab-label {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: 8px;
 }
 
 .tab-badge {
-  margin-left: var(--space-1);
+  margin-left: 4px;
 }
 
-/* Table */
 .vpc-table {
-  border-radius: var(--radius-md);
+  border-radius: 8px;
 }
 
 .status-tag {
-  font-weight: var(--font-weight-medium);
+  font-weight: 500;
 }
 
 .cidr {
-  font-size: var(--font-size-sm);
+  font-size: 14px;
 }
 
 .no-data {
-  color: var(--color-muted);
+  color: #909399;
 }
 
 .region {
-  font-size: var(--font-size-sm);
+  font-size: 14px;
 }
 
 .operation-buttons {
   display: flex;
-  gap: var(--space-2);
+  gap: 8px;
   align-items: center;
 }
 
-/* Detail Modal */
 .topology-placeholder {
   height: 400px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--color-background);
-  border-radius: var(--radius-md);
-  color: var(--color-muted);
+  background-color: #f5f7fa;
+  border-radius: 8px;
+  color: #909399;
 }
 
-/* Responsive */
 @media (max-width: 768px) {
-  .vpcs-page {
-    padding: var(--space-2);
+  .vpcs-container {
+    padding: 10px;
   }
 
-  .card-header {
+  .page-header {
     flex-direction: column;
-    gap: var(--space-2);
+    gap: 10px;
     align-items: flex-start;
-  }
-
-  .create-btn {
-    width: 100%;
-  }
-
-  .tab-label {
-    font-size: var(--font-size-sm);
   }
 }
 </style>
