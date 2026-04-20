@@ -4,135 +4,119 @@
       <template #header>
         <div class="card-header">
           <span class="title">权限</span>
-          <el-button type="primary" @click="handleCreate">
-            <el-icon><Plus /></el-icon>
-            新建权限
-          </el-button>
+          <!-- 工具栏 -->
+          <div class="toolbar">
+            <el-button @click="handleRefresh" :loading="loading">
+              <el-icon><Refresh /></el-icon>
+            </el-button>
+            <el-button type="primary" @click="handleCreate">
+              <el-icon><Plus /></el-icon>
+              新建
+            </el-button>
+            <el-button :disabled="selectedPolicies.length === 0" @click="handleBatchDisable">
+              禁用
+            </el-button>
+            <el-button :disabled="selectedPolicies.length === 0" @click="handleBatchEnable">
+              启用
+            </el-button>
+            <el-button :disabled="selectedPolicies.length === 0" @click="handleBatchDelete">
+              <el-icon><Delete /></el-icon>
+              删除
+            </el-button>
+          </div>
         </div>
       </template>
 
-      <!-- 权限类型切换 -->
+      <!-- 权限类型切换 Tabs -->
       <el-tabs v-model="activeTab" @tab-change="handleTabChange" class="permission-tabs">
-        <el-tab-pane label="全部权限" name="all"></el-tab-pane>
+        <el-tab-pane label="全部" name="all"></el-tab-pane>
         <el-tab-pane label="自定义权限" name="custom"></el-tab-pane>
         <el-tab-pane label="系统权限" name="system"></el-tab-pane>
       </el-tabs>
 
-      <!-- 筛选条件 -->
-      <el-form :inline="true" :model="filterForm" class="filter-form">
-        <el-form-item label="权限名称">
-          <el-input
-            v-model="filterForm.name"
-            placeholder="请输入权限名称"
-            clearable
-            @keyup.enter="loadPermissions"
-          />
-        </el-form-item>
-        <el-form-item label="状态">
-          <el-select v-model="filterForm.enabled" placeholder="全部" clearable style="width: 100px">
-            <el-option label="启用" :value="true" />
-            <el-option label="禁用" :value="false" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="权限范围">
-          <el-select v-model="filterForm.scope" placeholder="全部" clearable style="width: 120px">
-            <el-option label="全局" value="global" />
-            <el-option label="域" value="domain" />
-            <el-option label="项目" value="project" />
-          </el-select>
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="loadPermissions">查询</el-button>
-          <el-button @click="resetFilter">重置</el-button>
-        </el-form-item>
-      </el-form>
+      <!-- 搜索栏 -->
+      <div class="search-bar">
+        <el-dropdown trigger="click" @command="handleFieldChange">
+          <el-button>
+            {{ currentFieldLabel }} <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+          </el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="name">名称</el-dropdown-item>
+              <el-dropdown-item command="scope">策略范围</el-dropdown-item>
+              <el-dropdown-item command="enabled">启用状态</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+        <el-input
+          v-model="searchKeyword"
+          :placeholder="searchPlaceholder"
+          clearable
+          style="width: 300px"
+          @keyup.enter="loadPolicies"
+        >
+          <template #suffix>
+            <el-icon class="search-icon" @click="loadPolicies"><Search /></el-icon>
+          </template>
+        </el-input>
+        <el-button type="primary" @click="loadPolicies">查询</el-button>
+        <el-button @click="handleResetSearch">重置</el-button>
+      </div>
 
-      <!-- 权限列表 -->
-      <el-table :data="permissions" v-loading="loading" border stripe>
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="name" label="权限名称" min-width="150" show-overflow-tooltip>
+      <!-- 策略列表 -->
+      <el-table
+        :data="policies"
+        v-loading="loading"
+        border
+        stripe
+        row-key="id"
+        @selection-change="handleSelectionChange"
+      >
+        <el-table-column type="selection" width="55" />
+        <el-table-column label="名称" min-width="200" show-overflow-tooltip sortable>
           <template #default="{ row }">
-            <el-link type="primary" @click="showPermissionDetails(row)">{{ row.name }}</el-link>
+            <el-button type="primary" link @click="handleView(row)" class="name-link">
+              <span>{{ row.name }}</span>
+            </el-button>
+            <br>
+            <small style="color: #999;">{{ row.description || '-' }}</small>
           </template>
         </el-table-column>
-        <el-table-column prop="display_name" label="显示名称" min-width="150" show-overflow-tooltip />
-        <el-table-column prop="type" label="类型" width="100">
+        <el-table-column label="启用状态" width="100">
           <template #default="{ row }">
-            <el-tag :type="row.type === 'system' ? 'warning' : 'success'">
-              {{ row.type === 'system' ? '系统' : '自定义' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="enabled" label="状态" width="100">
-          <template #default="{ row }">
-            <el-tag :type="row.enabled ? 'success' : 'info'">
+            <el-tag :type="row.enabled ? 'success' : 'info'" size="small">
               {{ row.enabled ? '启用' : '禁用' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="scope" label="权限范围" width="120">
+        <el-table-column label="策略范围" width="120">
           <template #default="{ row }">
-            <el-tag
-              :type="row.scope === 'global' ? 'primary' :
-                     row.scope === 'domain' ? 'warning' :
-                     'danger'"
-            >
-              {{ row.scope === 'global' ? '全局' : row.scope === 'domain' ? '域' : '项目' }}
+            <el-tag :type="getScopeTagType(row.scope)" size="small">
+              {{ getScopeLabel(row.scope) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="domain_id" label="域" width="100">
+        <el-table-column label="所属域" width="100">
           <template #default="{ row }">
-            {{ row.domain_id || '-' }}
+            {{ row.domain_id || 'Default' }}
           </template>
         </el-table-column>
-        <el-table-column prop="resource" label="资源" width="120" show-overflow-tooltip />
-        <el-table-column prop="action" label="操作" width="120" show-overflow-tooltip />
-        <el-table-column prop="is_public" label="公开" width="80">
+        <el-table-column label="操作" width="160" fixed="right">
           <template #default="{ row }">
-            <el-tag :type="row.is_public ? 'primary' : 'info'" size="small">
-              {{ row.is_public ? '是' : '否' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="300" fixed="right">
-          <template #default="{ row }">
-            <el-button size="small" @click="showPermissionDetails(row)">详情</el-button>
-            <el-button size="small" @click="handleEdit(row)" :disabled="row.type === 'system'">编辑</el-button>
-            <el-button
-              size="small"
-              :type="row.enabled ? 'warning' : 'success'"
-              @click="handleToggleEnable(row)"
-              :disabled="row.type === 'system'"
-            >
-              {{ row.enabled ? '禁用' : '启用' }}
+            <el-button size="small" type="primary" link @click="handleEdit(row)" :disabled="row.is_system">
+              编辑
             </el-button>
-            <el-dropdown trigger="click" placement="bottom" size="small">
-              <el-button size="small" type="info">
-                更多
-                <el-icon class="el-icon--right"><arrow-down /></el-icon>
+            <el-dropdown trigger="click" @command="(cmd: string) => handleMoreCommand(cmd, row)">
+              <el-button size="small" type="primary" link>
+                更多 <el-icon><ArrowDown /></el-icon>
               </el-button>
               <template #dropdown>
                 <el-dropdown-menu>
-                  <el-dropdown-item @click="handleClone(row)">
-                    <el-icon><CopyDocument /></el-icon>
-                    克隆
-                  </el-dropdown-item>
-                  <el-dropdown-item
-                    @click="handleMakePublic(row)"
-                    :disabled="row.type === 'system' || row.is_public"
-                  >
-                    <el-icon><Promotion /></el-icon>
-                    设为公开
-                  </el-dropdown-item>
-                  <el-dropdown-item
-                    @click="handleDelete(row)"
-                    :disabled="row.type === 'system'"
-                    divided
-                  >
-                    <el-icon><Delete /></el-icon>
-                    删除
-                  </el-dropdown-item>
+                  <el-dropdown-item command="view">详情</el-dropdown-item>
+                  <el-dropdown-item command="enable" v-if="!row.enabled" :disabled="row.is_system">启用</el-dropdown-item>
+                  <el-dropdown-item command="disable" v-if="row.enabled" :disabled="row.is_system">禁用</el-dropdown-item>
+                  <el-dropdown-item command="roles">关联角色</el-dropdown-item>
+                  <el-dropdown-item command="delete" :disabled="row.is_system || !row.can_delete" divided>删除</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
             </el-dropdown>
@@ -147,96 +131,36 @@
         :total="pagination.total"
         :page-sizes="[10, 20, 50, 100]"
         layout="total, sizes, prev, pager, next, jumper"
-        @size-change="loadPermissions"
-        @current-change="loadPermissions"
+        @size-change="loadPolicies"
+        @current-change="loadPolicies"
         class="pagination"
       />
     </el-card>
 
-    <!-- 添加/编辑权限对话框 -->
-    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑权限' : '新建权限'" width="800px">
+    <!-- 创建/编辑策略对话框 -->
+    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑策略' : '新建策略'" width="600px">
       <el-form :model="form" :rules="rules" ref="formRef" label-width="100px">
         <el-form-item label="名称" prop="name">
+          <el-input v-model="form.name" placeholder="请输入策略名称" :disabled="isEdit" />
+        </el-form-item>
+        <el-form-item label="描述" prop="description">
+          <el-input v-model="form.description" type="textarea" :rows="2" placeholder="请输入策略描述" />
+        </el-form-item>
+        <el-form-item label="策略范围" prop="scope">
+          <el-select v-model="form.scope" placeholder="选择策略范围" :disabled="isEdit">
+            <el-option label="管理后台" value="system" />
+            <el-option label="无管理后台" value="domain" />
+            <el-option label="项目视图" value="project" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="策略内容" prop="policyStr">
           <el-input
-            v-model="form.name"
-            placeholder="请输入权限名称（英文标识符）"
-            :disabled="isEdit"
+            v-model="form.policyStr"
+            type="textarea"
+            :rows="6"
+            placeholder="请输入JSON格式的策略内容"
           />
         </el-form-item>
-        <el-form-item label="备注" prop="display_name">
-          <el-input v-model="form.display_name" placeholder="请输入显示名称（中文）" />
-        </el-form-item>
-        <el-form-item label="权限范围" prop="scope">
-          <el-radio-group v-model="form.scope" @change="onScopeChange">
-            <el-radio label="global">管理后台</el-radio>
-            <el-radio label="domain">无管理后台</el-radio>
-          </el-radio-group>
-        </el-form-item>
-        <el-form-item label="编辑模式">
-          <el-radio-group v-model="editorMode">
-            <el-radio label="form">表单编辑</el-radio>
-            <el-radio label="yaml">YAML编辑</el-radio>
-          </el-radio-group>
-        </el-form-item>
-        <template v-if="editorMode === 'yaml'">
-          <el-form-item label="权限内容" class="yaml-editor-container">
-            <el-input
-              v-model="yamlContent"
-              type="textarea"
-              :rows="12"
-              placeholder="请输入YAML格式的权限内容，例如：
-policy:
-  '*': allow"
-              class="yaml-textarea"
-            />
-          </el-form-item>
-        </template>
-        <template v-else>
-          <el-form-item label="资源类型" prop="resource">
-            <el-input v-model="form.resource" placeholder="请输入资源类型，如 vm, vpc, subnet 等" />
-          </el-form-item>
-          <el-form-item label="操作类型" prop="action">
-            <el-input v-model="form.action" placeholder="请输入操作类型，如 read, write, delete 等" />
-          </el-form-item>
-          <el-form-item label="描述" prop="description">
-            <el-input v-model="form.description" type="textarea" :rows="3" placeholder="请输入权限描述" />
-          </el-form-item>
-          <el-form-item label="域" prop="domain_id" v-if="form.scope === 'domain'">
-            <el-select v-model="form.domain_id" placeholder="请选择域" style="width: 100%">
-              <el-option
-                v-for="domain in domains"
-                :key="domain.id"
-                :label="domain.name"
-                :value="domain.id"
-              />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="项目" prop="project_id" v-if="form.scope === 'project'">
-            <el-select v-model="form.project_id" placeholder="请选择项目" style="width: 100%">
-              <el-option
-                v-for="project in projects"
-                :key="project.id"
-                :label="project.name"
-                :value="project.id"
-              />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="类型" prop="type" v-if="!isEdit">
-            <el-radio-group v-model="form.type">
-              <el-radio label="custom">自定义</el-radio>
-              <el-radio label="system">系统</el-radio>
-            </el-radio-group>
-          </el-form-item>
-          <el-form-item label="启用状态">
-            <el-switch v-model="form.enabled" />
-          </el-form-item>
-          <el-form-item label="设为公开">
-            <el-switch v-model="form.is_public" />
-            <div class="form-item-tip">
-              公开权限可以被其他域使用
-            </div>
-          </el-form-item>
-        </template>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
@@ -244,107 +168,149 @@ policy:
       </template>
     </el-dialog>
 
-    <!-- 权限详情对话框 -->
-    <el-dialog v-model="detailDialogVisible" title="权限详情" width="800px">
-      <el-tabs v-model="detailActiveTab">
-        <el-tab-pane label="详情" name="details">
-          <el-descriptions :column="2" border v-if="currentPermission">
-            <el-descriptions-item label="ID">{{ currentPermission.id }}</el-descriptions-item>
-            <el-descriptions-item label="权限名称">{{ currentPermission.name }}</el-descriptions-item>
-            <el-descriptions-item label="显示名称">{{ currentPermission.display_name }}</el-descriptions-item>
-            <el-descriptions-item label="资源类型">{{ currentPermission.resource }}</el-descriptions-item>
-            <el-descriptions-item label="操作类型">{{ currentPermission.action }}</el-descriptions-item>
-            <el-descriptions-item label="类型">
-              <el-tag :type="currentPermission.type === 'system' ? 'warning' : 'success'" size="small">
-                {{ currentPermission.type === 'system' ? '系统' : '自定义' }}
-              </el-tag>
-            </el-descriptions-item>
-            <el-descriptions-item label="权限范围">
-              <el-tag
-                :type="currentPermission.scope === 'global' ? 'primary' :
-                       currentPermission.scope === 'domain' ? 'warning' :
-                       'danger'"
-                size="small"
-              >
-                {{ currentPermission.scope === 'global' ? '全局' : currentPermission.scope === 'domain' ? '域' : '项目' }}
-              </el-tag>
-            </el-descriptions-item>
-            <el-descriptions-item label="域">
-              {{ currentPermission.domain_id || '-' }}
-            </el-descriptions-item>
-            <el-descriptions-item label="状态">
-              <el-tag :type="currentPermission.enabled ? 'success' : 'info'" size="small">
-                {{ currentPermission.enabled ? '启用' : '禁用' }}
-              </el-tag>
-            </el-descriptions-item>
-            <el-descriptions-item label="公开">
-              <el-tag :type="currentPermission.is_public ? 'primary' : 'info'" size="small">
-                {{ currentPermission.is_public ? '是' : '否' }}
-              </el-tag>
-            </el-descriptions-item>
-            <el-descriptions-item label="描述" :span="2">{{ currentPermission.description || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="条件" :span="2">
-              {{ currentPermission.conditions ? JSON.stringify(currentPermission.conditions) : '-' }}
-            </el-descriptions-item>
-            <el-descriptions-item label="创建时间">{{ formatDate(currentPermission.created_at) }}</el-descriptions-item>
-            <el-descriptions-item label="更新时间">{{ formatDate(currentPermission.updated_at) }}</el-descriptions-item>
-          </el-descriptions>
-        </el-tab-pane>
-        <el-tab-pane label="操作日志" name="logs">
-          <el-empty description="暂无操作日志" />
-          <!-- 在实际实现中，这里应该显示权限的操作日志 -->
-        </el-tab-pane>
-      </el-tabs>
+    <!-- 策略详情对话框 -->
+    <el-dialog v-model="detailDialogVisible" title="策略详情" width="700px">
+      <el-descriptions :column="2" border v-if="currentPolicy">
+        <el-descriptions-item label="ID">{{ currentPolicy.id }}</el-descriptions-item>
+        <el-descriptions-item label="策略名">{{ currentPolicy.name }}</el-descriptions-item>
+        <el-descriptions-item label="描述" :span="2">{{ currentPolicy.description || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="策略范围">
+          <el-tag :type="getScopeTagType(currentPolicy.scope)" size="small">
+            {{ getScopeLabel(currentPolicy.scope) }}
+          </el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="启用状态">
+          <el-tag :type="currentPolicy.enabled ? 'success' : 'info'" size="small">
+            {{ currentPolicy.enabled ? '启用' : '禁用' }}
+          </el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="系统策略">
+          <el-tag :type="currentPolicy.is_system ? 'warning' : 'success'" size="small">
+            {{ currentPolicy.is_system ? '是' : '否' }}
+          </el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="所属域">{{ currentPolicy.domain_id || 'Default' }}</el-descriptions-item>
+        <el-descriptions-item label="创建时间">{{ formatDate(currentPolicy.created_at) }}</el-descriptions-item>
+        <el-descriptions-item label="更新时间">{{ formatDate(currentPolicy.updated_at) }}</el-descriptions-item>
+      </el-descriptions>
+
+      <div style="margin-top: 20px">
+        <h4>策略内容</h4>
+        <pre class="policy-content">{{ formatPolicy(currentPolicy.policy) }}</pre>
+      </div>
+
       <template #footer>
         <el-button @click="detailDialogVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 关联角色对话框 -->
+    <el-dialog v-model="rolesDialogVisible" title="关联角色" width="600px">
+      <el-table :data="policyRoles" v-loading="rolesLoading" border stripe>
+        <el-table-column prop="id" label="ID" width="80" />
+        <el-table-column prop="name" label="角色名" min-width="150" />
+        <el-table-column prop="display_name" label="显示名" min-width="150" />
+        <el-table-column prop="description" label="描述" show-overflow-tooltip />
+      </el-table>
+      <template #footer>
+        <el-button @click="rolesDialogVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 批量删除确认弹窗 -->
+    <el-dialog v-model="batchDeleteVisible" title="批量删除确认" width="500px">
+      <p>确定要删除以下 {{ selectedPolicies.length }} 个策略吗？</p>
+      <el-table :data="selectedPolicies" border stripe max-height="300">
+        <el-table-column prop="id" label="ID" width="200" show-overflow-tooltip />
+        <el-table-column prop="name" label="策略名" />
+        <el-table-column label="系统策略" width="100">
+          <template #default="{ row }">
+            <el-tag :type="row.is_system ? 'warning' : 'success'" size="small">
+              {{ row.is_system ? '是' : '否' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+      </el-table>
+      <template #footer>
+        <el-button @click="batchDeleteVisible = false">取消</el-button>
+        <el-button type="danger" @click="handleBatchDeleteConfirm" :loading="batchDeleting">删除</el-button>
       </template>
     </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
-import { ArrowDown, Plus, CopyDocument, Promotion, Delete } from '@element-plus/icons-vue'
-import { Permission } from '@/types/permission'
+import { Refresh, Plus, Delete, ArrowDown, Search } from '@element-plus/icons-vue'
 import {
-  getPermissions,
-  createPermission,
-  updatePermission,
-  deletePermission,
-  enablePermission,
-  disablePermission,
-  clonePermission,
-  makePermissionPublic,
-  getPermission
+  getPolicies,
+  createPolicy,
+  updatePolicy,
+  deletePolicy,
+  enablePolicy,
+  disablePolicy,
+  getPolicyRoles,
+  batchEnablePolicies,
+  batchDisablePolicies,
+  batchDeletePolicies
 } from '@/api/iam'
-import { getDomains } from '@/api/iam'
-import { getProjects } from '@/api/iam'
 
-const permissions = ref<Permission[]>([])
+interface Policy {
+  id: string
+  name: string
+  description?: string
+  scope: string
+  domain_id?: string
+  policy: any
+  is_system: boolean
+  enabled: boolean
+  can_delete?: boolean
+  can_update?: boolean
+  created_at: string
+  updated_at: string
+}
+
+const policies = ref<Policy[]>([])
 const loading = ref(false)
 const dialogVisible = ref(false)
 const detailDialogVisible = ref(false)
+const rolesDialogVisible = ref(false)
+const batchDeleteVisible = ref(false)
 const isEdit = ref(false)
 const submitting = ref(false)
-const currentPermissionId = ref(0)
-const currentPermission = ref<Permission | null>(null)
+const batchDeleting = ref(false)
+const currentPolicyId = ref('')
+const currentPolicy = ref<Policy | null>(null)
+const policyRoles = ref<any[]>([])
+const selectedPolicies = ref<Policy[]>([])
+const rolesLoading = ref(false)
 const formRef = ref<FormInstance>()
-const domains = ref<{id: number, name: string}[]>([])
-const projects = ref<{id: number, name: string}[]>([])
 
-// 新增的响应式变量
-const activeTab = ref('custom') // 默认选中自定义权限
-const detailActiveTab = ref('details') // 权限详情标签页
-const editorMode = ref<'form' | 'yaml'>('form') // 编辑模式
-const yamlContent = ref('') // YAML内容
+// Tabs 筛选
+const activeTab = ref('all')
 
-const filterForm = reactive({
-  name: '',
-  type: '',
-  enabled: undefined as boolean | undefined,
-  scope: ''
+// 搜索相关
+const searchField = ref('name')
+const searchKeyword = ref('')
+
+const currentFieldLabel = computed(() => {
+  const labels: Record<string, string> = {
+    name: '名称',
+    scope: '策略范围',
+    enabled: '启用状态'
+  }
+  return labels[searchField.value] || '名称'
+})
+
+const searchPlaceholder = computed(() => {
+  const placeholders: Record<string, string> = {
+    name: '请输入策略名称...',
+    scope: '请选择范围：system/domain/project...',
+    enabled: '请输入状态：true/false...'
+  }
+  return placeholders[searchField.value] || '请输入搜索关键词...'
 })
 
 const pagination = reactive({
@@ -355,198 +321,188 @@ const pagination = reactive({
 
 const form = reactive({
   name: '',
-  display_name: '',
   description: '',
-  resource: '',
-  action: '',
-  scope: 'global' as 'global' | 'domain' | 'project',
-  domain_id: undefined as number | undefined,
-  project_id: undefined as number | undefined,
-  type: 'custom' as 'custom' | 'system',
-  enabled: true,
-  is_public: false
+  scope: 'system',
+  policyStr: '{"policy": {"statement": [{"effect": "allow", "action": ["*"], "resource": ["*"]}]}}'
 })
 
 const rules: FormRules = {
-  name: [{ required: true, message: '请输入权限名称', trigger: 'blur' }],
-  display_name: [{ required: true, message: '请输入显示名称', trigger: 'blur' }],
-  resource: [{ required: true, message: '请输入资源类型', trigger: 'blur' }],
-  action: [{ required: true, message: '请输入操作类型', trigger: 'blur' }],
-  scope: [{ required: true, message: '请选择权限范围', trigger: 'change' }]
+  name: [{ required: true, message: '请输入策略名称', trigger: 'blur' }],
+  scope: [{ required: true, message: '请选择策略范围', trigger: 'change' }],
+  policyStr: [{ required: true, message: '请输入策略内容', trigger: 'blur' }]
 }
 
-// 处理标签页切换
+// 处理 Tab 切换
 const handleTabChange = (tabName: string) => {
-  // 重置筛选条件，设置对应的类型过滤
-  filterForm.type = tabName === 'all' ? '' : tabName
   pagination.page = 1
-  loadPermissions()
+  loadPolicies()
 }
 
-// 显示权限详情
-const showPermissionDetails = async (row: Permission) => {
-  currentPermission.value = row
-  detailDialogVisible.value = true
-  detailActiveTab.value = 'details'
+const handleFieldChange = (field: string) => {
+  searchField.value = field
+  searchKeyword.value = ''
 }
 
-const loadPermissions = async () => {
+// 策略范围显示标签（参考 Cloudpods 定义）
+const getScopeLabel = (scope: string) => {
+  const labels: Record<string, string> = {
+    system: '管理后台',
+    domain: '无管理后台',
+    project: '项目视图'
+  }
+  return labels[scope] || scope
+}
+
+const getScopeTagType = (scope: string) => {
+  const types: Record<string, string> = {
+    system: 'danger',
+    domain: 'warning',
+    project: 'success'
+  }
+  return types[scope] || 'info'
+}
+
+const loadPolicies = async () => {
   loading.value = true
   try {
     const params: any = {
+      show_fail_reason: true,
+      details: true,
       limit: pagination.limit,
       offset: (pagination.page - 1) * pagination.limit
     }
-    if (filterForm.name) params.keyword = filterForm.name
-    // 如果没有明确选择类型，则不添加类型筛选
-    if (filterForm.type) params.type = filterForm.type
-    if (filterForm.enabled !== undefined) params.enabled = filterForm.enabled
-    if (filterForm.scope) params.scope = filterForm.scope
 
-    const res = await getPermissions(params)
-    permissions.value = res.items || []
+    // 根据 Tab 设置筛选参数（后端期望字符串 "true"/"false")
+    if (activeTab.value === 'system') {
+      params.is_system = 'true'
+    } else if (activeTab.value === 'custom') {
+      params.is_system = 'false'
+    }
+    // 'all' 不添加筛选参数
+
+    if (searchKeyword.value) {
+      if (searchField.value === 'name') {
+        params.keyword = searchKeyword.value
+      } else if (searchField.value === 'scope') {
+        params.scope = searchKeyword.value
+      } else if (searchField.value === 'enabled') {
+        params.enabled = searchKeyword.value === 'true'
+      }
+    }
+
+    const res = await getPolicies(params)
+    policies.value = res.data || []
     pagination.total = res.total || 0
   } catch (e: any) {
-    ElMessage.error(e.message || '加载权限列表失败')
+    ElMessage.error(e.message || '加载策略列表失败')
   } finally {
     loading.value = false
   }
 }
 
-const loadDomains = async () => {
+const loadPolicyRoles = async (policyId: string) => {
+  rolesLoading.value = true
   try {
-    const res = await getDomains({ limit: 1000 })
-    domains.value = (res.items || []).map(d => ({ id: d.id, name: d.name }))
+    const res = await getPolicyRoles(policyId)
+    policyRoles.value = res.items || []
   } catch (e: any) {
-    console.error('加载域列表失败:', e)
+    console.error(e)
+  } finally {
+    rolesLoading.value = false
   }
 }
 
-const loadProjects = async () => {
-  try {
-    const res = await getProjects({ limit: 1000 })
-    projects.value = (res.items || []).map(p => ({ id: p.id, name: p.name }))
-  } catch (e: any) {
-    console.error('加载项目列表失败:', e)
-  }
+const handleRefresh = () => {
+  loadPolicies()
 }
 
-const resetFilter = () => {
-  filterForm.name = ''
-  filterForm.type = activeTab.value === 'all' ? '' : activeTab.value
-  filterForm.enabled = undefined
-  filterForm.scope = ''
+const handleResetSearch = () => {
+  searchKeyword.value = ''
+  searchField.value = 'name'
   pagination.page = 1
-  loadPermissions()
+  loadPolicies()
 }
 
-const handleCreate = async () => {
+const handleSelectionChange = (selection: Policy[]) => {
+  selectedPolicies.value = selection
+}
+
+const handleCreate = () => {
   isEdit.value = false
   form.name = ''
-  form.display_name = ''
   form.description = ''
-  form.resource = ''
-  form.action = ''
-  form.scope = 'global'
-  form.domain_id = undefined
-  form.project_id = undefined
-  form.type = 'custom'
-  form.enabled = true
-  form.is_public = false
-
-  // 重置 YAML 内容
-  yamlContent.value = ''
-  editorMode.value = 'form'
-
+  form.scope = 'system'
+  form.policyStr = '{"policy": {"statement": [{"effect": "allow", "action": ["*"], "resource": ["*"]}]}}'
   dialogVisible.value = true
 }
 
-const handleEdit = async (row: Permission) => {
+const handleEdit = (row: Policy) => {
   isEdit.value = true
-  currentPermissionId.value = row.id
+  currentPolicyId.value = row.id
   form.name = row.name
-  form.display_name = row.display_name
-  form.description = row.description
-  form.resource = row.resource
-  form.action = row.action
+  form.description = row.description || ''
   form.scope = row.scope
-  form.domain_id = row.domain_id
-  form.project_id = row.project_id
-  form.type = row.type
-  form.enabled = row.enabled
-  form.is_public = row.is_public
-
-  // 设置为表单模式进行编辑
-  editorMode.value = 'form'
+  form.policyStr = JSON.stringify(row.policy, null, 2)
   dialogVisible.value = true
 }
 
-const handleView = async (row: Permission) => {
-  currentPermission.value = row
+const handleView = (row: Policy) => {
+  currentPolicy.value = row
   detailDialogVisible.value = true
 }
 
-const handleToggleEnable = async (row: Permission) => {
+const handleMoreCommand = (command: string, row: Policy) => {
+  switch (command) {
+    case 'view':
+      handleView(row)
+      break
+    case 'enable':
+      handleToggleEnable(row)
+      break
+    case 'disable':
+      handleToggleEnable(row)
+      break
+    case 'roles':
+      handleViewRoles(row)
+      break
+    case 'delete':
+      handleDelete(row)
+      break
+  }
+}
+
+const handleViewRoles = async (row: Policy) => {
+  currentPolicyId.value = row.id
+  await loadPolicyRoles(row.id)
+  rolesDialogVisible.value = true
+}
+
+const handleToggleEnable = async (row: Policy) => {
   try {
     const action = row.enabled ? '禁用' : '启用'
-    await ElMessageBox.confirm(`确定要${action}该权限吗？`, '提示', { type: 'warning' })
+    await ElMessageBox.confirm(`确定要${action}该策略吗？`, '提示', { type: 'warning' })
 
     if (row.enabled) {
-      await disablePermission(row.id)
+      await disablePolicy(row.id)
     } else {
-      await enablePermission(row.id)
+      await enablePolicy(row.id)
     }
 
     ElMessage.success(`${action}成功`)
-    loadPermissions()
+    loadPolicies()
   } catch (e: any) {
     if (e !== 'cancel') {
-      ElMessage.error(e.message || `${action}失败`)
+      ElMessage.error(e.message || `${row.enabled ? '禁用' : '启用'}失败`)
     }
   }
 }
 
-const handleClone = async (row: Permission) => {
+const handleDelete = async (row: Policy) => {
   try {
-    await ElMessageBox.confirm('确定要克隆该权限吗？', '提示', { type: 'warning' })
-
-    // 生成克隆后的默认名称
-    const clonedName = `${row.name}-copy`
-    const clonedDisplayName = `${row.display_name || row.name} (副本)`
-
-    await clonePermission(row.id, {
-      name: clonedName,
-      display_name: clonedDisplayName
-    })
-
-    ElMessage.success('克隆成功')
-    loadPermissions()
-  } catch (e: any) {
-    if (e !== 'cancel') {
-      ElMessage.error(e.message || '克隆失败')
-    }
-  }
-}
-
-const handleMakePublic = async (row: Permission) => {
-  try {
-    await ElMessageBox.confirm('确定要将该权限设为公开吗？公开后其他域的用户也可以使用此权限。', '提示', { type: 'warning' })
-    await makePermissionPublic(row.id)
-    ElMessage.success('设为公开成功')
-    loadPermissions()
-  } catch (e: any) {
-    if (e !== 'cancel') {
-      ElMessage.error(e.message || '设为公开失败')
-    }
-  }
-}
-
-const handleDelete = async (row: Permission) => {
-  try {
-    await ElMessageBox.confirm('确定要删除该权限吗？', '提示', { type: 'warning' })
-    await deletePermission(row.id)
+    await ElMessageBox.confirm('确定要删除该策略吗？', '提示', { type: 'warning' })
+    await deletePolicy(row.id)
     ElMessage.success('删除成功')
-    loadPermissions()
+    loadPolicies()
   } catch (e: any) {
     if (e !== 'cancel') {
       ElMessage.error(e.message || '删除失败')
@@ -554,40 +510,97 @@ const handleDelete = async (row: Permission) => {
   }
 }
 
-const handleSubmit = async () => {
-  if (!formRef.value) return
-
-  if (editorMode.value === 'yaml') {
-    // 如果是YAML模式，需要解析YAML并填充到表单
-    // 这里简单处理，实际上可能需要更复杂的YAML解析
-    try {
-      // 模拟解析YAML，提取必要字段
-      const parsedYaml = yamlContent.value
-      if (!parsedYaml.trim()) {
-        ElMessage.error('YAML内容不能为空')
-        return
-      }
-      // 在实际应用中，这里需要真正的YAML解析逻辑
-    } catch (e) {
-      ElMessage.error('YAML格式错误，请检查语法')
-      return
+const handleBatchEnable = async () => {
+  if (selectedPolicies.value.length === 0) {
+    ElMessage.warning('请先选择要启用的策略')
+    return
+  }
+  try {
+    await ElMessageBox.confirm(`确定要启用选中的 ${selectedPolicies.value.length} 个策略吗？`, '提示', { type: 'warning' })
+    const ids = selectedPolicies.value.map(p => p.id)
+    await batchEnablePolicies(ids)
+    ElMessage.success('批量启用成功')
+    selectedPolicies.value = []
+    loadPolicies()
+  } catch (e: any) {
+    if (e !== 'cancel') {
+      ElMessage.error(e.message || '批量启用失败')
     }
   }
+}
+
+const handleBatchDisable = async () => {
+  if (selectedPolicies.value.length === 0) {
+    ElMessage.warning('请先选择要禁用的策略')
+    return
+  }
+  try {
+    await ElMessageBox.confirm(`确定要禁用选中的 ${selectedPolicies.value.length} 个策略吗？`, '提示', { type: 'warning' })
+    const ids = selectedPolicies.value.map(p => p.id)
+    await batchDisablePolicies(ids)
+    ElMessage.success('批量禁用成功')
+    selectedPolicies.value = []
+    loadPolicies()
+  } catch (e: any) {
+    if (e !== 'cancel') {
+      ElMessage.error(e.message || '批量禁用失败')
+    }
+  }
+}
+
+const handleBatchDelete = () => {
+  if (selectedPolicies.value.length === 0) {
+    ElMessage.warning('请先选择要删除的策略')
+    return
+  }
+  const systemPolicies = selectedPolicies.value.filter(p => p.is_system)
+  if (systemPolicies.length > 0) {
+    ElMessage.warning('不能删除系统策略，请重新选择')
+    return
+  }
+  batchDeleteVisible.value = true
+}
+
+const handleBatchDeleteConfirm = async () => {
+  batchDeleting.value = true
+  try {
+    const ids = selectedPolicies.value.map(p => p.id)
+    await batchDeletePolicies(ids)
+    ElMessage.success(`成功删除 ${selectedPolicies.value.length} 个策略`)
+    batchDeleteVisible.value = false
+    selectedPolicies.value = []
+    loadPolicies()
+  } catch (e: any) {
+    ElMessage.error(e.message || '批量删除失败')
+  } finally {
+    batchDeleting.value = false
+  }
+}
+
+const handleSubmit = async () => {
+  if (!formRef.value) return
 
   await formRef.value.validate(async (valid) => {
     if (!valid) return
 
     submitting.value = true
     try {
+      const policyData = {
+        name: form.name,
+        description: form.description,
+        scope: form.scope,
+        policy: JSON.parse(form.policyStr)
+      }
+
       if (isEdit.value) {
-        await updatePermission(currentPermissionId.value, form)
+        await updatePolicy(currentPolicyId.value, policyData)
         ElMessage.success('更新成功')
       } else {
-        await createPermission(form)
+        await createPolicy(policyData)
         ElMessage.success('创建成功')
       }
       dialogVisible.value = false
-      loadPermissions()
+      loadPolicies()
     } catch (e: any) {
       ElMessage.error(e.message || (isEdit.value ? '更新失败' : '创建失败'))
     } finally {
@@ -596,30 +609,22 @@ const handleSubmit = async () => {
   })
 }
 
-const onScopeChange = (val: string) => {
-  if (val !== 'domain') {
-    form.domain_id = undefined
-  }
-  if (val !== 'project') {
-    form.project_id = undefined
-  }
-}
-
 const formatDate = (date: string) => {
   if (!date) return '-'
   return new Date(date).toLocaleString('zh-CN')
 }
 
-onMounted(async () => {
-  // 默认加载自定义权限
-  filterForm.type = 'custom'
-  activeTab.value = 'custom'
+const formatPolicy = (policy: any) => {
+  if (!policy) return '-'
+  try {
+    return JSON.stringify(policy, null, 2)
+  } catch {
+    return policy
+  }
+}
 
-  loadPermissions()
-  await Promise.all([
-    loadDomains(),
-    loadProjects()
-  ])
+onMounted(() => {
+  loadPolicies()
 })
 </script>
 
@@ -644,12 +649,25 @@ onMounted(async () => {
   font-weight: bold;
 }
 
+.toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
 .permission-tabs {
   margin-bottom: 16px;
 }
 
-.filter-form {
-  margin-bottom: 16px;
+.search-bar {
+  display: flex;
+  gap: 8px;
+  padding: 12px 0;
+  align-items: center;
+}
+
+.search-icon {
+  cursor: pointer;
 }
 
 .pagination {
@@ -658,28 +676,12 @@ onMounted(async () => {
   justify-content: flex-end;
 }
 
-.perm-dialog-header {
-  margin-bottom: 16px;
-  padding: 10px;
+.policy-content {
   background-color: #f5f7fa;
+  padding: 15px;
   border-radius: 4px;
-}
-
-.form-item-tip {
+  overflow-x: auto;
   font-size: 12px;
-  color: #999;
-  margin-top: 4px;
-}
-
-.yaml-editor-container {
-  width: 100%;
-}
-
-.yaml-textarea textarea {
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  background-color: #2d333b;
-  color: #c9d1d9;
-  padding: 10px;
-  border-radius: 4px;
+  max-height: 300px;
 }
 </style>

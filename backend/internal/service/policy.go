@@ -25,7 +25,7 @@ func NewPolicyService(db *gorm.DB) *PolicyService {
 }
 
 // ListPolicies 列出策略
-func (s *PolicyService) ListPolicies(ctx context.Context, scope string, domainID *string, limit, offset int) ([]model.Policy, int64, error) {
+func (s *PolicyService) ListPolicies(ctx context.Context, scope string, domainID *string, isSystem *bool, limit, offset int) ([]model.Policy, int64, error) {
 	var policies []model.Policy
 	var total int64
 
@@ -39,6 +39,11 @@ func (s *PolicyService) ListPolicies(ctx context.Context, scope string, domainID
 	// 按域 ID 筛选
 	if domainID != nil && *domainID != "" {
 		query = query.Where("domain_id = ? OR scope = 'system'", *domainID)
+	}
+
+	// 按系统策略筛选
+	if isSystem != nil {
+		query = query.Where("is_system = ?", *isSystem)
 	}
 
 	// 获取总数
@@ -422,4 +427,24 @@ func matchAction(policyAction, requestedAction string) bool {
 	}
 
 	return false
+}
+
+// SetPolicyEnabled 设置策略启用状态
+func (s *PolicyService) SetPolicyEnabled(ctx context.Context, id string, enabled bool) error {
+	return s.db.WithContext(ctx).Model(&model.Policy{}).Where("id = ?", id).Update("enabled", enabled).Error
+}
+
+// GetPolicyRoles 获取策略关联的角色列表
+func (s *PolicyService) GetPolicyRoles(ctx context.Context, policyID string) ([]model.Role, error) {
+	var roles []model.Role
+	err := s.db.WithContext(ctx).
+		Joins("JOIN role_policies ON roles.id = role_policies.role_id").
+		Where("role_policies.policy_id = ?", policyID).
+		Find(&roles).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return roles, nil
 }

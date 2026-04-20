@@ -68,8 +68,27 @@ func (h *RoleHandler) List(c *gin.Context) {
 		return
 	}
 
+	// 为每个角色添加 policies_count
+	items := make([]gin.H, len(roles))
+	for i, role := range roles {
+		policiesCount, _ := h.service.GetRolePoliciesCount(c.Request.Context(), role.ID)
+		items[i] = gin.H{
+			"id":            role.ID,
+			"name":          role.Name,
+			"display_name":  role.DisplayName,
+			"description":   role.Description,
+			"domain_id":     role.DomainID,
+			"type":          role.Type,
+			"enabled":       role.Enabled,
+			"is_public":     role.IsPublic,
+			"created_at":    role.CreatedAt,
+			"updated_at":    role.UpdatedAt,
+			"policies_count": policiesCount,
+		}
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"items": roles,
+		"items": items,
 		"total": total,
 	})
 }
@@ -347,4 +366,50 @@ func (h *RoleHandler) RevokePolicyFromRole(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "revoked"})
+}
+
+// BatchDelete 批量删除角色
+func (h *RoleHandler) BatchDelete(c *gin.Context) {
+	var req struct {
+		RoleIDs []uint `json:"role_ids" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if len(req.RoleIDs) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "role_ids is required"})
+		return
+	}
+
+	// 检查是否包含系统角色
+	for _, roleID := range req.RoleIDs {
+		role, err := h.service.GetRole(c.Request.Context(), roleID)
+		if err != nil {
+			h.logger.Error("failed to get role", zap.Error(err))
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if role != nil && role.Type == "system" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "cannot delete system role"})
+			return
+		}
+	}
+
+	// 执行批量删除
+	count := 0
+	for _, roleID := range req.RoleIDs {
+		if err := h.service.DeleteRole(c.Request.Context(), roleID); err != nil {
+			h.logger.Error("failed to delete role", zap.Uint("role_id", roleID), zap.Error(err))
+			continue
+		}
+		count++
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "deleted",
+		"count":   count,
+		"total":   len(req.RoleIDs),
+	})
 }

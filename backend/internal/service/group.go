@@ -37,7 +37,7 @@ func (s *GroupService) GetGroup(ctx context.Context, id uint) (*model.Group, err
 }
 
 // ListGroups 列出用户组
-func (s *GroupService) ListGroups(ctx context.Context, domainID *uint, limit, offset int) ([]*model.Group, int64, error) {
+func (s *GroupService) ListGroups(ctx context.Context, domainID *uint, keyword string, limit, offset int) ([]*model.Group, int64, error) {
 	var groups []*model.Group
 	var total int64
 
@@ -46,11 +46,15 @@ func (s *GroupService) ListGroups(ctx context.Context, domainID *uint, limit, of
 		query = query.Where("domain_id = ?", *domainID)
 	}
 
+	if keyword != "" {
+		query = query.Where("name LIKE ? OR description LIKE ?", "%"+keyword+"%", "%"+keyword+"%")
+	}
+
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	err := s.db.WithContext(ctx).
+	err := query.WithContext(ctx).
 		Limit(limit).
 		Offset(offset).
 		Order("created_at DESC").
@@ -161,4 +165,21 @@ func (s *GroupService) GetGroupProjects(ctx context.Context, groupID uint, limit
 		Find(&projects).Error
 
 	return projects, total, err
+}
+
+// BatchDeleteGroups 批量删除用户组
+func (s *GroupService) BatchDeleteGroups(ctx context.Context, ids []uint) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	// 先删除关联的用户组关系
+	if err := s.db.WithContext(ctx).Where("group_id IN ?", ids).Delete(&model.UserGroup{}).Error; err != nil {
+		return err
+	}
+	// 删除关联的项目关系
+	if err := s.db.WithContext(ctx).Where("group_id IN ?", ids).Delete(&model.GroupProject{}).Error; err != nil {
+		return err
+	}
+	// 批量删除用户组
+	return s.db.WithContext(ctx).Where("id IN ?", ids).Delete(&model.Group{}).Error
 }

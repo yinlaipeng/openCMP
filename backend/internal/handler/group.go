@@ -15,6 +15,7 @@ import (
 // GroupHandler 用户组 Handler
 type GroupHandler struct {
 	service *service.GroupService
+	db      *gorm.DB
 	logger  *zap.Logger
 }
 
@@ -22,8 +23,25 @@ type GroupHandler struct {
 func NewGroupHandler(db *gorm.DB, logger *zap.Logger) *GroupHandler {
 	return &GroupHandler{
 		service: service.NewGroupService(db),
+		db:      db,
 		logger:  logger,
 	}
+}
+
+// GroupResponse 用户组响应结构（带统计字段）
+type GroupResponse struct {
+	ID          uint   `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	DomainID    uint   `json:"domain_id"`
+	CreatedAt   string `json:"created_at"`
+	UpdatedAt   string `json:"updated_at"`
+	// 统计字段
+	UserCount    int  `json:"user_count"`
+	ProjectCount int  `json:"project_count"`
+	IsSSO        bool `json:"is_sso"`
+	CanDelete    bool `json:"can_delete"`
+	CanUpdate    bool `json:"can_update"`
 }
 
 // CreateGroupRequest 创建用户组请求
@@ -38,6 +56,7 @@ type CreateGroupRequest struct {
 func (h *GroupHandler) List(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	details := c.Query("details") == "true"
 
 	var domainID *uint
 	if d := c.Query("domain_id"); d != "" {
@@ -46,10 +65,26 @@ func (h *GroupHandler) List(c *gin.Context) {
 		domainID = &uid
 	}
 
-	groups, total, err := h.service.ListGroups(c.Request.Context(), domainID, limit, offset)
+	keyword := c.Query("keyword")
+
+	groups, total, err := h.service.ListGroups(c.Request.Context(), domainID, keyword, limit, offset)
 	if err != nil {
 		h.logger.Error("failed to list groups", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 如果需要详细信息，添加统计字段
+	if details {
+		var responses []GroupResponse
+		for _, g := range groups {
+			resp := h.buildGroupResponse(g)
+			responses = append(responses, resp)
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"items": responses,
+			"total": total,
+		})
 		return
 	}
 
@@ -57,6 +92,41 @@ func (h *GroupHandler) List(c *gin.Context) {
 		"items": groups,
 		"total": total,
 	})
+}
+
+// buildGroupResponse 构建用户组响应（带统计字段）
+func (h *GroupHandler) buildGroupResponse(g *model.Group) GroupResponse {
+	resp := GroupResponse{
+		ID:          g.ID,
+		Name:        g.Name,
+		Description: g.Description,
+		DomainID:    g.DomainID,
+		CreatedAt:   g.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		UpdatedAt:   g.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+		IsSSO:       false,
+		CanDelete:   true,
+		CanUpdate:   true,
+	}
+
+	// 计算统计字段
+	resp.UserCount = h.countGroupUsers(g.ID)
+	resp.ProjectCount = h.countGroupProjects(g.ID)
+
+	return resp
+}
+
+// countGroupUsers 计算用户组用户数量
+func (h *GroupHandler) countGroupUsers(groupID uint) int {
+	var count int64
+	h.db.Table("user_groups").Where("group_id = ?", groupID).Count(&count)
+	return int(count)
+}
+
+// countGroupProjects 计算用户组项目数量
+func (h *GroupHandler) countGroupProjects(groupID uint) int {
+	var count int64
+	h.db.Table("group_projects").Where("group_id = ?", groupID).Count(&count)
+	return int(count)
 }
 
 // Get 获取用户组详情
@@ -304,5 +374,35 @@ func (h *GroupHandler) GetProjects(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"items": projects,
 		"total": total,
+	})
+}
+
+// BatchDeleteRequest 批量删除请求
+type BatchDeleteRequest struct {
+	GroupIDs []uint `json:"group_ids" binding:"required"`
+}
+
+// BatchDelete 批量删除用户组
+func (h *GroupHandler) BatchDelete(c *gin.Context) {
+	var req BatchDeleteRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if len(req.GroupIDs) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "group_ids is required"})
+		return
+	}
+
+	if err := h.service.BatchDeleteGroups(c.Request.Context(), req.GroupIDs); err != nil {
+		h.logger.Error("failed to batch delete groups", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "deleted",
+		"count":   len(req.GroupIDs),
 	})
 }

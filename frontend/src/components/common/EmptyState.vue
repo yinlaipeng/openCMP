@@ -15,12 +15,13 @@
 </template>
 
 <script setup lang="ts">
+import type { Component } from 'vue'
 import { Plus, FolderOpened, Document, Timer } from '@element-plus/icons-vue'
 
 interface Props {
   title?: string
   description?: string
-  icon?: any
+  icon?: Component
   showCreateButton?: boolean
   createButtonText?: string
 }
@@ -28,7 +29,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   title: '暂无数据',
   description: '当前没有任何数据，点击下方按钮创建',
-  icon: FolderOpened,
+  icon: () => FolderOpened,
   showCreateButton: true,
   createButtonText: '添加'
 })

@@ -319,13 +319,13 @@
           <!-- 根据环境显示不同的消息中心选项 -->
           <el-menu-item v-if="currentEnvironment.type === 'management_console'" index="/message-center/inbox">站内信</el-menu-item>
           <el-menu-item v-else index="/message-center/project-inbox">项目站内信</el-menu-item>
-          <el-menu-item v-if="currentEnvironment.type === 'management_console'" index="/message-center/channels">通知渠道</el-menu-item>
-          <el-menu-item v-else index="/message-center/project-channels">项目通知渠道</el-menu-item>
+          <el-menu-item v-if="currentEnvironment.type === 'management_console'" index="/message-center/channels">通知渠道设置</el-menu-item>
+          <el-menu-item v-else index="/message-center/project-channels">项目通知渠道设置</el-menu-item>
           <el-menu-item v-if="currentEnvironment.type === 'management_console'" index="/message-center/robots">机器人管理</el-menu-item>
           <el-menu-item v-else index="/message-center/project-robots">项目机器人管理</el-menu-item>
           <el-menu-item v-if="currentEnvironment.type === 'management_console'" index="/message-center/receivers">接收人管理</el-menu-item>
           <el-menu-item v-else index="/message-center/project-receivers">项目接收人管理</el-menu-item>
-          <el-menu-item v-if="currentEnvironment.type === 'management_console'" index="/message-center/subscriptions">消息订阅</el-menu-item>
+          <el-menu-item v-if="currentEnvironment.type === 'management_console'" index="/message-center/message-types">消息订阅设置</el-menu-item>
           <el-menu-item v-else index="/message-center/project-subscriptions">项目消息订阅</el-menu-item>
         </el-sub-menu>
 

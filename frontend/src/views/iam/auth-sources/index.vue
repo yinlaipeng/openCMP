@@ -12,54 +12,93 @@
       </template>
 
       <!-- 筛选条件 -->
-      <el-form :inline="true" :model="filterForm" class="filter-form">
-        <el-form-item label="名称">
-          <el-input
-            v-model="filterForm.name"
-            placeholder="请输入名称"
-            clearable
-            style="width: 200px"
-            @keyup.enter="loadSources"
-          />
-        </el-form-item>
-        <el-form-item label="类型">
-          <el-select 
-            v-model="filterForm.type" 
-            placeholder="全部" 
-            clearable 
-            style="width: 120px"
-          >
-            <el-option label="LDAP" value="ldap" />
-            <el-option label="本地" value="local" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="范围">
-          <el-select 
-            v-model="filterForm.scope" 
-            placeholder="全部" 
-            clearable 
-            style="width: 120px"
-          >
-            <el-option label="系统" value="system" />
-            <el-option label="域" value="domain" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="状态">
-          <el-select
-            v-model="filterForm.enabled"
-            placeholder="全部"
-            clearable
-            style="width: 100px"
-          >
-            <el-option label="启用" :value="true" />
-            <el-option label="禁用" :value="false" />
-          </el-select>
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="loadSources">查询</el-button>
-          <el-button @click="resetFilter">重置</el-button>
-        </el-form-item>
-      </el-form>
+      <div class="filter-bar">
+        <el-form :inline="true" :model="filterForm" class="filter-form">
+          <el-form-item label="搜索字段">
+            <el-select
+              v-model="filterForm.searchField"
+              placeholder="选择搜索字段"
+              style="width: 140px"
+            >
+              <el-option label="名称" value="name" />
+              <el-option label="备注" value="description" />
+            </el-select>
+          </el-form-item>
+          <el-form-item>
+            <el-input
+              v-model="filterForm.keyword"
+              placeholder="请输入搜索关键词"
+              clearable
+              style="width: 200px"
+              @keyup.enter="loadSources"
+            >
+              <template #prefix>
+                <el-icon><Search /></el-icon>
+              </template>
+            </el-input>
+          </el-form-item>
+          <el-divider direction="vertical" />
+          <el-form-item label="类型">
+            <el-select
+              v-model="filterForm.type"
+              placeholder="全部"
+              clearable
+              style="width: 100px"
+            >
+              <el-option label="LDAP" value="ldap" />
+              <el-option label="本地" value="local" />
+              <el-option label="SQL" value="sql" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="范围">
+            <el-select
+              v-model="filterForm.scope"
+              placeholder="全部"
+              clearable
+              style="width: 100px"
+            >
+              <el-option label="系统" value="system" />
+              <el-option label="域" value="domain" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="状态">
+            <el-select
+              v-model="filterForm.enabled"
+              placeholder="全部"
+              clearable
+              style="width: 100px"
+            >
+              <el-option label="启用" :value="true" />
+              <el-option label="禁用" :value="false" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="同步状态">
+            <el-select
+              v-model="filterForm.sync_status"
+              placeholder="全部"
+              clearable
+              style="width: 120px"
+            >
+              <el-option label="已同步" value="synced" />
+              <el-option label="同步中" value="syncing" />
+              <el-option label="失败" value="failed" />
+              <el-option label="待同步" value="pending" />
+              <el-option label="从未同步" value="never" />
+              <el-option label="空闲" value="idle" />
+            </el-select>
+          </el-form-item>
+        </el-form>
+        <div class="filter-actions">
+          <el-button type="primary" @click="loadSources">
+            <el-icon><Search /></el-icon>
+            查询
+          </el-button>
+          <el-button @click="resetFilter">
+            <el-icon><Refresh /></el-icon>
+            重置
+          </el-button>
+        </div>
+      </div>
 
       <!-- 认证源列表 -->
       <el-table
@@ -214,13 +253,23 @@
 
         <el-form-item label="认证类型" prop="config.auth_type" v-if="form.type === 'ldap'">
           <el-select v-model="form.config.auth_type" placeholder="请选择认证类型" style="width: 100%">
-            <el-option label="OpenLDAP" value="openldap" />
+            <el-option label="Microsoft AD 单域" value="ad_single" />
+            <el-option label="Microsoft AD 多域" value="ad_multiple" />
+            <el-option label="OpenLDAP/FreeIPA 单域" value="openldap" />
           </el-select>
+          <div class="form-item-tip">选择 LDAP 服务器类型</div>
         </el-form-item>
 
-        <el-form-item label="用户归属" prop="config.target_domain">
-          <el-input v-model="form.config.target_domain" placeholder="请输入用户归属域名称，留空则系统会创建同认证源名称的域（遇到同名会追加后缀'-1'）" />
-          <div class="form-item-tip">用户归属域名称，留空则系统会创建同认证源名称的域（遇到同名会追加后缀"-1"）</div>
+        <el-form-item label="用户归属目标域" prop="config.target_domain">
+          <el-select v-model="form.config.target_domain" placeholder="请选择用户归属目标域（留空则自动创建）" clearable filterable style="width: 100%">
+            <el-option
+              v-for="item in domains"
+              :key="item.id"
+              :label="item.name"
+              :value="item.name"
+            />
+          </el-select>
+          <div class="form-item-tip">选择用户归属的目标域，留空则系统会自动创建与认证源同名的域</div>
         </el-form-item>
 
         <el-form-item label="启用">
@@ -283,6 +332,14 @@
           <el-form-item label="用户名属性" prop="config.user_name_attribute">
             <el-input v-model="form.config.user_name_attribute" placeholder="cn" />
             <div class="form-item-tip">用于显示用户名的属性，默认为 cn</div>
+          </el-form-item>
+
+          <el-form-item label="用户启用状态" prop="config.user_enabled_status">
+            <el-radio-group v-model="form.config.user_enabled_status">
+              <el-radio label="enabled">启用</el-radio>
+              <el-radio label="disabled">禁用</el-radio>
+            </el-radio-group>
+            <div class="form-item-tip">同步用户时的默认启用状态</div>
           </el-form-item>
 
           <!-- 测试 LDAP 连接和用户查询按钮 -->
@@ -412,7 +469,7 @@
 import { ref, reactive, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
-import { User, Connection, Plus, QuestionFilled, ArrowDown, FullScreen, Crop } from '@element-plus/icons-vue'
+import { User, Connection, Plus, QuestionFilled, ArrowDown, FullScreen, Crop, Search, Refresh } from '@element-plus/icons-vue'
 import { AuthSource, Domain, OperationLog } from '@/types/iam'
 import {
   getAuthSources,
@@ -454,10 +511,13 @@ const logPagination = reactive({
 })
 
 const filterForm = reactive({
+  searchField: 'name',
+  keyword: '',
   name: '',
   type: '',
   scope: '',
-  enabled: undefined as boolean | undefined
+  enabled: undefined as boolean | undefined,
+  sync_status: ''
 })
 
 const pagination = reactive({
@@ -484,8 +544,9 @@ const form = reactive({
     user_search_base: '',
     group_search_base: '',
     user_enabled_attribute: 'enabled',
+    user_enabled_status: 'enabled',
     protocol: 'ldap',
-    auth_type: 'openldap', // 只保留OpenLDAP作为认证类型
+    auth_type: 'openldap',
     target_domain: ''
   }
 })
@@ -524,6 +585,15 @@ const getTypeName = (type: string) => {
     sql: 'SQL'
   }
   return map[type] || type
+}
+
+const getAuthTypeName = (authType: string) => {
+  const map: Record<string, string> = {
+    'ad_single': 'Microsoft AD 单域',
+    'ad_multiple': 'Microsoft AD 多域',
+    'openldap': 'OpenLDAP/FreeIPA 单域'
+  }
+  return map[authType] || authType
 }
 
 const getTypeTag = (type: string) => {
@@ -612,10 +682,18 @@ const loadSources = async () => {
       limit: pagination.limit,
       offset: (pagination.page - 1) * pagination.limit
     }
-    if (filterForm.name) params.name = filterForm.name
+    // 根据搜索字段和关键词进行搜索
+    if (filterForm.keyword) {
+      if (filterForm.searchField === 'name') {
+        params.name = filterForm.keyword
+      } else if (filterForm.searchField === 'description') {
+        params.description = filterForm.keyword
+      }
+    }
     if (filterForm.type) params.type = filterForm.type
     if (filterForm.scope) params.scope = filterForm.scope
     if (filterForm.enabled !== undefined) params.enabled = filterForm.enabled
+    if (filterForm.sync_status) params.sync_status = filterForm.sync_status
 
     const res = await getAuthSources(params)
     sources.value = (res.items || []).map((item: any) => ({
@@ -696,11 +774,13 @@ const loadOperationLogs = async () => {
 }
 
 const resetFilter = () => {
+  filterForm.searchField = 'name'
   filterForm.keyword = ''
   filterForm.name = ''
   filterForm.type = ''
   filterForm.scope = ''
   filterForm.enabled = undefined
+  filterForm.sync_status = ''
   pagination.page = 1
   loadSources()
 }
@@ -724,6 +804,7 @@ const handleCreate = async () => {
     user_search_base: '',
     group_search_base: '',
     user_enabled_attribute: 'enabled',
+    user_enabled_status: 'enabled',
     protocol: 'ldap',
     auth_type: 'openldap',
     target_domain: ''
@@ -752,8 +833,9 @@ const handleEdit = (row: AuthSource) => {
     user_search_base: row.config?.user_search_base || '',
     group_search_base: row.config?.group_search_base || '',
     user_enabled_attribute: row.config?.user_enabled_attribute || 'enabled',
+    user_enabled_status: row.config?.user_enabled_status || 'enabled',
     protocol: row.config?.protocol || 'ldap',
-    auth_type: row.config?.auth_type || 'openldap', // 确保认证类型正确赋值
+    auth_type: row.config?.auth_type || 'openldap',
     target_domain: row.config?.target_domain || ''
   }
   dialogVisible.value = true
@@ -991,6 +1073,7 @@ const handleSubmit = async () => {
           user_search_base: form.config.user_search_base,
           group_search_base: form.config.group_search_base,
           user_enabled_attribute: form.config.user_enabled_attribute,
+          user_enabled_status: form.config.user_enabled_status,
           protocol: form.config.protocol,
           auth_type: form.config.auth_type,
           target_domain: form.config.target_domain
@@ -1070,11 +1153,40 @@ onMounted(() => {
   color: #303133;
 }
 
-.filter-form {
+.filter-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
   margin-bottom: 16px;
-  padding: 16px;
-  background-color: #f5f7fa;
+  padding: 16px 20px;
+  background-color: #fff;
   border-radius: 4px;
+  border: 1px solid #ebeef5;
+}
+
+.filter-form {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-form .el-form-item {
+  margin-bottom: 0;
+  margin-right: 8px;
+}
+
+.filter-form .el-divider--vertical {
+  height: 24px;
+  margin: 0 12px;
+}
+
+.filter-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 16px;
 }
 
 .pagination {

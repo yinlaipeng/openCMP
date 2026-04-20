@@ -306,7 +306,89 @@ func (h *RobotHandler) testGenericWebhook(robot *model.Robot) (bool, string, str
 		"robot":     robot.Name,
 	}
 
-	return h.sendWebhookMessage(robot.WebhookURL, msg, "通用Webhook")
+	// 如果有自定义消息键，使用它
+	if robot.MsgKey != "" {
+		msg[robot.MsgKey] = "openCMP系统测试消息"
+	}
+
+	// 如果有自定义请求体模板，使用它（替换变量）
+	if robot.Body != "" {
+		bodyTemplate := robot.Body
+		bodyTemplate = replaceVariables(bodyTemplate, "openCMP系统测试消息", "openCMP测试", time.Now().Format("2006-01-02 15:04:05"))
+		// 尝试解析为JSON
+		var customBody map[string]interface{}
+		if err := json.Unmarshal([]byte(bodyTemplate), &customBody); err == nil {
+			msg = customBody
+		}
+	}
+
+	return h.sendWebhookMessageWithHeaders(robot.WebhookURL, msg, robot.Header, "通用Webhook")
+}
+
+// replaceVariables 替换模板变量
+func replaceVariables(template, message, title, timestamp string) string {
+	result := template
+	result = replaceAllString(result, "{{message}}", message)
+	result = replaceAllString(result, "{{title}}", title)
+	result = replaceAllString(result, "{{timestamp}}", timestamp)
+	return result
+}
+
+// replaceAllString 字符串替换
+func replaceAllString(s, old, new string) string {
+	return string(bytes.ReplaceAll([]byte(s), []byte(old), []byte(new)))
+}
+
+// sendWebhookMessageWithHeaders 发送Webhook消息（支持自定义请求头）
+func (h *RobotHandler) sendWebhookMessageWithHeaders(webhookURL string, msg map[string]interface{}, customHeader string, platform string) (bool, string, string) {
+	msgBytes, err := json.Marshal(msg)
+	if err != nil {
+		return false, "消息格式化失败", err.Error()
+	}
+
+	client := &http.Client{Timeout: 10 * time.Second}
+
+	// 创建请求
+	req, err := http.NewRequest("POST", webhookURL, bytes.NewReader(msgBytes))
+	if err != nil {
+		return false, "请求创建失败", err.Error()
+	}
+
+	// 设置默认请求头
+	req.Header.Set("Content-Type", "application/json")
+
+	// 如果有自定义请求头，解析并设置
+	if customHeader != "" {
+		var headers map[string]string
+		if err := json.Unmarshal([]byte(customHeader), &headers); err == nil {
+			for key, value := range headers {
+				req.Header.Set(key, value)
+			}
+		}
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return false, "消息发送失败", err.Error()
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		return true, platform + "机器人测试成功", "HTTP状态码: " + resp.Status
+	}
+
+	// 尝试解析错误响应
+	var respBody map[string]interface{}
+	json.NewDecoder(resp.Body).Decode(&respBody)
+
+	errMsg := "HTTP状态码: " + resp.Status
+	if respBody != nil {
+		if errmsg, ok := respBody["errmsg"].(string); ok {
+			errMsg += ", 错误信息: " + errmsg
+		}
+	}
+
+	return false, platform + "机器人返回错误", errMsg
 }
 
 // sendWebhookMessage 发送Webhook消息

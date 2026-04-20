@@ -101,18 +101,27 @@ type EmailConfig struct {
 	SMTPPassword string `json:"smtp_password"`
 	FromAddress  string `json:"from_address"`
 	FromName     string `json:"from_name"`
-	UseTLS       bool   `json:"use_tls"`
+	UseTLS       bool   `json:"use_tls"` // 启用 TLS
+	UseSSL       bool   `json:"use_ssl"` // 启用 SSL（Cloudpods 兼容）
 }
 
-// DingTalkConfig 钉钉配置
+// DingTalkConfig 钉钉配置（应用凭证模式）
 type DingTalkConfig struct {
-	WebhookURL string `json:"webhook_url"`
-	Secret     string `json:"secret"`
+	AgentId  string `json:"agent_id"`  // 应用 AgentId
+	AppKey   string `json:"app_key"`   // 应用 AppKey
+	AppSecret string `json:"app_secret"` // 应用 AppSecret
+	// Webhook 模式（向后兼容）
+	WebhookURL string `json:"webhook_url,omitempty"` // Webhook 地址（可选）
+	Secret     string `json:"secret,omitempty"`      // Webhook 密钥（可选）
 }
 
-// WeChatConfig 企业微信配置
+// WeChatConfig 企业微信配置（应用凭证模式）
 type WeChatConfig struct {
-	WebhookURL string `json:"webhook_url"`
+	CorpId   string `json:"corp_id"`   // 企业 CorpId
+	AgentId  string `json:"agent_id"`  // 应用 AgentId
+	Secret   string `json:"secret"`    // 应用 Secret
+	// Webhook 模式（向后兼容）
+	WebhookURL string `json:"webhook_url,omitempty"` // Webhook 地址（可选）
 }
 
 // WebhookConfig Webhook 配置
@@ -144,6 +153,13 @@ func UnmarshalWeChatConfig(configJSON json.RawMessage) (*WeChatConfig, error) {
 	return &cfg, err
 }
 
+// UnmarshalWorkwxConfig 解析企业微信配置（workwx 类型）
+func UnmarshalWorkwxConfig(configJSON json.RawMessage) (*WeChatConfig, error) {
+	var cfg WeChatConfig
+	err := json.Unmarshal(configJSON, &cfg)
+	return &cfg, err
+}
+
 // UnmarshalWebhookConfig 解析 Webhook 配置
 func UnmarshalWebhookConfig(configJSON json.RawMessage) (*WebhookConfig, error) {
 	var cfg WebhookConfig
@@ -157,8 +173,13 @@ type SMSConfig struct {
 	AccessKeyID       string             `json:"access_key_id"`
 	AccessKeySecret   string             `json:"access_key_secret"`
 	Signature         string             `json:"signature"`
-	DomesticTemplates SMSTemplatesConfig `json:"domestic_templates"`
-	IntlTemplates     SMSTemplatesConfig `json:"intl_templates"`
+	// 简化模板配置（Cloudpods 兼容）
+	VerifyCodeTemplate       string `json:"verify_code_template"`       // 验证码模板CODE
+	AlertTemplate            string `json:"alert_template"`             // 告警模板CODE
+	AbnormalLoginTemplate    string `json:"abnormal_login_template"`    // 异常登录模板CODE
+	// 嵌套模板配置（向后兼容）
+	DomesticTemplates SMSTemplatesConfig `json:"domestic_templates,omitempty"`
+	IntlTemplates     SMSTemplatesConfig `json:"intl_templates,omitempty"`
 }
 
 // SMSTemplatesConfig 短信模板配置
@@ -168,16 +189,22 @@ type SMSTemplatesConfig struct {
 	AbnormalLogin string `json:"abnormal_login"` // 异常登录
 }
 
-// FeishuConfig 飞书配置
+// FeishuConfig 飞书配置（应用凭证模式）
 type FeishuConfig struct {
-	WebhookURL string `json:"webhook_url"`
-	Secret     string `json:"secret"`
+	AppId     string `json:"app_id"`     // 应用 AppID
+	AppSecret string `json:"app_secret"` // 应用 AppSecret
+	// Webhook 模式（向后兼容）
+	WebhookURL string `json:"webhook_url,omitempty"` // Webhook 地址（可选）
+	Secret     string `json:"secret,omitempty"`      // Webhook 密钥（可选）
 }
 
-// LarkConfig Lark配置
+// LarkConfig Lark配置（与飞书相同结构）
 type LarkConfig struct {
-	WebhookURL string `json:"webhook_url"`
-	Secret     string `json:"secret"`
+	AppId     string `json:"app_id"`     // 应用 AppID
+	AppSecret string `json:"app_secret"` // 应用 AppSecret
+	// Webhook 模式（向后兼容）
+	WebhookURL string `json:"webhook_url,omitempty"` // Webhook 地址（可选）
+	Secret     string `json:"secret,omitempty"`      // Webhook 密钥（可选）
 }
 
 // UnmarshalSMSConfig 解析短信配置

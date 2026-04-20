@@ -15,6 +15,7 @@ import (
 // DomainHandler 域 Handler
 type DomainHandler struct {
 	service *service.DomainService
+	db      *gorm.DB
 	logger  *zap.Logger
 }
 
@@ -22,8 +23,30 @@ type DomainHandler struct {
 func NewDomainHandler(db *gorm.DB, logger *zap.Logger) *DomainHandler {
 	return &DomainHandler{
 		service: service.NewDomainService(db),
+		db:      db,
 		logger:  logger,
 	}
+}
+
+// DomainResponse 域响应结构（带统计字段）
+type DomainResponse struct {
+	ID          uint   `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Enabled     bool   `json:"enabled"`
+	ParentID    *uint  `json:"parent_id"`
+	CreatedAt   string `json:"created_at"`
+	UpdatedAt   string `json:"updated_at"`
+	// 统计字段
+	UserCount    int  `json:"user_count"`
+	GroupCount   int  `json:"group_count"`
+	ProjectCount int  `json:"project_count"`
+	RoleCount    int  `json:"role_count"`
+	PolicyCount  int  `json:"policy_count"`
+	IdpCount     int  `json:"idp_count"`
+	IsSSO        bool `json:"is_sso"`
+	CanDelete    bool `json:"can_delete"`
+	CanUpdate    bool `json:"can_update"`
 }
 
 // CreateDomainRequest 创建域请求
@@ -37,11 +60,15 @@ type CreateDomainRequest struct {
 func (h *DomainHandler) List(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	details := c.Query("details") == "true"
 
 	// Get filter parameters
 	filters := make(map[string]interface{})
-	if keyword := c.Query("keyword"); keyword != "" {
-		filters["keyword"] = keyword
+	if name := c.Query("name"); name != "" {
+		filters["name"] = name
+	}
+	if description := c.Query("description"); description != "" {
+		filters["description"] = description
 	}
 	if enabledStr := c.Query("enabled"); enabledStr != "" {
 		if enabled, err := strconv.ParseBool(enabledStr); err == nil {
@@ -56,10 +83,97 @@ func (h *DomainHandler) List(c *gin.Context) {
 		return
 	}
 
+	// 如果需要详细信息，添加统计字段
+	if details {
+		var responses []DomainResponse
+		for _, d := range domains {
+			resp := h.buildDomainResponse(d)
+			responses = append(responses, resp)
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"items": responses,
+			"total": total,
+		})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"items": domains,
 		"total": total,
 	})
+}
+
+// buildDomainResponse 构建域响应（带统计字段）
+func (h *DomainHandler) buildDomainResponse(d *service.DomainWithAuthSourceCount) DomainResponse {
+	resp := DomainResponse{
+		ID:          d.ID,
+		Name:        d.Name,
+		Description: d.Description,
+		Enabled:     d.Enabled,
+		ParentID:    d.ParentID,
+		CreatedAt:   d.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		UpdatedAt:   d.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+		IsSSO:       false, // 暂不支持 SSO
+		CanDelete:   !h.isDefaultDomainByID(d.ID),
+		CanUpdate:   !h.isDefaultDomainByID(d.ID),
+	}
+
+	// 计算统计字段
+	resp.UserCount = h.countUsers(d.ID)
+	resp.GroupCount = h.countGroups(d.ID)
+	resp.ProjectCount = h.countProjects(d.ID)
+	resp.RoleCount = h.countRoles(d.ID)
+	resp.PolicyCount = h.countPolicies(d.ID)
+	resp.IdpCount = d.AuthSourceCount // 使用已有的认证源数量
+
+	return resp
+}
+
+// isDefaultDomainByID 判断是否为默认域（根据ID）
+func (h *DomainHandler) isDefaultDomainByID(id uint) bool {
+	return id == 1
+}
+
+// isDefaultDomain 判断是否为默认域（根据名称）
+func (h *DomainHandler) isDefaultDomain(d *model.Domain) bool {
+	return d.Name == "default" || d.Name == "Default" || d.ID == 1
+}
+
+// countUsers 计算域用户数量
+func (h *DomainHandler) countUsers(domainID uint) int {
+	var count int64
+	h.db.Model(&model.User{}).Where("domain_id = ?", domainID).Count(&count)
+	return int(count)
+}
+
+// countGroups 计算域组数量
+func (h *DomainHandler) countGroups(domainID uint) int {
+	var count int64
+	h.db.Model(&model.Group{}).Where("domain_id = ?", domainID).Count(&count)
+	return int(count)
+}
+
+// countProjects 计算域项目数量
+func (h *DomainHandler) countProjects(domainID uint) int {
+	var count int64
+	h.db.Model(&model.Project{}).Where("domain_id = ?", domainID).Count(&count)
+	return int(count)
+}
+
+// countRoles 计算域角色数量
+func (h *DomainHandler) countRoles(domainID uint) int {
+	var count int64
+	h.db.Model(&model.Role{}).Where("domain_id = ?", domainID).Count(&count)
+	return int(count)
+}
+
+// countPolicies 计算域策略数量
+func (h *DomainHandler) countPolicies(domainID uint) int {
+	// 系统策略对所有域可见，这里计算系统策略 + 域策略
+	var systemCount, domainCount int64
+	h.db.Model(&model.Policy{}).Where("scope = ?", "system").Count(&systemCount)
+	h.db.Model(&model.Policy{}).Where("domain_id = ? OR scope = ?", domainID, "domain").Count(&domainCount)
+	return int(systemCount + domainCount)
 }
 
 // Get 获取域详情

@@ -39,10 +39,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getCloudAccounts } from '@/api/cloud-account'
 import type { CloudAccount } from '@/types'
+import {
+  getProviderLabel,
+  getProviderTagType,
+  getHealthStatusLabel,
+  getHealthTagType
+} from '@/utils/status-mappers'
 
 interface Props {
   value?: number | null
@@ -65,45 +71,6 @@ const emit = defineEmits<Emits>()
 
 const accounts = ref<CloudAccount[]>([])
 const loading = ref(false)
-
-// Provider type mapping
-const providerLabels: Record<string, string> = {
-  alibaba: '阿里云',
-  tencent: '腾讯云',
-  aws: 'AWS',
-  azure: 'Azure'
-}
-
-const providerTagTypes: Record<string, 'primary' | 'warning' | 'success' | 'info'> = {
-  alibaba: 'primary',
-  tencent: 'warning',
-  aws: 'success',
-  azure: 'info'
-}
-
-// Get provider label
-const getProviderLabel = (providerType: string): string => {
-  return providerLabels[providerType] || providerType
-}
-
-// Get provider tag type
-const getProviderTagType = (providerType: string): 'primary' | 'warning' | 'success' | 'info' => {
-  return providerTagTypes[providerType] || 'info'
-}
-
-// Get health status tag type
-const getHealthTagType = (healthStatus?: string): 'success' | 'danger' | 'info' => {
-  if (healthStatus === 'healthy') return 'success'
-  if (healthStatus === 'unhealthy') return 'danger'
-  return 'info'
-}
-
-// Get health status label
-const getHealthLabel = (healthStatus?: string): string => {
-  if (healthStatus === 'healthy') return '正常'
-  if (healthStatus === 'unhealthy') return '异常'
-  return '未知'
-}
 
 // Load cloud accounts
 const loadAccounts = async () => {

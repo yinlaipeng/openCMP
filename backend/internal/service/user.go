@@ -286,3 +286,63 @@ func (s *UserService) GetUserProjects(ctx context.Context, userID uint) ([]*mode
 		Find(&projects).Error
 	return projects, err
 }
+
+// ResetUserMFA 重置用户MFA设置
+func (s *UserService) ResetUserMFA(ctx context.Context, userID uint) error {
+	return s.db.WithContext(ctx).Model(&model.User{}).Where("id = ?", userID).Update("mfa_enabled", false).Error
+}
+
+// GetUserOperationLogs 获取用户操作日志（真实查询）
+func (s *UserService) GetUserOperationLogs(ctx context.Context, userID uint, limit, offset int) ([]*model.OperationLog, int64, error) {
+	var logs []*model.OperationLog
+	var total int64
+
+	query := s.db.WithContext(ctx).Model(&model.OperationLog{}).
+		Where("user_id = ? OR operator_id = ?", userID, userID)
+
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	err := query.Order("operation_time DESC").
+		Limit(limit).
+		Offset(offset).
+		Find(&logs).Error
+
+	return logs, total, err
+}
+
+// BatchEnableUsers 批量启用用户（SQL优化）
+func (s *UserService) BatchEnableUsers(ctx context.Context, userIDs []uint) (int64, error) {
+	result := s.db.WithContext(ctx).Model(&model.User{}).
+		Where("id IN ?", userIDs).
+		Update("enabled", true)
+	return result.RowsAffected, result.Error
+}
+
+// BatchDisableUsers 批量禁用用户（SQL优化）
+func (s *UserService) BatchDisableUsers(ctx context.Context, userIDs []uint) (int64, error) {
+	result := s.db.WithContext(ctx).Model(&model.User{}).
+		Where("id IN ?", userIDs).
+		Update("enabled", false)
+	return result.RowsAffected, result.Error
+}
+
+// BatchDeleteUsers 批量删除用户（SQL优化）
+func (s *UserService) BatchDeleteUsers(ctx context.Context, userIDs []uint) (int64, error) {
+	result := s.db.WithContext(ctx).Delete(&model.User{}, userIDs)
+	return result.RowsAffected, result.Error
+}
+
+// BatchResetPassword 批量重置密码（SQL优化）
+func (s *UserService) BatchResetPassword(ctx context.Context, userIDs []uint, newPassword string) (int64, error) {
+	hashedPassword, err := utils.HashPassword(newPassword)
+	if err != nil {
+		return 0, err
+	}
+
+	result := s.db.WithContext(ctx).Model(&model.User{}).
+		Where("id IN ?", userIDs).
+		Update("password", hashedPassword)
+	return result.RowsAffected, result.Error
+}

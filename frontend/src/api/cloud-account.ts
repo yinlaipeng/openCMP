@@ -1,8 +1,23 @@
 import request from '@/utils/request'
 import type { CloudAccount, CreateCloudAccountRequest } from '@/types'
 
-export function getCloudAccounts(params?: { page?: number; page_size?: number }) {
-  return request<{ items: CloudAccount[], total: number }>({
+// 云账号搜索参数
+export interface CloudAccountSearchParams {
+  page?: number
+  page_size?: number
+  id?: string           // 支持多ID用|分隔
+  name?: string         // 模糊搜索，自动匹配IP或ID
+  remarks?: string      // 备注模糊搜索
+  provider_type?: string // 平台精确匹配
+  status?: string       // 连接状态精确匹配
+  enabled?: boolean     // 启用状态精确匹配
+  health_status?: string // 健康状态精确匹配
+  account_number?: string // 账号模糊搜索
+  domain_id?: number    // 域ID精确匹配
+}
+
+export function getCloudAccounts(params?: CloudAccountSearchParams) {
+  return request<{ items: CloudAccount[], total: number, page: number, page_size: number }>({
     url: '/cloud-accounts',
     method: 'get',
     params
@@ -386,5 +401,51 @@ export function getOperationLogsByAccount(accountId: number, params?: { page?: n
     url: `/cloud-accounts/${accountId}/operation-logs`,
     method: 'get',
     params
+  })
+}
+
+// 区域信息类型
+export interface RegionInfo {
+  id: string
+  name: string
+  status: string
+}
+
+// 获取可同步区域列表
+export function getAvailableRegions(accountId: number) {
+  return request<{ items: RegionInfo[]; total: number }>({
+    url: `/cloud-accounts/${accountId}/regions`,
+    method: 'get'
+  })
+}
+
+// 批量同步请求
+export interface BatchSyncRequest {
+  account_ids: number[]
+  mode: 'full' | 'incremental'
+  resource_types: string[]
+}
+
+export interface BatchSyncResult {
+  account_id: number
+  success: boolean
+  message: string
+  statistics?: any
+}
+
+// 批量同步云账号
+export function batchSyncCloudAccounts(data: BatchSyncRequest) {
+  return request<{ message: string; total: number; success: number; results: BatchSyncResult[] }>({
+    url: '/cloud-accounts/batch-sync',
+    method: 'post',
+    data
+  })
+}
+
+// 导出云账号列表
+export function exportCloudAccounts() {
+  return request<{ items: CloudAccount[]; total: number }>({
+    url: '/cloud-accounts/export',
+    method: 'get'
   })
 }

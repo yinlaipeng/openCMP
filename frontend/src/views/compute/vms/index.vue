@@ -153,10 +153,17 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, ArrowDown } from '@element-plus/icons-vue'
 import { getVMs, vmAction, deleteVM } from '@/api/compute'
 import type { VirtualMachine } from '@/types'
+import type { PaginatedResponse } from '@/types/api'
 import VMModal from '@/components/vm/VMModal.vue'
 import VNCConsole from '@/components/vm/VNCConsole.vue'
 import CreateVMModal from '@/components/vm/CreateVMModal.vue'
 import CloudAccountSelector from '@/components/common/CloudAccountSelector.vue'
+import {
+  getStatusLabel,
+  getStatusTagType,
+  getProviderLabel,
+  getProviderTagType
+} from '@/utils/status-mappers'
 
 // 响应式数据
 const vms = ref<VirtualMachine[]>([])
@@ -178,49 +185,11 @@ const queryForm = reactive({
   status: ''
 })
 
-// 平台类型映射
-const platformLabels: Record<string, string> = {
-  alibaba: '阿里云',
-  tencent: '腾讯云',
-  aws: 'AWS',
-  azure: 'Azure'
-}
-
-const platformTypes: Record<string, 'primary' | 'warning' | 'success' | 'info'> = {
-  alibaba: 'primary',
-  tencent: 'warning',
-  aws: 'success',
-  azure: 'info'
-}
-
-const getPlatformLabel = (platform: string): string => {
-  return platformLabels[platform] || platform || '未知'
-}
-
-const getPlatformType = (platform: string): 'primary' | 'warning' | 'success' | 'info' => {
-  return platformTypes[platform] || 'info'
-}
-
-const getStatusName = (status: string) => {
-  const map: Record<string, string> = {
-    Running: '运行中',
-    Stopped: '已停止',
-    Starting: '启动中',
-    Stopping: '停止中',
-    Pending: '创建中',
-    Error: '错误',
-    Deleted: '已删除'
-  }
-  return map[status] || status
-}
-
-const getStatusType = (status: string) => {
-  if (status === 'Running') return 'success'
-  if (status === 'Stopped') return 'info'
-  if (status === 'Pending' || status === 'Starting' || status === 'Stopping') return 'warning'
-  if (status === 'Error') return 'danger'
-  return ''
-}
+// 使用共享的状态映射函数
+const getPlatformLabel = (platform: string): string => getProviderLabel(platform)
+const getPlatformType = (platform: string) => getProviderTagType(platform)
+const getStatusName = (status: string) => getStatusLabel(status)
+const getStatusType = (status: string) => getStatusTagType(status)
 
 const handleAccountChange = (accountId: number | null) => {
   queryForm.account_id = accountId
@@ -230,18 +199,17 @@ const handleAccountChange = (accountId: number | null) => {
 const loadVMs = async () => {
   loading.value = true
   try {
-    const params: any = {
+    const params = {
       page: currentPage.value,
-      size: pageSize.value
+      size: pageSize.value,
+      ...(queryForm.account_id ? { account_id: queryForm.account_id } : {}),
+      ...(queryForm.name ? { name: queryForm.name } : {}),
+      ...(queryForm.status ? { status: queryForm.status } : {})
     }
 
-    if (queryForm.account_id) params.account_id = queryForm.account_id
-    if (queryForm.name) params.name = queryForm.name
-    if (queryForm.status) params.status = queryForm.status
-
-    const res = await getVMs(params)
-    vms.value = Array.isArray(res) ? res : res.items || res
-    total.value = res.total || vms.value.length
+    const res = await getVMs(params) as PaginatedResponse<VirtualMachine>
+    vms.value = res.items ?? []
+    total.value = res.total ?? 0
   } catch (e) {
     console.error(e)
     ElMessage.error('加载虚拟机列表失败')

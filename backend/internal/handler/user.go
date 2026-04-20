@@ -501,3 +501,276 @@ func (h *UserHandler) GetUserProjects(c *gin.Context) {
 		"total": len(projects),
 	})
 }
+
+// ResetMFA 重置用户MFA
+func (h *UserHandler) ResetMFA(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	if err := h.service.ResetUserMFA(c.Request.Context(), uint(id)); err != nil {
+		h.logger.Error("failed to reset user MFA", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "MFA reset successfully"})
+}
+
+// BatchOperationRequest 批量操作请求
+type BatchOperationRequest struct {
+	UserIDs []uint `json:"user_ids" binding:"required"`
+}
+
+// BatchResetPasswordRequest 批量重置密码请求
+type BatchResetPasswordRequest struct {
+	UserIDs  []uint `json:"user_ids" binding:"required"`
+	Password string `json:"password" binding:"required,min=8"`
+}
+
+// BatchEnable 批量启用用户（SQL优化）
+func (h *UserHandler) BatchEnable(c *gin.Context) {
+	var req BatchOperationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	count, err := h.service.BatchEnableUsers(c.Request.Context(), req.UserIDs)
+	if err != nil {
+		h.logger.Error("failed to batch enable users", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":       "batch enable completed",
+		"success_count": count,
+	})
+}
+
+// BatchDisable 批量禁用用户（SQL优化）
+func (h *UserHandler) BatchDisable(c *gin.Context) {
+	var req BatchOperationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	count, err := h.service.BatchDisableUsers(c.Request.Context(), req.UserIDs)
+	if err != nil {
+		h.logger.Error("failed to batch disable users", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":       "batch disable completed",
+		"success_count": count,
+	})
+}
+
+// BatchResetPassword 批量重置密码（SQL优化）
+func (h *UserHandler) BatchResetPassword(c *gin.Context) {
+	var req BatchResetPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	count, err := h.service.BatchResetPassword(c.Request.Context(), req.UserIDs, req.Password)
+	if err != nil {
+		h.logger.Error("failed to batch reset passwords", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":       "batch password reset completed",
+		"success_count": count,
+	})
+}
+
+// BatchDelete 批量删除用户（SQL优化）
+func (h *UserHandler) BatchDelete(c *gin.Context) {
+	var req BatchOperationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	count, err := h.service.BatchDeleteUsers(c.Request.Context(), req.UserIDs)
+	if err != nil {
+		h.logger.Error("failed to batch delete users", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":       "batch delete completed",
+		"success_count": count,
+	})
+}
+
+// GetUserOperationLogs 获取用户操作日志
+func (h *UserHandler) GetUserOperationLogs(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+
+	// TODO: 实现真实日志查询，目前返回mock数据
+	logs, total, err := h.service.GetUserOperationLogs(c.Request.Context(), uint(id), limit, offset)
+	if err != nil {
+		h.logger.Error("failed to get user operation logs", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"items": logs,
+		"total": total,
+	})
+}
+
+// ImportUsersRequest 导入用户请求
+type ImportUsersRequest struct {
+	DomainID    uint                      `json:"domain_id" binding:"required"`
+	Users       []ImportUserItem          `json:"users" binding:"required"`
+	ConflictMode string                   `json:"conflict_mode"` // "skip" or "update"
+}
+
+// ImportUserItem 导入用户项
+type ImportUserItem struct {
+	Name        string `json:"name" binding:"required"`
+	DisplayName string `json:"display_name"`
+	Email       string `json:"email"`
+	Password    string `json:"password"`
+}
+
+// ImportUsers 导入用户
+func (h *UserHandler) ImportUsers(c *gin.Context) {
+	var req ImportUsersRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	successCount := 0
+	skipCount := 0
+	failCount := 0
+
+	for _, userItem := range req.Users {
+		// 检查用户是否已存在
+		existingUser, err := h.service.GetUserByName(c.Request.Context(), userItem.Name)
+		if err != nil {
+			failCount++
+			continue
+		}
+
+		if existingUser != nil {
+			if req.ConflictMode == "update" {
+				// 更新已存在用户
+				existingUser.DisplayName = userItem.DisplayName
+				existingUser.Email = userItem.Email
+				if userItem.Password != "" {
+					existingUser.Password = userItem.Password
+				}
+				if err := h.service.UpdateUser(c.Request.Context(), existingUser); err != nil {
+					failCount++
+				} else {
+					successCount++
+				}
+			} else {
+				// 跳过已存在用户
+				skipCount++
+			}
+			continue
+		}
+
+		// 创建新用户
+		user := &model.User{
+			Name:        userItem.Name,
+			DisplayName: userItem.DisplayName,
+			Email:       userItem.Email,
+			Password:    userItem.Password,
+			DomainID:    req.DomainID,
+			Enabled:     true,
+			ConsoleLogin: true,
+		}
+
+		if err := h.service.CreateUser(c.Request.Context(), user); err != nil {
+			failCount++
+			h.logger.Warn("failed to import user", zap.String("name", userItem.Name), zap.Error(err))
+		} else {
+			successCount++
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":       "import completed",
+		"success_count": successCount,
+		"skip_count":    skipCount,
+		"fail_count":    failCount,
+	})
+}
+
+// ExportUsers 导出用户列表
+func (h *UserHandler) ExportUsers(c *gin.Context) {
+	// 获取所有用户（无分页限制）
+	domainIDStr := c.Query("domain_id")
+	enabledStr := c.Query("enabled")
+
+	var domainID *uint
+	if domainIDStr != "" {
+		id, _ := strconv.ParseUint(domainIDStr, 10, 32)
+		uid := uint(id)
+		domainID = &uid
+	}
+
+	var enabled *bool
+	if enabledStr != "" {
+		if enabledStr == "true" {
+			enabled = func() *bool { b := true; return &b }()
+		} else if enabledStr == "false" {
+			enabled = func() *bool { b := false; return &b }()
+		}
+	}
+
+	// 导出最多10000条
+	users, _, err := h.service.ListUsers(c.Request.Context(), domainID, "", "", enabled, 10000, 0)
+	if err != nil {
+		h.logger.Error("failed to export users", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 构建导出数据
+	exportData := make([]map[string]interface{}, len(users))
+	for i, u := range users {
+		exportData[i] = map[string]interface{}{
+			"id":            u.ID,
+			"name":          u.Name,
+			"display_name":  u.DisplayName,
+			"email":         u.Email,
+			"phone":         u.Phone,
+			"enabled":       u.Enabled,
+			"console_login": u.ConsoleLogin,
+			"mfa_enabled":   u.MFAEnabled,
+			"domain_id":     u.DomainID,
+			"remark":        u.Remark,
+			"created_at":    u.CreatedAt,
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"items": exportData,
+		"total": len(exportData),
+	})
+}

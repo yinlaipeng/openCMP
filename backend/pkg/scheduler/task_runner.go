@@ -52,6 +52,8 @@ func (r *TaskRunner) Run(taskID uint, taskType string, cloudAccountID *uint) {
 		err = r.runSyncRenewals(ctx, cloudAccountID)
 	case "full_sync":
 		err = r.runFullSync(ctx, cloudAccountID)
+	case "check_account_connection":
+		err = r.runCheckAccountConnection(ctx, cloudAccountID)
 	default:
 		r.logger.Warn("unknown task type", zap.String("task_type", taskType))
 		return
@@ -184,4 +186,23 @@ func (r *TaskRunner) updateTaskLastRun(ctx context.Context, taskID uint, startTi
 	//     ...
 	// }
 	// r.db.Create(operationLog)
+}
+
+// runCheckAccountConnection 执行账号连接状态巡检
+func (r *TaskRunner) runCheckAccountConnection(ctx context.Context, cloudAccountID *uint) error {
+	if cloudAccountID == nil {
+		// 批量检测所有启用账号
+		successIDs, failedIDs, err := r.accountService.BatchRefreshAccountStatus(ctx)
+		if err != nil {
+			r.logger.Error("batch refresh account status failed", zap.Error(err))
+			return err
+		}
+		r.logger.Info("batch account connection check completed",
+			zap.Int("success_count", len(successIDs)),
+			zap.Int("failed_count", len(failedIDs)))
+		return nil
+	}
+
+	// 检测单个账号
+	return r.accountService.RefreshAccountConnectionStatus(ctx, *cloudAccountID)
 }

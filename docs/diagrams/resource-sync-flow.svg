@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 650" width="960" height="650">
+  <style>
+    text { font-family: "Helvetica Neue", Helvetica, Arial, "PingFang SC", "Microsoft YaHei", sans-serif; }
+  </style>
+  <defs>
+    <marker id="arrow-blue" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#2563eb"/>
+    </marker>
+    <marker id="arrow-green" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#16a34a"/>
+    </marker>
+    <marker id="arrow-orange" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#ea580c"/>
+    </marker>
+  </defs>
+  <rect width="960" height="650" fill="#ffffff"/>
+  <text x="480" y="30" text-anchor="middle" fill="#111827" font-size="18" font-weight="600">资源同步核心流程</text>
+  <polygon points="480,50 520,67 520,83 480,100 440,83 440,67" fill="#faf5ff" stroke="#e9d5ff" stroke-width="1.5"/>
+  <text x="480" y="82" text-anchor="middle" fill="#111827" font-size="11">定时触发</text>
+  <text x="540" y="75" fill="#6b7280" font-size="9">robfig/cron</text>
+  <line x1="480" y1="100" x2="480" y2="130" stroke="#2563eb" stroke-width="1.5" marker-end="url(#arrow-blue)"/>
+  <rect x="320" y="140" width="320" height="40" rx="8" fill="#eff6ff" stroke="#bfdbfe" stroke-width="1.5"/>
+  <text x="480" y="165" text-anchor="middle" fill="#111827" font-size="12">查找绑定该任务的云账号</text>
+  <text x="480" y="178" text-anchor="middle" fill="#6b7280" font-size="9">sync_tasks 表查询</text>
+  <line x1="480" y1="180" x2="480" y2="200" stroke="#2563eb" stroke-width="1.5" marker-end="url(#arrow-blue)"/>
+  <rect x="80" y="210" width="800" height="220" rx="6" fill="#f9fafb" stroke="#e5e7eb" stroke-width="1" stroke-dasharray="4,2"/>
+  <text x="92" y="228" fill="#6b7280" font-size="10" font-weight="600">遍历每个云账号</text>
+  <rect x="120" y="240" width="200" height="35" rx="6" fill="#ffffff" stroke="#d1d5db" stroke-width="1.5"/>
+  <text x="220" y="260" text-anchor="middle" fill="#111827" font-size="11">读取定时任务配置</text>
+  <text x="220" y="272" text-anchor="middle" fill="#6b7280" font-size="8">sync_mode/resource_types</text>
+  <line x1="220" y1="275" x2="220" y2="290" stroke="#2563eb" stroke-width="1.5" marker-end="url(#arrow-blue)"/>
+  <rect x="120" y="295" width="200" height="35" rx="6" fill="#ffffff" stroke="#d1d5db" stroke-width="1.5"/>
+  <text x="220" y="315" text-anchor="middle" fill="#111827" font-size="11">读取同步策略</text>
+  <text x="220" y="327" text-anchor="middle" fill="#6b7280" font-size="8">policy_rules/rule_tags</text>
+  <line x1="320" y1="312" x2="360" y2="312" stroke="#2563eb" stroke-width="1.5" marker-end="url(#arrow-blue)"/>
+  <rect x="360" y="240" width="220" height="90" rx="8" fill="#fff7ed" stroke="#fdba74" stroke-width="1.5"/>
+  <text x="470" y="260" text-anchor="middle" fill="#111827" font-size="12">调用云厂商API</text>
+  <text x="470" y="275" text-anchor="middle" fill="#6b7280" font-size="9">DescribeInstances</text>
+  <text x="470" y="288" text-anchor="middle" fill="#6b7280" font-size="9">DescribeVpcs/Volumes</text>
+  <text x="470" y="301" text-anchor="middle" fill="#6b7280" font-size="9">DescribeDBInstances</text>
+  <text x="470" y="314" text-anchor="middle" fill="#6b7280" font-size="9">GetCostAndUsage</text>
+  <line x1="580" y1="285" x2="600" y2="285" stroke="#2563eb" stroke-width="1.5" marker-end="url(#arrow-blue)"/>
+  <rect x="600" y="240" width="200" height="50" rx="6" fill="#ffffff" stroke="#d1d5db" stroke-width="1.5"/>
+  <text x="700" y="260" text-anchor="middle" fill="#111827" font-size="11">解析资源标签</text>
+  <text x="700" y="275" text-anchor="middle" fill="#6b7280" font-size="8">Project/Environment/Owner</text>
+  <line x1="700" y1="290" x2="700" y2="310" stroke="#2563eb" stroke-width="1.5" marker-end="url(#arrow-blue)"/>
+  <rect x="600" y="315" width="200" height="50" rx="6" fill="#f0fdf4" stroke="#86efac" stroke-width="1.5"/>
+  <text x="700" y="335" text-anchor="middle" fill="#111827" font-size="11">应用标签映射规则</text>
+  <text x="700" y="350" text-anchor="middle" fill="#16a34a" font-size="8">确定项目归属 project_id</text>
+  <line x1="600" y1="340" x2="580" y2="340" stroke="#16a34a" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+  <polygon points="470,360 510,380 510,400 470,420 430,400 430,380" fill="#fef2f2" stroke="#fecaca" stroke-width="1.5"/>
+  <text x="470" y="395" text-anchor="middle" fill="#111827" font-size="10">状态对比</text>
+  <line x1="430" y1="390" x2="350" y2="390" stroke="#16a34a" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+  <rect x="260" y="380" width="90" height="25" rx="4" fill="#dcfce7" stroke="#86efac" stroke-width="1"/>
+  <text x="305" y="397" text-anchor="middle" fill="#16a34a" font-size="9">INSERT</text>
+  <line x1="470" y1="420" x2="470" y2="440" stroke="#16a34a" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+  <rect x="425" y="440" width="90" height="25" rx="4" fill="#dbeafe" stroke="#bfdbfe" stroke-width="1"/>
+  <text x="470" y="457" text-anchor="middle" fill="#2563eb" font-size="9">UPDATE</text>
+  <line x1="510" y1="390" x2="590" y2="390" stroke="#ea580c" stroke-width="1.5" marker-end="url(#arrow-orange)"/>
+  <rect x="590" y="380" width="110" height="25" rx="4" fill="#fee2e2" stroke="#fecaca" stroke-width="1"/>
+  <text x="645" y="397" text-anchor="middle" fill="#ea580c" font-size="9">terminated</text>
+  <path d="M 880 320 C 920 320 920 250 880 250" stroke="#6b7280" stroke-width="1" fill="none" stroke-dasharray="4,2"/>
+  <text x="870" y="285" fill="#6b7280" font-size="8">下一个账号</text>
+  <line x1="480" y1="430" x2="480" y2="480" stroke="#2563eb" stroke-width="1.5" marker-end="url(#arrow-blue)"/>
+  <rect x="320" y="480" width="320" height="40" rx="8" fill="#ffffff" stroke="#d1d5db" stroke-width="1.5"/>
+  <text x="480" y="505" text-anchor="middle" fill="#111827" font-size="12">写入同步日志 sync_logs</text>
+  <line x1="480" y1="520" x2="480" y2="540" stroke="#2563eb" stroke-width="1.5" marker-end="url(#arrow-blue)"/>
+  <rect x="320" y="540" width="320" height="40" rx="8" fill="#ffffff" stroke="#d1d5db" stroke-width="1.5"/>
+  <text x="480" y="565" text-anchor="middle" fill="#111827" font-size="12">更新云账号同步状态</text>
+  <line x1="480" y1="580" x2="480" y2="600" stroke="#2563eb" stroke-width="1.5" marker-end="url(#arrow-blue)"/>
+  <polygon points="480,600 520,615 520,630 480,645 440,630 440,615" fill="#fef2f2" stroke="#fecaca" stroke-width="1.5"/>
+  <text x="480" y="627" text-anchor="middle" fill="#111827" font-size="9">预算检查</text>
+  <line x1="520" y1="622" x2="620" y2="622" stroke="#ea580c" stroke-width="1" marker-end="url(#arrow-orange)"/>
+  <text x="660" y="627" fill="#ea580c" font-size="10">超限→告警</text>
+  <g transform="translate(40, 20)">
+    <rect x="0" y="0" width="300" height="25" fill="#f9fafb" rx="4"/>
+    <line x1="10" y1="12" x2="40" y2="12" stroke="#2563eb" stroke-width="1.5" marker-end="url(#arrow-blue)"/>
+    <text x="46" y="16" fill="#6b7280" font-size="9">主流程</text>
+    <line x1="100" y1="12" x2="130" y2="12" stroke="#16a34a" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+    <text x="136" y="16" fill="#6b7280" font-size="9">数据写入</text>
+    <line x1="190" y1="12" x2="220" y2="12" stroke="#ea580c" stroke-width="1.5" marker-end="url(#arrow-orange)"/>
+    <text x="226" y="16" fill="#6b7280" font-size="9">告警/删除</text>
+  </g>
+</svg>

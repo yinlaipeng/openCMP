@@ -206,6 +206,16 @@ func (s *RoleService) GetRolePolicies(ctx context.Context, roleID uint) ([]*mode
 	return policies, err
 }
 
+// GetRolePoliciesCount 获取角色的策略数量
+func (s *RoleService) GetRolePoliciesCount(ctx context.Context, roleID uint) (int64, error) {
+	var count int64
+	err := s.db.WithContext(ctx).
+		Model(&model.RolePolicy{}).
+		Where("role_id = ?", roleID).
+		Count(&count).Error
+	return count, err
+}
+
 // AssignPolicyToRole 分配策略给角色
 func (s *RoleService) AssignPolicyToRole(ctx context.Context, roleID uint, policyID string) error {
 	// 检查是否已关联

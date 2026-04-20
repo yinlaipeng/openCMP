@@ -82,30 +82,43 @@ func (h *CloudAccountHandler) List(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 
+	// 解析搜索参数
+	searchParams := &service.CloudAccountSearchParams{
+		ID:            c.Query("id"),
+		Name:          c.Query("name"),
+		Remarks:       c.Query("remarks"),
+		ProviderType:  c.Query("provider_type"),
+		Status:        c.Query("status"),
+		HealthStatus:  c.Query("health_status"),
+		AccountNumber: c.Query("account_number"),
+	}
+
+	// 解析 enabled 参数
+	if c.Query("enabled") != "" {
+		enabled, err := strconv.ParseBool(c.Query("enabled"))
+		if err == nil {
+			searchParams.Enabled = &enabled
+		}
+	}
+
+	// 解析 domain_id 参数
+	if c.Query("domain_id") != "" {
+		domainIDVal, err := strconv.ParseUint(c.Query("domain_id"), 10, 32)
+		if err == nil {
+			domainID := uint(domainIDVal)
+			searchParams.DomainID = &domainID
+		}
+	}
+
 	// 如果使用传统的 limit/offset 格式，则使用它们
+	limit := pageSize
+	offset := (page - 1) * pageSize
 	if c.Query("limit") != "" && c.Query("offset") != "" {
-		limit, err1 := strconv.Atoi(c.Query("limit"))
-		offset, err2 := strconv.Atoi(c.Query("offset"))
+		limitVal, err1 := strconv.Atoi(c.Query("limit"))
+		offsetVal, err2 := strconv.Atoi(c.Query("offset"))
 		if err1 == nil && err2 == nil {
-			accounts, total, err := h.service.ListCloudAccounts(c.Request.Context(), limit, offset)
-			if err != nil {
-				h.logger.Error("failed to list cloud accounts", zap.Error(err))
-				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-				return
-			}
-
-			calculatedPage := offset/pageSize + 1
-			if offset%pageSize != 0 {
-				calculatedPage = offset/pageSize + 1
-			}
-
-			c.JSON(http.StatusOK, gin.H{
-				"items":     accounts,
-				"total":     total,
-				"page":      calculatedPage,
-				"page_size": pageSize,
-			})
-			return
+			limit = limitVal
+			offset = offsetVal
 		}
 	}
 
@@ -118,9 +131,25 @@ func (h *CloudAccountHandler) List(c *gin.Context) {
 	}
 
 	// 转换为 offset
-	offset := (page - 1) * pageSize
+	offset = (page - 1) * pageSize
 
-	accounts, total, err := h.service.ListCloudAccounts(c.Request.Context(), pageSize, offset) // pageSize作为limit，offset作为offset
+	// 检查是否有搜索参数
+	hasSearchParams := searchParams.ID != "" || searchParams.Name != "" || searchParams.Remarks != "" ||
+		searchParams.ProviderType != "" || searchParams.Status != "" || searchParams.HealthStatus != "" ||
+		searchParams.AccountNumber != "" || searchParams.Enabled != nil || searchParams.DomainID != nil
+
+	var accounts []*model.CloudAccount
+	var total int64
+	var err error
+
+	if hasSearchParams {
+		// 使用搜索方法
+		accounts, total, err = h.service.ListCloudAccountsWithSearch(c.Request.Context(), searchParams, limit, offset)
+	} else {
+		// 使用普通列表方法
+		accounts, total, err = h.service.ListCloudAccounts(c.Request.Context(), limit, offset)
+	}
+
 	if err != nil {
 		h.logger.Error("failed to list cloud accounts", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -289,17 +318,24 @@ func (h *CloudAccountHandler) TestConnection(c *gin.Context) {
 	valid, err := h.service.TestConnection(c.Request.Context(), account)
 	if err != nil {
 		h.logger.Error("failed to test cloud account connection", zap.Error(err))
+		// 更新状态为连接断开
+		h.service.RefreshAccountConnectionStatus(c.Request.Context(), uint(id))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	if !valid {
+		// 更新状态为连接断开
+		h.service.RefreshAccountConnectionStatus(c.Request.Context(), uint(id))
 		c.JSON(http.StatusOK, gin.H{
 			"connected": false,
 			"message":   "connection test failed",
 		})
 		return
 	}
+
+	// 更新状态为已连接
+	h.service.RefreshAccountConnectionStatus(c.Request.Context(), uint(id))
 
 	c.JSON(http.StatusOK, gin.H{
 		"connected": true,
@@ -389,6 +425,10 @@ func (h *CloudAccountHandler) VerifyCredentials(c *gin.Context) {
 	}
 
 	valid, message, err := h.service.VerifyCredentials(c.Request.Context(), account)
+
+	// 刷新账号连接状态
+	h.service.RefreshAccountConnectionStatus(c.Request.Context(), uint(id))
+
 	if err != nil {
 		h.logger.Error("failed to verify cloud account credentials", zap.Error(err))
 		c.JSON(http.StatusOK, gin.H{
@@ -578,5 +618,145 @@ func (h *CloudAccountHandler) TestConnectionWithCredentials(c *gin.Context) {
 		"connected": valid,
 		"message":   message,
 		"regions":   regions,
+	})
+}
+
+// GetRegions 获取云账号可同步区域列表
+func (h *CloudAccountHandler) GetRegions(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	account, err := h.service.GetCloudAccount(c.Request.Context(), uint(id))
+	if err != nil {
+		h.logger.Error("failed to get cloud account", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if account == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "account not found"})
+		return
+	}
+
+	// 获取云厂商支持的区域列表
+	regions, err := h.service.GetAvailableRegions(c.Request.Context(), account)
+	if err != nil {
+		h.logger.Error("failed to get available regions", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"items": regions,
+		"total": len(regions),
+	})
+}
+
+// BatchSyncRequest 批量同步请求
+type BatchSyncRequest struct {
+	AccountIds    []uint   `json:"account_ids" binding:"required"`
+	Mode          string   `json:"mode"`           // full 或 incremental
+	ResourceTypes []string `json:"resource_types"` // 可选的资源类型列表
+}
+
+// BatchSync 批量同步云账号
+func (h *CloudAccountHandler) BatchSync(c *gin.Context) {
+	var req BatchSyncRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "account_ids are required"})
+		return
+	}
+
+	if len(req.AccountIds) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "no accounts selected"})
+		return
+	}
+
+	// 同步模式
+	syncMode := model.SyncModeIncremental
+	if req.Mode == "full" {
+		syncMode = model.SyncModeFull
+	}
+
+	// 资源类型
+	resourceTypes := req.ResourceTypes
+	if len(resourceTypes) == 1 && resourceTypes[0] == "all" {
+		resourceTypes = nil
+	}
+
+	// 执行批量同步
+	results := make([]map[string]interface{}, 0)
+	for _, accountId := range req.AccountIds {
+		account, err := h.service.GetCloudAccount(c.Request.Context(), accountId)
+		if err != nil || account == nil {
+			results = append(results, map[string]interface{}{
+				"account_id": accountId,
+				"success":    false,
+				"message":    "account not found",
+			})
+			continue
+		}
+
+		stats, err := h.service.SyncResourcesWithMode(c.Request.Context(), account, syncMode, model.SyncTriggerManual, nil, resourceTypes)
+		if err != nil {
+			results = append(results, map[string]interface{}{
+				"account_id": accountId,
+				"success":    false,
+				"message":    err.Error(),
+			})
+			continue
+		}
+
+		results = append(results, map[string]interface{}{
+			"account_id": accountId,
+			"success":    true,
+			"message":    "sync completed",
+			"statistics": stats,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":     "batch sync completed",
+		"total":       len(req.AccountIds),
+		"success":     len(results),
+		"sync_mode":   string(syncMode),
+		"results":     results,
+	})
+}
+
+// Export 导出云账号列表
+func (h *CloudAccountHandler) Export(c *gin.Context) {
+	// 获取所有云账号
+	accounts, _, err := h.service.ListCloudAccounts(c.Request.Context(), 1000, 0)
+	if err != nil {
+		h.logger.Error("failed to list cloud accounts for export", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 构建导出数据
+	exportData := make([]map[string]interface{}, 0)
+	for _, account := range accounts {
+		exportData = append(exportData, map[string]interface{}{
+			"id":            account.ID,
+			"name":          account.Name,
+			"provider_type": account.ProviderType,
+			"status":        account.Status,
+			"enabled":       account.Enabled,
+			"health_status": account.HealthStatus,
+			"balance":       account.Balance,
+			"account_number": account.AccountNumber,
+			"domain_id":     account.DomainID,
+			"last_sync":     account.LastSync,
+			"created_at":    account.CreatedAt,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"items": exportData,
+		"total": len(exportData),
 	})
 }

@@ -23,6 +23,17 @@ func PermissionMiddleware(db *gorm.DB, logger *zap.Logger) gin.HandlerFunc {
 			return
 		}
 
+		// 安全类型转换
+		uid, ok := userID.(uint)
+		if !ok {
+			logger.Error("invalid user_id type in context",
+				zap.Any("user_id", userID),
+				zap.String("type", "expected uint"))
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "内部错误：无效的用户ID类型"})
+			c.Abort()
+			return
+		}
+
 		// 从context获取domain_id（可选，由AuthMiddleware注入）
 		domainID, _ := c.Get("domain_id")
 
@@ -36,17 +47,17 @@ func PermissionMiddleware(db *gorm.DB, logger *zap.Logger) gin.HandlerFunc {
 		}
 
 		// 检查用户是否为系统管理员（管理员拥有所有权限）
-		if isSystemAdmin(db, userID.(uint)) {
+		if isSystemAdmin(db, uid) {
 			c.Next()
 			return
 		}
 
 		// 查询用户权限
-		hasPermission := checkUserPermission(db, userID.(uint), domainID, resource, action)
+		hasPermission := checkUserPermission(db, uid, domainID, resource, action)
 
 		if !hasPermission {
 			logger.Warn("权限检查失败",
-				zap.Uint("user_id", userID.(uint)),
+				zap.Uint("user_id", uid),
 				zap.String("resource", resource),
 				zap.String("action", action),
 				zap.String("path", c.Request.URL.Path))

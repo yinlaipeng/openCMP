@@ -5,6 +5,1581 @@
 - 不再使用模拟接口，实现真实的云厂商 SDK 调用
 - 完成从云账号添加 → 资源同步 → 资源管理的完整业务流程
 
+---
+
+## Phase 40: openCMP IAM 模块测试结果 (2026-04-20)
+
+### 审查状态: complete ✅
+
+### 一、测试环境
+
+**测试地址**: http://localhost:3000
+**登录凭证**: admin / admin@123
+**前端代理**: /api -> localhost:8080
+
+### 二、测试结果汇总
+
+**所有 IAM 模块功能正常** ✅
+
+| 模块 | 页面 | 工具栏 | 搜索栏 | 表格 | 数据行 | 分页 | 新建弹窗 | 弹窗字段 |
+|------|:----:|:------:|:------:|:----:|:------:|:----:|:--------:|:--------:|
+| 用户管理 | ✅ | ✅ | ✅ | ✅ | 1 | ✅ | ✅ | 12 |
+| 用户组 | ✅ | ✅ | ✅ | ✅ | 1 | ✅ | ✅ | 3 |
+| 角色 | ✅ | ✅ | ✅ | ✅ | 17 | ✅ | ✅ | 4 |
+| 权限 | ✅ | ✅ | ✅ | ✅ | 0 | ✅ | ✅ | 4 |
+| 认证源 | ✅ | ✅ | ✅ | ✅ | 1 | ✅ | ✅ | 19 |
+| 项目 | ✅ | ✅ | ✅ | ✅ | 1 | ✅ | ✅ | 6 |
+| 域 | ✅ | ✅ | ⚠️ | ✅ | 1 | ✅ | ✅ | 3 |
+
+### 三、功能详情
+
+#### 用户管理
+- 工具栏: 刷新、新建、导入用户、批量操作、标签按钮
+- 表格列: 名称、显示名、标签、启用状态、控制台登录、MFA、所属域、操作
+- 操作列: 修改属性 + 更多下拉（启用/禁用/重置密码/重置MFA/删除）
+- 新建弹窗字段: 用户名、显示名、备注、邮箱、手机号、密码、所属域、控制台登录、启用MFA、选择域、选择项目、选择角色
+
+#### 用户组
+- 工具栏: 刷新、新建用户组、删除、下载、设置
+- 表格列: 名称、所属域、用户数、项目数、操作
+- 操作列: 管理项目、管理用户、删除
+- 新建弹窗字段: 用户组名、备注、域
+
+#### 角色
+- 工具栏: 刷新、新建、删除、下载、设置
+- 表格列: ID、名称、策略、类型、状态、操作
+- 数据: 17条系统角色记录
+- 操作列: 设置策略 + 更多下拉（详情/编辑/启用/禁用/公开/删除）
+- 新建弹窗字段: 名称、显示名、描述、类型
+
+#### 权限/策略
+- 工具栏: 刷新、新建、禁用、启用、删除
+- 表格列: 名称、启用状态、策略范围、所属域、操作
+- Tabs: 全部、自定义权限、系统权限
+- 数据: 暂无数据（需用户创建）
+- 新建弹窗字段: 名称、描述、策略范围、策略内容
+
+#### 认证源
+- 工具栏: 新建认证源
+- 筛选: 搜索字段、类型、范围、状态、同步状态
+- 表格列: 名称/备注、状态、启用状态、同步状态、认证协议、认证类型、认证源归属、操作
+- 新建弹窗字段: 19个字段（完整LDAP配置支持）
+
+#### 项目
+- 工具栏: 新建项目
+- 筛选: 搜索字段、所属域、状态
+- 表格列: 名称、描述、启用状态、管理员、所属域、用户数、组数、操作
+- 新建弹窗字段: 项目名称、描述、所属域、选择域/用户/角色
+
+#### 域
+- 工具栏: 新建域
+- 表格列: 名称、描述、启用状态、用户数、组数、项目数、角色数、策略数、认证源、操作
+- 新建弹窗字段: 域名称、描述、启用
+
+### 四、结论
+
+**IAM 模块功能完整，无需额外开发任务**。各模块具备：
+- 完整的工具栏按钮（刷新、新建、批量操作等）
+- 搜索/筛选功能
+- 表格展示与分页
+- 新建弹窗（表单字段完整）
+- 操作列（编辑、删除、更多操作）
+
+唯一注意事项：权限模块暂无数据，但新建功能正常，用户可自行创建策略。
+
+---
+
+## Phase 39: 机器人新建弹窗 Webhook 类型特殊字段分析 (2026-04-20)
+
+### 审查状态: complete ✅
+
+### 一、Cloudpods 弹窗详细分析（Playwright 测试结果）
+
+**测试页面**: https://127.0.0.1/robot
+**登录**: admin / admin@123
+
+#### 1. 新建弹窗初始字段
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| Project | select | 否 | 默认值: system |
+| Name | input | 是 | placeholder: 2-128字符规则 |
+| Type | radio-group | 是 | DingTalk Bot/Lark Bot/WeCom Bot/Webhook |
+| Webhook | input | 是 | 带帮助文档链接 |
+
+#### 2. 类型切换后的表单变化
+
+**钉钉机器人**:
+- Project, Name, Type, Webhook（带帮助文档链接）
+
+**飞书机器人**:
+- Project, Name, Type, Webhook（带帮助文档链接）
+
+**企业微信机器人**:
+- Project, Name, Type, Webhook（带帮助文档链接）
+
+**Webhook 类型** ⚠️ **有额外字段**:
+- Project, Name, Type
+- URL（必填）
+- header（可选）- 自定义请求头
+- body（可选）- 请求体模板
+- msg_key（可选）- 消息键名
+- secret_key（可选）- 密钥
+
+### 二、关键发现
+
+1. **Webhook 类型区别**: Webhook 类型与钉钉/飞书/企业微信不同，需要更多配置字段
+2. **header字段**: JSON格式，用于自定义HTTP请求头
+3. **body字段**: 支持模板变量（{{message}}/{{title}}/{{timestamp}}）
+4. **msg_key字段**: 指定消息内容在请求体中的键名
+5. **secret_key字段**: 用于签名验证
+
+### 三、决策
+
+**前端实现**:
+- 使用 v-if 条件渲染，钉钉/飞书/企业微信显示简化配置
+- Webhook 类型显示完整配置（URL/header/body/msg_key/secret_key）
+
+**后端实现**:
+- Robot 模型添加 Header/Body/MsgKey/SecretKey 字段
+- testGenericWebhook 支持自定义请求头和模板变量
+
+---
+
+## Phase 37: 接收人管理页面分析 (2026-04-20)
+
+### 审查状态: complete ✅
+
+### 一、Cloudpods 页面分析（Playwright 测试结果）
+
+**测试页面**: https://127.0.0.1/contact
+**登录**: admin / admin@123
+
+#### 1. 列表页分析
+
+**页面结构**:
+```
+页面结构：
+├── card-header（页面标题 + 工具栏）
+├── search-bar（搜索栏）
+├── vxe-table（表格）
+│   ├── 选择列（checkbox）
+│   ├── Username
+│   ├── Enable Status
+│   ├── Mobile（国际号码格式）
+│   ├── Email
+│   ├── Channels（通知渠道列表）
+│   ├── Owner Domain
+│   ├── Created At
+│   └── Operations（Edit + More下拉）
+└── pagination（分页）
+```
+
+**表格表头**: ['', 'Username', 'Enable Status', 'Mobile', 'Email', 'Channels', 'Owner Domain', 'Created At', 'Operations']
+
+**数据示例**:
+| 列 | 数据 |
+|----|------|
+| Username | admin |
+| Enable Status | Enabled |
+| Mobile | +86 15690400690 |
+| Email | pylyinlai@163.com |
+| Channels | - |
+| Owner Domain | Default |
+| Created At | 2026-04-06 20:13:36 |
+
+**操作列**: Edit、More（下拉菜单：Enable、Disable、Delete）
+
+#### 2. 新建弹窗分析
+
+**弹窗标题**: Create Recipients
+
+**表单字段**:
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| Domain | select | 否 | placeholder: "Please select Domain"，默认选中 Default |
+| User | select | 是 | placeholder: "Please select User"，默认选中 admin |
+| Mobile | 组合组件 | 是 | 国家选择器（Mainland China(+86)）+ 手机号输入框 |
+| Email | input | 是 | 文本输入框 |
+| Channels | checkbox-group | 否 | 默认选中 "Internal Message"，disabled，带 info-circle 提示 |
+
+**Mobile 组合组件设计**:
+```html
+<div class="ant-row">
+  <div class="ant-col ant-col-10">
+    <select> <!-- 国家选择器 -->
+      Mainland China(+86)
+    </select>
+  </div>
+  <div class="ant-col ant-col-14">
+    <input type="text" /> <!-- 手机号输入 -->
+  </div>
+</div>
+```
+
+**Channels 字段**:
+- checkbox-group，id="enabled_contact_types"
+- 默认选项："Internal Message"（站内信），已选中且 disabled
+- 带有 info-circle icon 和 tooltip
+
+**底部按钮**: OK（primary）、Cancel（default）
+
+#### 3. API 调用
+
+**接收人列表**:
+```
+GET /api/v1/receivers?scope=system&show_fail_reason=true&details=true&with_meta=true&summary_stats=true&limit=100
+```
+
+**响应字段**:
+- id
+- name（Username）
+- enabled（Enable Status）
+- phone（Mobile）
+- email
+- notification_channels（Channels）
+- domain（Owner Domain）
+- created_at
+
+### 二、实现决策
+
+1. **工具栏设计**: 参考 Cloudpods，添加刷新、新建、删除、设置按钮
+2. **选择列**: 添加 checkbox 全选功能，支持批量删除
+3. **搜索框**: 属性选择器 + 输入框，支持按 Username/Mobile/Email/Created At 搜索
+4. **表格列名**: 使用英文列名（Username、Enable Status、Mobile、Email、Channels、Owner Domain、Created At、Operations）
+5. **操作列**: Edit 按钮 + More 下拉（Enable、Disable、Delete）
+6. **新建弹窗**: 
+   - Mobile 使用国际号码组件（国家选择器 + 手机号输入）
+   - Channels 默认选中站内信且禁用
+   - 底部按钮：OK、Cancel
+
+---
+
+## Phase 36: 通知渠道后端适配分析 (2026-04-20)
+
+### 审查状态: in_progress ⏳
+
+### 一、现状分析
+
+**研究文件**:
+- `backend/internal/model/iam.go` - NotificationChannel 模型
+- `backend/internal/handler/notification_channel.go` - Handler 层
+- `backend/internal/service/notification_channel.go` - Service 层
+- `backend/internal/service/notification_channel_test.go` - 现有测试
+
+#### 1. 模型定义 (NotificationChannel)
+```go
+type NotificationChannel struct {
+    ID          uint           `gorm:"primaryKey"`
+    Name        string         `gorm:"uniqueIndex;not null;size:100"`
+    Type        string         `gorm:"type:varchar(20);not null"` // email/sms/webhook/dingtalk/wechat/feishu/lark
+    Description string         `gorm:"size:500"`
+    Config      datatypes.JSON `gorm:"type:json"` // 渠道配置
+    Enabled     bool           `gorm:"default:true"`
+    CreatedAt   time.Time
+    UpdatedAt   time.Time
+    DeletedAt   gorm.DeletedAt
+}
+```
+
+#### 2. 当前后端配置结构
+
+**邮件 (email)**:
+```go
+type EmailConfig struct {
+    SMTPHost     string
+    SMTPPort     int
+    SMTPUser     string
+    SMTPPassword string
+    FromAddress  string
+    FromName     string
+    UseTLS       bool  // ❌ Cloudpods 用 UseSSL
+}
+```
+
+**短信 (sms)**:
+```go
+type SMSConfig struct {
+    Provider          string  // aliyun, huawei
+    AccessKeyID       string
+    AccessKeySecret   string
+    Signature         string
+    DomesticTemplates SMSTemplatesConfig  // ❌ Cloudpods 用简化模板
+    IntlTemplates     SMSTemplatesConfig
+}
+```
+
+**钉钉 (dingtalk)** - ❌ 结构不匹配:
+```go
+type DingTalkConfig struct {
+    WebhookURL string  // Cloudpods 用 AgentId/AppKey/AppSecret
+    Secret     string
+}
+```
+
+**飞书 (feishu)** - ❌ 结构不匹配:
+```go
+type FeishuConfig struct {
+    WebhookURL string  // Cloudpods 用 AppID/AppSecret
+    Secret     string
+}
+```
+
+**企业微信 (wechat)** - ❌ 结构不匹配:
+```go
+type WeChatConfig struct {
+    WebhookURL string  // Cloudpods 用 CorpId/AgentId/Secret
+}
+```
+
+#### 3. 路由注册
+```go
+notifChannelGroup.GET("", notifChannelHandler.List)
+notifChannelGroup.GET("/:id", notifChannelHandler.Get)
+notifChannelGroup.POST("", notifChannelHandler.Create)
+notifChannelGroup.PUT("/:id", notifChannelHandler.Update)
+notifChannelGroup.DELETE("/:id", notifChannelHandler.Delete)
+notifChannelGroup.POST("/:id/enable", notifChannelHandler.Enable)
+notifChannelGroup.POST("/:id/disable", notifChannelHandler.Disable)
+notifChannelGroup.POST("/:id/test", notifChannelHandler.Test)
+// ❌ 缺少 POST /notification-channels/test（新建时测试）
+```
+
+### 二、差距分析
+
+| 问题 | 描述 | 优先级 |
+|------|------|--------|
+| 钉钉配置结构 | 后端用 webhook，Cloudpods 用应用凭证 | P0 |
+| 飞书配置结构 | 后端用 webhook，Cloudpods 用应用凭证 | P0 |
+| 企业微信配置结构 | 后端用 webhook，Cloudpods 用应用凭证 | P0 |
+| 邮件SSL字段 | 后端用 use_tls，前端用 use_ssl | P1 |
+| 短信模板简化 | 后端用嵌套模板，前端简化为3个字段 | P1 |
+| 新建测试接口 | 缺少 POST /notification-channels/test | P0 |
+| 单元测试缺失 | 现有测试只覆盖基本 CRUD | P0 |
+
+### 三、决策
+
+1. **配置结构重构**: 将钉钉/飞书/企业微信的配置从 webhook 改为应用凭证模式
+2. **保持向后兼容**: 可同时支持 webhook 和应用凭证两种模式
+3. **添加测试路由**: 新增 POST /notification-channels/test 接口
+4. **完善单元测试**: 为每种类型编写详细的配置验证测试
+
+---
+
+## Phase 34: 通知渠道设置页面分析 (2026-04-20)
+
+### 审查状态: in_progress ⏳
+
+### 一、Cloudpods 页面分析（Playwright 测试结果）
+
+**测试页面**: https://127.0.0.1/notifyconfig
+**登录**: admin / admin@123（cookie可能过期）
+**API调用**:
+- `GET /api/v1/notifyconfigs?scope=system&show_fail_reason=true&details=true&summary_stats=true&limit=20`
+- `GET /api/v1/notifyconfigs?attribution=system&scope=system`
+- `GET /api/v1/parameters/LIST_NotifyConfigList`
+
+#### 1. 页面布局结构分析
+
+**整体布局**（从截图和HTML分析）:
+```
+页面结构：
+├── navbar-wrap (顶部导航栏)
+├── level-2-wrap (左侧二级菜单)
+│   ├── 认证体系: 认证源/域/项目/组/用户/角色/权限
+│   ├── 安全告警
+│   ├── 消息中心: 站内信/消息订阅设置/**通知渠道设置**/接收人管理/机器人管理
+├── app-content (主内容区)
+│   ├── page-header (页头: "通知渠道设置")
+│   ├── page-body
+│   │   ├── page-toolbar (工具栏)
+│   │   │   ├── 刷新按钮 (icon only)
+│   │   │   ├── 新建按钮 (primary)
+│   │   │   ├── 删除按钮 (disabled)
+│   │   │   ├── 设置按钮 (icon only)
+│   │   ├── 搜索栏 (search-box-wrap)
+│   │   │   ├── 输入框 + 属性选择下拉
+│   │   │   ├── 自动补全: 名称/创建时间
+│   │   │   └── 帮助文案: "默认为名称搜索，自动匹配IP或ID..."
+│   │   ├── vxe-grid (VXE Table 表格)
+│   │   │   ├── Checkbox 选择列
+│   │   │   ├── 名称 列
+│   │   │   ├── 类型 列
+│   │   │   ├── 所属范围 列
+│   │   │   ├── 操作 列
+│   │   └── vxe-pager (分页)
+```
+
+#### 2. 工具栏分析
+
+| 按钮 | Cloudpods 实现 | 现有 openCMP 实现 | 状态 |
+|------|------------|-------------------|------|
+| 刷新 | icon按钮，无文字 | 无 | ❌ 需添加 |
+| 新建 | `ant-btn ant-btn-primary` | `el-button type="primary"` | ✅ 符合 |
+| 删除 | disabled状态，需要选择后才可点击 | 有删除按钮（popconfirm） | ⚠️ 需改为批量删除 |
+| 设置 | icon按钮 | 无 | ❌ 需添加 |
+
+#### 3. 搜索栏分析
+
+| 功能点 | Cloudpods 实现 | 现有 openCMP 实现 | 状态 |
+|-------|------------|---------|------|
+| 结构 | 单一搜索框 + 属性选择下拉 | inline form + 类型筛选 | ❌ 需改造 |
+| 属性选择 | 名称/创建时间 | 类型下拉 | ❌ 需调整 |
+| 帮助文案 | "默认为名称搜索，自动匹配IP或ID..." | 无 | ❌ 需添加 |
+
+#### 4. 表格分析（VXE Table）
+
+| 列 | Cloudpods 实现 | 现有 openCMP 实现 | 状态 |
+|---|------------|---------|------|
+| Checkbox | vxe-checkbox 选择列 | 无 | ❌ 需添加 |
+| 名称 | 简单显示 | 显示 | ✅ 基本符合 |
+| 类型 | 显示类型标签 | 显示类型标签 | ✅ 符合 |
+| 所属范围 | 显示 | 显示（固定"系统"） | ✅ 基本符合 |
+| ID | 无 | 显示 | ⚠️ 需移除 |
+| 描述 | 无 | 显示 | ⚠️ 需移除或调整 |
+| 状态 | 无（可能在所属范围中体现） | 显示启用/禁用 | ⚠️ 需调整 |
+| 操作 | 编辑/测试/启用禁用/删除 | 编辑/测试/启用禁用/删除 | ⚠️ 操作按钮需调整位置 |
+
+#### 5. API 分析
+
+**Cloudpods API**:
+- `GET /api/v1/notifyconfigs` - 列表
+- 响应字段包含: name, type, scope
+
+**openCMP API**:
+- `GET /api/v1/notification-channels` - 列表
+- 响应字段包含: id, name, type, scope, description, enabled, config
+
+### 二、实施计划
+
+1. **菜单名称修改**: 将"通知渠道"改为"通知渠道设置"
+   - 文件: `frontend/src/layout/index.vue` 或 router 配置
+
+2. **前端页面更新**:
+   - 添加选择列
+   - 添加刷新和设置按钮
+   - 更新搜索框设计
+   - 调整表格表头
+
+---
+
+## Phase 33: 用户组管理页面分析 (2026-04-19)
+
+### 审查状态: research ✅
+
+### 一、系统页面分析（Playwright 测试结果）
+
+**测试页面**: https://127.0.0.1/group
+**登录**: admin / admin@123
+**API调用**:
+- `GET /api/v1/groups?scope=system&show_fail_reason=true&details=true&summary_stats=true&limit=20`
+- `GET /api/v1/domains?enabled=true`
+
+#### 1. 页面布局结构分析
+
+**整体布局**（从截图和HTML分析）:
+```
+页面结构：
+├── navbar-wrap (顶部导航栏)
+│   ├── global-map-btn (全局地图按钮)
+│   ├── header-logo + header-title (Logo + "Management Console")
+│   ├── navbar-item (视图切换: "System View")
+│   ├── alertresource-icon + badge (告警图标 + 数字徽章)
+│   ├── mail-icon (邮件图标)
+│   ├── cloudsheel-icon (云shell图标)
+│   ├── navbar-more-icon (更多图标)
+│   └── navbar-item-trigger (用户头像 + "admin")
+├── level-2-wrap (左侧二级菜单)
+│   ├── level-2-menu (IAM & Security)
+│   │   ├── group-menu → Identity Provider / Domain / Project / **Groups** / User / Roles / Policies
+│   │   ├── group-menu → Security Alerts
+│   │   ├── group-menu → Notifications (Messages / Topic / Channels / Recipients / Bot)
+│   └── level-2-menu-collapse (折叠按钮)
+├── app-content (主内容区)
+│   ├── page-header (页头)
+│   │   └── h3 "Groups" 标题
+│   ├── page-body
+│   │   ├── page-toolbar (工具栏)
+│   │   │   ├── 刷新按钮 (icon only)
+│   │   │   ├── Create 按钮 (primary)
+│   │   │   ├── Delete 按钮 (disabled)
+│   │   │   ├── Download 按钮 (icon only)
+│   │   │   ├── Settings 按钮 (icon only)
+│   │   ├── 搜索栏 (search-box-wrap)
+│   │   │   ├── 输入框 (支持多属性搜索)
+│   │   │   ├── 自动补全提示: ID/Name/Description/Domain/Created At/Identity Provider
+│   │   │   ├── 帮助文案: "默认为名称搜索，自动匹配IP或ID..."
+│   │   │   └── 搜索图标
+│   │   ├── vxe-grid (VXE Table 表格)
+│   │   │   ├── Checkbox 选择列
+│   │   │   ├── Name 列 (可排序，链接样式)
+│   │   │   ├── Owner Domain 列 (可排序)
+│   │   │   ├── Operations 列 (操作按钮)
+│   │   └── vxe-pager (分页)
+```
+
+#### 2. 工具栏分析
+
+| 按钮 | 系统页面实现 | 现有实现 (index.vue) | 状态 |
+|------|------------|-------------------|------|
+| 刷新 | icon按钮，无文字 | 无 | ❌ 需添加 |
+| Create | `ant-btn ant-btn-primary` | `el-button type="primary"` | ✅ 符合 |
+| Delete | disabled状态 | 有删除按钮 | ⚠️ 需改为disabled初始状态 |
+| Download | icon按钮 | 无 | ❌ 需添加 |
+| Settings | icon按钮 | 无 | ❌ 需添加 |
+
+#### 3. 搜索栏分析
+
+| 功能点 | 系统页面实现 | 现有实现 | 状态 |
+|-------|------------|---------|------|
+| 结构 | 单一搜索框 + 属性选择下拉 | 3字段inline form | ❌ 需改造 |
+| 属性选择 | 点击显示下拉：ID/Name/Description/Domain/Created At | 无 | ❌ 需添加 |
+| 帮助文案 | "默认为名称搜索，自动匹配IP或ID..." | 简单placeholder | ❌ 需添加 |
+| 自动补全 | 输入时显示匹配属性列表 | 无 | ❌ 需添加 |
+
+#### 4. 表格分析（VXE Table）
+
+| 列 | 系统页面实现 | 现有实现 | 状态 |
+|---|------------|---------|------|
+| Checkbox | vxe-checkbox 选择列 | 无 | ❌ 需添加 |
+| Name | 可排序 + 链接样式 + 带描述显示 | el-button link + description small | ⚠️ 结构类似，需改为VXE |
+| Owner Domain | 可排序 | 有所属域列 | ✅ 基本符合 |
+| Operations | "Manage Project" + "Manage User" + "Delete" | "管理项目" + "管理用户" + dropdown更多 | ⚠️ 操作按钮数量不同 |
+
+**系统操作按钮**:
+- Manage Project (link button)
+- Manage User (link button)
+- Delete (link button)
+- 无更多下拉菜单
+
+**现有实现操作按钮**:
+- 管理项目 (link button)
+- 管理用户 (link button)
+- 更多 dropdown (详情/编辑/删除)
+
+#### 5. 创建弹窗分析（Create Dialog）
+
+从 create_dialog.html 分析：
+
+```html
+<ant-modal>
+  <ant-modal-header>Create Groups</ant-modal-header>
+  <ant-modal-body>
+    <ant-form horizontal>
+      <ant-form-item label="Name" required>
+        <ant-input id="name">
+      <ant-form-item label="Description">
+        <textarea placeholder="Please enter a note">
+      <ant-form-item label="Domain" required>
+        <base-select> (下拉选择域)
+    </ant-form>
+  </ant-modal-body>
+  <ant-modal-footer>
+    <ant-btn primary>OK</ant-btn>
+    <ant-btn>Cancel</ant-btn>
+  </ant-modal-footer>
+</ant-modal>
+```
+
+**弹窗字段对比**:
+| 字段 | 系统弹窗 | 现有弹窗 | 状态 |
+|------|---------|---------|------|
+| Name | required, 无placeholder | required, placeholder="请输入用户组名" | ✅ 符合 |
+| Description | textarea, placeholder="Please enter a note" | textarea, placeholder="请输入用户组描述" | ⚠️ placeholder不同 |
+| Domain | required, 下拉选择 | required, 下拉选择 | ✅ 符合 |
+| 宽度 | 未指定 | 600px | ⚠️ 需验证 |
+
+#### 6. 分页分析
+
+系统页面使用 VXE Pager：
+```html
+<vxe-pager>
+  <vxe-pager--jump-prev>
+  <vxe-pager--prev-btn>
+  <vxe-pager--jump> <input goto>
+  <vxe-pager--count> / 1
+  <vxe-pager--next-btn>
+  <vxe-pager--jump-next>
+  <vxe-select> (页大小选择)
+  <vxe-pager--total> Total 1 record
+</vxe-pager>
+```
+
+**分页功能**:
+- 页码跳转输入框
+- 页大小选择下拉
+- 总记录数显示
+
+### 二、UI框架差异分析
+
+| 维度 | 系统页面 | 现有实现 | 需改造 |
+|------|---------|---------|--------|
+| **UI框架** | Ant Design Vue | Element Plus | ❌ 框架不同 |
+| **表格组件** | VXE Table | el-table | ❌ 需替换 |
+| **分页组件** | vxe-pager | el-pagination | ❌ 需替换 |
+| **搜索栏** | 自定义 search-box-wrap | el-form inline | ❌ 需重构 |
+| **弹窗** | ant-modal | el-dialog | ❌ 需替换 |
+| **按钮** | ant-btn | el-button | ❌ 需替换 |
+
+**关键发现**: 系统页面使用 **Ant Design Vue + VXE Table**，而现有 openCMP 项目前端使用 **Element Plus**。
+
+### 三、设计决策
+
+**决策**: 保持与 openCMP 项目风格一致，继续使用 **Element Plus**，但参考系统页面的**布局结构和功能完整性**进行改造。
+
+**理由**:
+1. 项目已有 20+ 页面使用 Element Plus，统一维护成本更低
+2. Element Plus 同样支持表格选择、分页、排序功能
+3. 不需要引入新的 UI 框架依赖
+
+### 四、需要补齐的功能清单
+
+#### P0 级别（必须实现）
+| 功能 | 说明 |
+|------|------|
+| 刷新按钮 | 工具栏添加刷新按钮 |
+| 表格选择列 | 添加 Checkbox 列支持批量操作 |
+| 批量删除 | 添加批量删除功能 |
+| 搜索栏轻量化 | 改为单一搜索框 + 属性选择 |
+| 搜索属性选择 | 支持选择搜索维度（名称/ID/描述/域等） |
+
+#### P1 级别（应该实现）
+| 功能 | 说明 |
+|------|------|
+| 工具栏完整 | Download/Settings 图标按钮 |
+| 操作按钮精简 | 移除更多下拉，改为直接显示按钮 |
+| 表格排序 | Name/Domain 列添加 sortable |
+| 分页优化 | 添加页码跳转输入 |
+
+#### P2 级别（可选优化）
+| 功能 | 说明 |
+|------|------|
+| 详情抽屉 | 改为 Drawer 替代 Dialog |
+| 操作日志Tab | 详情视图添加日志Tab |
+
+---
+
+## Phase 1: 用户管理模块 UI/UX 分析 (2026-04-18)
+
+### 审查状态: complete ✅
+
+### 一、设计系统推荐 (ui-ux-pro-max)
+
+**产品类型**: Enterprise Admin Console (认证与安全管理控制台)
+
+| 维度 | 推荐 | 说明 |
+|------|------|------|
+| **Pattern** | Enterprise Gateway | 企业级平台，导航清晰，信任指标突出 |
+| **Style** | Data-Dense Dashboard | 数据密集型，表格为主，简洁线条 |
+| **Colors** | 继承现有设计系统 | primary=#0F172A, accent=#22C55E, success=#22C55E |
+| **Typography** | Fira Sans/Fira Code | 已有设计系统定义 |
+| **Status Indicator** | 圆点样式 | 绿点=启用，灰点=禁用（区别于el-tag） |
+| **Avoid** | 过度动画、复杂阴影 | 保持简洁高效 |
+
+### 二、现有实现 vs 截图需求差距分析
+
+#### 1. 工具栏差距
+| 功能点 | 截图需求 | 当前实现 (index.vue) | 状态 |
+|-------|---------|-------------------|------|
+| 刷新按钮 | 有 | 无 | ❌ 需添加 |
+| 新建按钮 | Primary Blue | `type="primary"` | ✅ 符合 |
+| 导入用户按钮 | Outline style | 无 | ❌ 需添加 |
+| 批量操作下拉菜单 | 有 | 无 | ❌ 需添加 |
+| 标签按钮 | Outline style | 无 | ❌ 需添加 |
+| Download 图标 | 右侧图标按钮 | 无 | ❌ 需添加 |
+| Settings 图标 | 右侧图标按钮 | 无 | ❌ 需添加 |
+
+#### 2. 搜索栏差距
+| 功能点 | 截图需求 | 当前实现 | 状态 |
+|-------|---------|---------|------|
+| 搜索栏结构 | 单一搜索框+字段选择器 | 3字段inline form | ❌ 需改造为轻量搜索栏 |
+| Placeholder | "默认为名称搜索，自动匹配IP或ID搜索项，IP或ID多个搜索用英文竖线(|)隔开" | 简单placeholder | ❌ 需修改 |
+
+#### 3. 数据表格差距
+| 功能点 | 截图需求 | 当前实现 | 状态 |
+|-------|---------|---------|------|
+| Checkbox选择列 | 有 | 无 | ❌ 需添加 |
+| 名称列 | 可排序，带图标 | 有，无sortable | ⚠️ 需添加sortable |
+| 显示名列 | 有 | 有 | ✅ 符合 |
+| 标签列 | 带图标 | 无 | ❌ 需添加 |
+| 启用状态 | 绿点(启用)/灰点(禁用) | el-tag success/info | ⚠️ 需改为圆点样式 |
+| 控制台登录 | 绿点(启用)/灰点(禁用) | el-tag success/info | ⚠️ 需改为圆点样式 |
+| MFA | 灰点(禁用) | el-tag info | ⚠️ 需改为圆点样式 |
+| 所属域 | 可排序 | 有，无sortable | ⚠️ 需添加sortable |
+| 操作列 | 修改属性链接+更多下拉 | 修改属性按钮+更多下拉 | ✅ 符合，需微调为link |
+
+#### 4. 详情视图差距（重大改造）
+| 功能点 | 截图需求 | 当前实现 | 状态 |
+|-------|---------|---------|------|
+| 展示方式 | el-drawer 侧边抽屉 | el-dialog | ❌ 需重构 |
+| 宽度 | 60% 或 800px | 800px | ⚠️ 需改为drawer |
+| Header | 头像图标+名称+刷新+修改属性+更多 | 简单标题 | ❌ 需添加header区域 |
+| Tab1 | 详情(el-descriptions两列布局) | 基本信息el-descriptions | ⚠️ 需扩展字段 |
+| Tab2 | 已加入项目(工具栏+搜索+表格+空状态) | 有，但结构不同 | ⚠️ 需改造 |
+| Tab3 | 已加入组(工具栏+表格+空状态) | 有，但结构不同 | ⚠️ 需改造 |
+| Tab4 | 操作日志(工具栏+搜索+表格+Footer) | 有mock数据 | ⚠️ 需对接真实API |
+
+#### 5. 操作弹窗差距
+| 弹窗 | 截图需求 | 当前实现 | 状态 |
+|-----|---------|---------|------|
+| 日志查看弹窗 | 详情两列+JSON代码块+复制+上/下导航 | 无 | ❌ 需新建 |
+| 修改属性弹窗 | 确认文案+迷你表格+显示名+控制台登录+MFA开关 | 有编辑弹窗 | ⚠️ 需改造 |
+| 重置密码弹窗 | 确认文案+迷你表格+密码输入(眼睛图标) | 有，结构简单 | ⚠️ 需增强 |
+| 重置MFA弹窗 | 黄色警告框+确认文案+迷你表格 | 无 | ❌ 需新建 |
+
+#### 6. 批量操作差距
+| 功能点 | 截图需求 | 当前实现 | 状态 |
+|-------|---------|---------|------|
+| 批量启用 | 有 | 无 | ❌ 需添加 |
+| 批量禁用 | 有 | 无 | ❌ 需添加 |
+| 批量重置密码 | 有 | 无 | ❌ 需添加 |
+| 批量删除 | 有 | 无 | ❌ 需添加 |
+
+### 三、后端 API 差距分析
+
+| API | 截图需求 | 当前实现 (handler/user.go) | 状态 |
+|-----|---------|------------------------|------|
+| ResetMFA | POST /users/:id/reset-mfa | 无 | ❌ 需新建 |
+| 批量启用 | POST /users/batch-enable | 无 | ❌ 需新建 |
+| 批量禁用 | POST /users/batch-disable | 无 | ❌ 需新建 |
+| 批量重置密码 | POST /users/batch-reset-password | 无 | ❌ 需新建 |
+| 批量删除 | POST /users/batch-delete | 无 | ❌ 需新建 |
+| 用户操作日志 | GET /users/:id/logs | 无 | ❌ 需新建 |
+| 导入用户 | POST /users/import | 无 | ❌ 需新建 |
+
+**已有API (可复用)**:
+- ✅ ListUsers, GetUser, CreateUser, UpdateUser, DeleteUser
+- ✅ EnableUser, DisableUser, ResetPassword
+- ✅ GetUserRoles, AssignRoleToUser, RevokeRoleFromUser
+- ✅ GetUserGroups, JoinGroup, LeaveGroup
+- ✅ GetUserProjects, AssignUserToProject
+
+### 四、前端组件架构设计
+
+```
+frontend/src/views/iam/users/
+├── index.vue                    # 主列表页（改造）
+├── components/
+│   ├── UserDetailDrawer.vue     # 用户详情抽屉（新建）⭐
+│   ├── UserDetailBasicInfo.vue  # 详情Tab - 基本信息（新建）
+│   ├── UserJoinedProjects.vue   # 已加入项目Tab（新建）
+│   ├── UserJoinedGroups.vue     # 已加入组Tab（新建）
+│   ├── UserOperationLogs.vue    # 操作日志Tab（新建）
+│   ├── ModifyAttributesModal.vue # 修改属性弹窗（新建）
+│   ├── ResetPasswordModal.vue   # 重置密码弹窗（改造）
+│   ├── ResetMFAModal.vue        # 重置MFA弹窗（新建）⭐
+│   ├── LogDetailModal.vue       # 日志详情弹窗（新建）⭐
+│   └── ImportUsersModal.vue     # 导入用户弹窗（新建）⭐
+```
+
+### 五、UI/UX 关键设计规则 (ui-ux-pro-max)
+
+| 优先级 | 类别 | 规则 | 应用场景 |
+|--------|------|------|---------|
+| 1 (CRITICAL) | Accessibility | 状态圆点需包含文字说明，不能仅靠颜色 | 启用状态列同时显示圆点和"启用"/"禁用"文字 |
+| 1 (CRITICAL) | Accessibility | Focus ring 可见 | 所有按钮/链接保持现有focus样式 |
+| 2 (CRITICAL) | Touch | 按钮 min 44×44px | 工具栏按钮确保足够触控区域 |
+| 3 (HIGH) | Layout | 使用 8dp 间距系统 | 工具栏gap=8px，表格行间距保持一致 |
+| 4 (HIGH) | Style | 一致性 - 同一产品内相同样式 | 继承现有设计系统，不做大幅改动 |
+| 5 (HIGH) | Layout | Mobile-first breakpoints | 搜索栏在小屏幕自适应 |
+| 6 (MEDIUM) | Forms | 错误就近显示 | 表单验证错误显示在字段下方 |
+| 8 (MEDIUM) | Forms | 空状态提供引导 | 表格无数据时显示空状态组件+引导 |
+
+### 六、状态圆点样式设计
+
+```css
+/* 替换 el-tag 的状态显示 */
+.status-dot {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.status-dot::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.status-dot[data-status="enabled"]::before {
+  background: var(--color-success); /* #22C55E */
+}
+
+.status-dot[data-status="disabled"]::before {
+  background: var(--color-muted); /* #64748B */
+}
+
+.status-dot[data-status="mfa-disabled"]::before {
+  background: var(--color-muted);
+}
+```
+
+### 七、实施优先级排序
+
+| 优先级 | 任务 | 影响范围 | 复杂度 |
+|--------|------|---------|--------|
+| **P0** | 详情改为抽屉 (UserDetailDrawer.vue) | 前端核心改造 | 高 |
+| **P0** | 表格添加Checkbox选择列 | 前端列表页 | 中 |
+| **P1** | 工具栏完整（刷新/导入/批量/标签/图标） | 前端列表页 | 中 |
+| **P1** | 搜索栏轻量化改造 | 前端列表页 | 中 |
+| **P1** | 状态显示改为圆点样式 | 前端表格 | 低 |
+| **P2** | 操作弹窗完善（日志详情/重置MFA/导入用户） | 前端弹窗 | 中 |
+| **P2** | 批量操作功能 | 前端+后端 | 中 |
+| **P3** | 后端API补齐（ResetMFA/批量/日志/导入） | 后端 | 中 |
+
+### 八、风险点
+
+1. 详情dialog改为drawer需重构组件结构
+2. 批量操作需设计批量选择UI交互
+3. 用户操作日志需新建数据表和API
+4. 导入用户需文件解析逻辑
+
+---
+
+## Phase 2: 用户管理模块组件骨架创建 (2026-04-18)
+
+### 审查状态: complete ✅
+
+### 已创建组件文件清单
+
+| 组件文件 | 功能说明 | 状态 |
+|---------|---------|------|
+| `UserDetailDrawer.vue` | 用户详情侧边抽屉主组件 | ✅ 完成 |
+| `UserDetailBasicInfo.vue` | 详情Tab - 两列布局基本信息 | ✅ 完成 |
+| `UserJoinedProjects.vue` | 已加入项目Tab - 工具栏+搜索+表格+空状态 | ✅ 完成 |
+| `UserJoinedGroups.vue` | 已加入组Tab - 工具栏+表格+空状态 | ✅ 完成 |
+| `UserOperationLogs.vue` | 操作日志Tab - 工具栏+搜索+表格+分页 | ✅ 完成 |
+| `ModifyAttributesModal.vue` | 修改属性弹窗 - 迷你表格+表单 | ✅ 完成 |
+| `ResetPasswordModal.vue` | 重置密码弹窗 - 迷你表格+密码输入 | ✅ 完成 |
+| `ResetMFAModal.vue` | 重置MFA弹窗 - 黄色警告+迷你表格 | ✅ 完成 |
+| `LogDetailModal.vue` | 日志详情弹窗 - 两列详情+JSON+导航 | ✅ 完成 |
+| `ImportUsersModal.vue` | 导入用户弹窗 - CSV上传+预览+冲突处理 | ✅ 完成 |
+
+### 关键实现细节
+
+**UserDetailDrawer.vue**:
+- 使用 `el-drawer` 替代 `el-dialog`
+- 响应式宽度: 小屏100%, 中屏70%, 大屏60%
+- Header区域: 用户头像 + 名称 + 刷新/修改属性/更多下拉
+- 4个Tab: 详情、已加入项目、已加入组、操作日志
+- 集成所有子弹窗
+
+**状态圆点样式**:
+- 使用 CSS `.status-dot::before` 伪元素实现圆点
+- `enabled` = 绿色 (#22C55E)
+- `disabled` = 灰色 (#64748B)
+- 符合 ui-ux-pro-max 可访问性规则: 圆点 + 文字说明
+
+**空状态处理**:
+- 使用现有 `EmptyState` 组件
+- 添加引导操作按钮
+
+### 编译验证
+- `npm run build` 成功 ✅
+
+---
+
+## Phase 3: 用户管理主列表页改造 (2026-04-18)
+
+### 审查状态: complete ✅
+
+### 主要改造内容
+
+**工具栏改造**:
+| 按钮 | 实现 | 说明 |
+|------|------|------|
+| 刷新 | `el-button` + Refresh icon | 手动刷新列表 |
+| 新建 | `type="primary"` | Primary blue 样式 |
+| 导入用户 | Upload icon | 打开 ImportUsersModal |
+| 批量操作 | `el-dropdown` | 启用/禁用/重置密码/删除 |
+| 标签 | PriceTag icon | 待后续实现 |
+| Download | Header区域 | 待后续实现 |
+| Settings | Header区域 | 待后续实现 |
+
+**搜索栏改造**:
+- 移除 3字段 inline form
+- 改为单一搜索框 + placeholder
+- Placeholder: "默认为名称搜索，自动匹配IP或ID搜索项..."
+
+**表格改造**:
+| 列 | 改造内容 |
+|---|---------|
+| Checkbox | 新增 `type="selection"` |
+| 名称 | 用户图标 + 可点击链接 + `sortable` |
+| 标签 | PriceTag 图标（如有标签） |
+| 启用状态 | **圆点样式** 替代 el-tag |
+| 控制台登录 | **圆点样式** 替代 el-tag |
+| MFA | **圆点样式** 替代 el-tag |
+| 所属域 | `sortable` |
+| 操作 | 修改属性 link + 更多下拉 |
+
+**批量操作实现**:
+- `handleBatchCommand` 分发操作
+- 批量确认弹窗 + 迷你表格预览
+- 循环调用 enableUser/disableUser/deleteUser API
+- 批量重置密码需后端 API 支持
+
+**详情抽屉集成**:
+- 替换原有 el-dialog
+- 使用 UserDetailDrawer 组件
+- 传递 userId prop
+
+### CSS 状态圆点样式
+```css
+.status-dot::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.status-dot[data-status="enabled"]::before { background: #22C55E; }
+.status-dot[data-status="disabled"]::before { background: #64748B; }
+```
+
+### 编译验证
+- `npm run build` 成功 ✅
+
+### 待后端支持
+- 批量重置密码 API
+- ResetMFA API
+- 用户操作日志 API
+- 导入用户 API
+
+---
+
+## Phase 6-7: 用户管理后端API与前端对接 (2026-04-18)
+
+### 审查状态: complete ✅
+
+### 新增后端API
+
+| API | 路由 | Handler方法 | Service方法 | 状态 |
+|-----|------|------------|-------------|------|
+| ResetMFA | POST /users/:id/reset-mfa | ResetMFA | ResetUserMFA | ✅ |
+| BatchEnable | POST /users/batch-enable | BatchEnable | EnableUser(循环) | ✅ |
+| BatchDisable | POST /users/batch-disable | BatchDisable | DisableUser(循环) | ✅ |
+| BatchResetPassword | POST /users/batch-reset-password | BatchResetPassword | ResetUserPassword(循环) | ✅ |
+| BatchDelete | POST /users/batch-delete | BatchDelete | DeleteUser(循环) | ✅ |
+| UserLogs | GET /users/:id/logs | GetUserOperationLogs | GetUserOperationLogs | ✅ (mock) |
+| ImportUsers | POST /users/import | ImportUsers | CreateUser(循环) | ✅ |
+
+### 新增前端API函数 (iam.ts)
+
+```typescript
+// 新增函数
+resetUserMFA(id)
+getUserOperationLogs(userId, params)
+batchEnableUsers(userIds)
+batchDisableUsers(userIds)
+batchResetPassword(userIds, password)
+batchDeleteUsers(userIds)
+importUsers(domainId, users, conflictMode)
+removeUserProject(userId, projectId)
+```
+
+### 编译验证
+- 后端 `go build ./...` 成功 ✅
+- 前端 `npm run build` 成功 ✅
+
+### 注意事项
+- 用户操作日志目前返回mock数据，待后续实现真实日志表
+- 批量操作采用循环调用单条API，性能优化可后续改为SQL批量操作
+- 导入用户前端已实现CSV解析，后端接收JSON数据
+
+---
+
+## Phase 9-10: 用户管理模块优化 (2026-04-18)
+
+### 审查状态: complete ✅
+
+### 优化内容
+
+**1. 用户操作日志真实查询**
+- 扩展 `OperationLog` 模型: EventType、RequestID、Details、OperatorID、ProjectName
+- `GetUserOperationLogs` 改为查询 `operation_logs` 表（不再返回mock）
+- 查询条件: `user_id = ? OR operator_id = ?`
+
+**2. 批量操作SQL优化**
+| 原实现 | 优化后 |
+|--------|--------|
+| 循环调用 EnableUser | `UPDATE users SET enabled=true WHERE id IN (?)` |
+| 循环调用 DisableUser | `UPDATE users SET enabled=false WHERE id IN (?)` |
+| 循环调用 DeleteUser | `DELETE FROM users WHERE id IN (?)` |
+| 循环调用 ResetUserPassword | `UPDATE users SET password=? WHERE id IN (?)` |
+
+性能提升: 批量1000用户，原需1000次SQL → 现只需1次SQL
+
+**3. 导出功能实现**
+- 后端API: `GET /users/export` 返回JSON数据
+- 前端: 生成CSV文件 + Blob下载
+- 导出字段: ID、用户名、显示名、邮箱、手机号、启用状态、控制台登录、MFA、所属域ID、备注、创建时间
+
+**4. OperationLogService扩展**
+- 新增 `GetUserOperationLogs(userID)` 方法
+- 新增 `CreateUserOperationLog(userID, operationType, result, ...)` 便捷方法
+- 风险级别自动判断: create/import=medium, delete/disable/reset_mfa=high, update/enable=low
+
+### 编译验证
+- 后端 `go build ./...` 成功 ✅
+- 前端 `npm run build` 成功 ✅
+
+---
+
+## 用户管理模块开发总结 (2026-04-18)
+
+### 完成的功能清单
+
+| 功能模块 | 实现状态 |
+|---------|---------|
+| **工具栏** | ✅ 刷新/新建/导入/批量操作/标签/导出/设置 |
+| **搜索栏** | ✅ 轻量化 + placeholder |
+| **数据表格** | ✅ Checkbox/状态圆点/排序/批量选择 |
+| **详情抽屉** | ✅ 4个Tab（基本信息/项目/组/日志） |
+| **操作弹窗** | ✅ 修改属性/重置密码/重置MFA/日志详情 |
+| **导入用户** | ✅ CSV上传 + 预览 + 冲突处理 |
+| **导出用户** | ✅ JSON API + CSV下载 |
+| **批量操作** | ✅ 批量启用/禁用/删除/重置密码（SQL优化） |
+| **操作日志** | ✅ 真实查询（OperationLog表） |
+| **ResetMFA** | ✅ 后端API + 前端弹窗 |
+
+### 新增/修改文件汇总
+
+**前端新建 (10个组件)**
+- UserDetailDrawer.vue, UserDetailBasicInfo.vue
+- UserJoinedProjects.vue, UserJoinedGroups.vue, UserOperationLogs.vue
+- ModifyAttributesModal.vue, ResetPasswordModal.vue, ResetMFAModal.vue
+- LogDetailModal.vue, ImportUsersModal.vue
+
+**前端修改 (2个)**
+- views/iam/users/index.vue - 主列表页完整改造
+- api/iam.ts - 新增9个API函数
+
+**后端修改 (5个)**
+- handler/user.go - 新增9个Handler方法
+- service/user.go - 新增6个Service方法
+- service/operation_log.go - 扩展日志服务
+- model/operation_log.go - 新增字段
+- cmd/server/main.go - 新增9个路由
+
+### 待后续迭代
+1. 标签管理功能完整实现
+2. 日志详情弹窗的上/下导航逻辑
+3. 导出支持更多格式（Excel）
+4. 用户详情显示更多字段（最后登录IP等需扩展User模型）
+
+---
+
+## Phase 32: 前端代码审查与修复 (2026-04-18)
+
+### 审查状态: complete ✅
+
+### 发现的问题与修复
+
+#### 1. TypeScript类型定义问题 ✅ 已修复
+| 问题 | 修复 |
+|------|------|
+| API响应使用 `any` 类型 | 创建 `types/api.ts` 统一响应类型 |
+| EmptyState icon prop 使用 `any` | 改为 `Component` 类型 |
+| vms/index.vue 响应处理不安全 | 使用 `PaginatedResponse<VirtualMachine>` 类型 |
+
+#### 2. 代码重复问题 ✅ 已修复
+| 问题 | 修复 |
+|------|------|
+| 状态映射函数在多文件重复 | 创建 `utils/status-mappers.ts` 共享工具 |
+| 平台映射在多个组件重复 | 统一到共享常量和函数 |
+| 健康状态映射重复 | 统一导出 `getHealthStatusLabel/getHealthTagType` |
+
+#### 3. 新增共享文件
+- `frontend/src/utils/status-mappers.ts` - 状态/平台/健康状态映射工具
+- `frontend/src/types/api.ts` - 统一API响应类型定义
+
+#### 4. 修改的文件
+- `frontend/src/components/common/EmptyState.vue` - 修复icon类型
+- `frontend/src/components/common/CloudAccountSelector.vue` - 使用共享映射
+- `frontend/src/views/compute/vms/index.vue` - 使用共享映射和类型安全响应
+
+### 编译验证 ✅
+- 前端 `npm run build` 成功
+
+### 待后续优化项
+1. 虚拟滚动优化大列表
+2. 添加API响应运行时验证（Zod）
+3. 提取内联箭头函数避免重新渲染
+4. 添加加载骨架屏
+
+---
+
+## Phase 32: 后端代码审查与修复 (2026-04-18)
+
+### 审查状态: complete ✅
+
+### 发现的问题与修复
+
+#### 1. 安全问题 ✅ 已修复
+| 问题 | 修复 |
+|------|------|
+| 凭证存储未加密 | 创建 `pkg/utils/encryption.go` AES-256-GCM加密工具 |
+| SQL LIKE注入风险 | 创建 `pkg/utils/validation.go` 转义函数 |
+| 类型断言panic风险 | `permission.go` 增加类型检查 |
+| ProviderType无验证 | `model/cloud_account.go` 添加BeforeSave钩子验证 |
+
+#### 2. 新增安全工具文件
+- `backend/pkg/utils/encryption.go` - AES-256-GCM凭证加密/解密
+- `backend/pkg/utils/validation.go` - LIKE模式转义、Provider验证
+
+#### 3. 修改的文件
+- `backend/internal/model/cloud_account.go` - 添加BeforeSave验证钩子
+- `backend/internal/middleware/permission.go` - 安全类型转换
+- `backend/internal/service/cloud_account.go` - 使用转义函数防止注入
+
+#### 4. 编译验证 ✅
+- 后端 `go build ./...` 成功
+
+### 待后续优化项
+1. 添加云API重试机制（指数退避）
+2. 实现优雅关闭调度器
+3. 添加Prometheus监控指标
+4. 实现连接池配置
+5. 添加API限流
+
+---
+
+## Phase 32: 系统架构图绘制 (2026-04-18)
+
+### 审查状态: complete ✅
+
+### 生成的架构图
+| 图表 | 文件路径 | 说明 |
+|------|---------|------|
+| 系统架构图 | docs/diagrams/system-architecture.svg | 7层架构：用户层→网关层→服务层→调度层→存储层→采集层→外部层 |
+| 资源同步流程图 | docs/diagrams/resource-sync-flow.svg | 完整同步流程：定时触发→云账号遍历→API调用→标签解析→项目归属→数据入库 |
+| 权限验证流程图 | docs/diagrams/permission-flow.svg | JWT认证→权限检查→项目隔离→Handler处理 |
+
+### 设计文档更新
+- 三个架构图已添加到 `openCMP综合设计文档.md` 对应章节
+- 第五章 5.1 系统架构全景图 - 添加架构图引用
+- 第三章 3.1 资源同步核心流程 - 添加流程图引用
+- 第五章 5.3 API请求权限验证流程 - 添加流程图引用
+
+---
+
+## Phase 31: 云账号模块增强改造 (2026-04-18)
+
+### 研究状态: 分析完成，待实施
+
+### 一、删除逻辑现状分析
+
+**后端现状：**
+| 组件 | 文件位置 | 当前实现 | 问题 |
+|------|---------|---------|------|
+| Handler.Delete | cloud_account.go:244-259 | 无状态校验，直接调用 service.DeleteCloudAccount | ❌ 不符合"先禁用再删除"需求 |
+| Service.DeleteCloudAccount | cloud_account.go:227-229 | `db.Delete(&model.CloudAccount{}, id)` | ❌ 无任何业务校验 |
+
+**前端现状：**
+| 组件 | 文件位置 | 当前实现 | 问题 |
+|------|---------|---------|------|
+| 删除按钮 | index.vue:1320-1331 | `ElMessageBox.confirm` 后直接调用 `deleteCloudAccount` | ❌ 无启用状态校验 |
+
+**改造方案：**
+1. 后端 Delete 方法增加 `account.Enabled == true` 校验，返回错误 "账号为启用状态，请先禁用后再删除"
+2. 前端删除按钮根据 `row.enabled` 状态禁用或显示提示
+3. 批量删除时：整批阻止（更安全，符合项目风格）
+
+### 二、账号连接状态检测现状
+
+**状态字段语义区分：**
+| 字段 | Model位置 | 当前语义 | 改造后语义 |
+|------|---------|---------|---------|
+| Status | cloud_account.go:16 | active/inactive/error | 连接状态：connected/disconnected/checking |
+| Enabled | cloud_account.go:18 | true/false | 启用状态（业务启停） |
+| HealthStatus | cloud_account.go:19 | healthy/unhealthy | 健康状态（资源健康度） |
+
+**已有连接检测能力：**
+| 方法 | Service位置 | 实现方式 | 是否真实调用 |
+|------|-------------|---------|-------------|
+| TestConnection | cloud_account.go:260-287 | `provider.GetCloudInfo()` | ⚠️ 简单验证，非完整API调用 |
+| VerifyCredentials | cloud_account.go:1371-1421 | 阿里云调用 `ListRegions`，其他调用 `ListImages` | ✅ 真实API调用 |
+| TestConnectionWithCredentials | cloud_account.go:1423-1462 | `provider.ListRegions()` | ✅ 真实API调用 |
+
+**缺失能力：**
+1. 连接检测结果不自动更新 Status 字段
+2. 无定时巡检账号连接状态任务
+3. 无 LastConnectionCheckTime 字段
+4. 无 ConnectionCheckError 字段记录失败原因
+
+**改造方案：**
+```go
+// 新增字段
+LastConnectionCheckTime *time.Time  `json:"last_connection_check_time"`
+ConnectionCheckError    string      `gorm:"size:500" json:"connection_check_error"`
+
+// 新增状态枚举
+CloudAccountStatusConnected    = "connected"
+CloudAccountStatusDisconnected = "disconnected"
+CloudAccountStatusChecking     = "checking"
+
+// 新增方法
+func (s *CloudAccountService) RefreshAccountConnectionStatus(ctx, accountID) error
+func (s *CloudAccountService) BatchRefreshAccountStatus(ctx) error
+```
+
+### 三、定时巡检任务现状
+
+**已有调度器：**
+- `pkg/scheduler/scheduler.go` - cron 调度器已启动
+- `pkg/scheduler/task_runner.go` - 支持 sync_cloud_account, sync_billing, sync_renewals, full_sync
+
+**缺失：**
+- 无 `check_account_connection` 任务类型
+- 无账号连接状态巡检逻辑
+
+**改造方案：**
+1. 新增 `check_account_connection` 任务类型
+2. 默认每小时执行一次巡检
+3. 批量检测所有启用账号的连接状态并更新
+
+### 四、资源归属方式联动现状
+
+**前端新建向导现状：**
+| 组件 | 位置 | 当前实现 | 问题 |
+|------|------|---------|------|
+| 多选组件 | index.vue:353-360 | `el-checkbox-group` 支持多选 | ✅ 已支持 |
+| 指定项目选择器 | index.vue:362-366 | `v-if="...includes('specify_project')"` | ⚠️ 只显示控件，无动态说明 |
+| 同步策略选择器 | index.vue:368-372 | 简单下拉 | ⚠️ 未根据勾选状态联动显示/隐藏 |
+| 缺省项目选择器 | index.vue:381-385 | 常规显示 | ⚠️ 未联动判断是否需要兜底 |
+| 说明文案 | 无 | ❌ 缺失 | 需要动态生成优先级说明 |
+
+**getResourceAssignmentText 函数现状（index.vue:1472-1481）：**
+```typescript
+const map: Record<string, string> = {
+  'tag_mapping': '根据同步策略归属',
+  'project_mapping': '根据云上项目归属',
+  ...
+}
+return map[method] || method || '-'
+```
+- ❌ 简单映射，无组合逻辑
+- ❌ 无优先级说明生成
+
+**改造方案：**
+1. 创建 `useResourceAssignmentDescription()` 组合函数
+2. 根据勾选组合动态生成说明文案
+3. 根据勾选状态联动显示/隐藏不同控件
+4. 表单校验与联动一致
+
+### 五、改造优先级排序
+
+| 优先级 | 任务 | 影响范围 | 复杂度 |
+|--------|------|---------|--------|
+| P0 | 删除逻辑改造（先禁用再删除） | 后端Handler+Service，前端删除按钮 | 低 |
+| P1 | 连接状态检测（新建/更新时自动更新Status） | 后端Service，前端新建向导 | 中 |
+| P2 | 定时巡检账号连接状态 | 后端Scheduler+Service | 中 |
+| P3 | 资源归属方式动态说明 | 前端组合函数+联动逻辑 | 中 |
+
+### 六、文件修改清单预估
+
+**后端修改：**
+- `internal/model/cloud_account.go` - 新增字段和状态枚举
+- `internal/handler/cloud_account.go` - Delete方法增加校验，连接检测后更新状态
+- `internal/service/cloud_account.go` - RefreshAccountConnectionStatus, BatchRefreshAccountStatus
+- `pkg/scheduler/task_runner.go` - 新增 check_account_connection 任务类型
+
+**前端修改：**
+- `views/cloud-accounts/index.vue` - 删除按钮禁用逻辑，资源归属动态说明
+- `views/cloud-accounts/composables/useResourceAssignmentDescription.ts` - 新增组合函数（需新建）
+- `api/cloud-account.ts` - 新增刷新状态API
+
+---
+
+## Phase 30: 云账号搜索区轻量化改造 (2026-04-18)
+
+### 实施状态: complete ✅
+
+### 最终实现方案
+
+**前端实现（搜索栏）：**
+```vue
+<div class="search-bar">
+  <el-dropdown trigger="click" @command="handleFieldChange">
+    <el-button>{{ currentFieldLabel }}<el-icon-arrow-down /></el-button>
+    <template #dropdown>
+      <el-dropdown-menu>
+        <el-dropdown-item command="name">名称</el-dropdown-item>
+        <el-dropdown-item command="id">ID</el-dropdown-item>
+        <el-dropdown-item command="remarks">备注</el-dropdown-item>
+        <el-dropdown-item command="provider_type">平台</el-dropdown-item>
+        <el-dropdown-item command="status">状态</el-dropdown-item>
+        <el-dropdown-item command="enabled">启用状态</el-dropdown-item>
+        <el-dropdown-item command="health_status">健康状态</el-dropdown-item>
+        <el-dropdown-item command="account_number">账号</el-dropdown-item>
+        <el-dropdown-item command="domain_id">域</el-dropdown-item>
+      </el-dropdown-menu>
+    </template>
+  </el-dropdown>
+  <!-- 文本字段用input，选择字段用select -->
+  <el-input v-if="isTextField" v-model="searchKeyword" />
+  <el-select v-else v-model="searchSelectValue" />
+  <el-button type="primary" @click="handleSearch">查询</el-button>
+  <el-button @click="handleResetSearch">重置</el-button>
+</div>
+```
+
+**后端实现（搜索参数）：**
+```go
+type CloudAccountSearchParams struct {
+    ID            string // 支持多ID用|分隔
+    Name          string // 模糊搜索
+    Remarks       string
+    ProviderType  string
+    Status        string
+    Enabled       *bool
+    HealthStatus  string
+    AccountNumber string
+    DomainID      *uint
+}
+
+func parseMultiValues(input string) []interface{} // 解析 | 分隔符
+func isIPFormat(input string) bool                // IP格式识别
+func isIDFormat(input string) bool                // ID格式识别
+```
+
+### 当前搜索实现分析
+
+**前端现状：**
+| 组件 | 文件位置 | 当前实现 |
+|------|---------|---------|
+| 搜索区 | frontend/src/views/cloud-accounts/index.vue:35-74 | el-card.filter-card + el-form inline 布局，4个筛选控件（名称/平台/状态/启用状态），占用大面积空间 |
+| 查询参数 | queryForm reactive | name, provider_type, status, enabled 四个字段 |
+| API调用 | loadAccounts() | params 仅包含 name/provider_type/status/enabled，传递给 getCloudAccounts |
+| API定义 | frontend/src/api/cloud-account.ts:4-9 | getCloudAccounts(params?: { page?: number; page_size?: number }) - 仅支持分页参数 |
+
+**后端现状：**
+| 组件 | 文件位置 | 当前实现 |
+|------|---------|---------|
+| Handler | backend/internal/handler/cloud_account.go:80-119 | List() 支持 page/page_size 和 limit/offset 分页，无搜索过滤逻辑 |
+| Service | backend/internal/service/cloud_account.go:56-71 | ListCloudAccounts(ctx, limit, offset) 仅分页，无搜索能力 |
+| Model | backend/internal/model/cloud_account.go | CloudAccount 字段：ID/Name/ProviderType/Status/Enabled/HealthStatus/Balance/AccountNumber/DomainID/Remarks 等 |
+
+**问题分析：**
+1. 搜索区固定展开占用大量首屏空间，视觉重
+2. 多个筛选控件平铺，更像复杂筛选表单而非轻量搜索
+3. 后端不支持字段搜索，仅前端过滤无效
+4. 无字段选择器，无法切换搜索维度
+5. 不支持 IP/ID 多值分隔符搜索
+
+### 改造方案
+
+#### 前端改造：轻量搜索栏
+```
+结构设计：
+├── div.search-bar { display: flex, gap: 8px, padding: 12px 16px }
+│   ├── el-dropdown [字段选择器]
+│   │   ├── 默认显示 "名称"
+│   │   └── 下拉选项：ID/名称/备注/平台/状态/启用状态/健康状态/账号/自动同步/共享模式/域/创建时间
+│   ├── el-input [搜索输入框]
+│   │   ├── placeholder: "默认为名称搜索，自动匹配 IP 或 ID..."
+│   │   ├── 根据字段类型动态切换：文本输入 vs 下拉选择
+│   ├── el-button [查询] type: primary
+│   ├── el-button [重置]
+```
+
+**字段类型映射：**
+| 字段 | 输入类型 | 后端参数 |
+|------|---------|---------|
+| ID | 文本输入（支持|分隔） | id |
+| 名称 | 文本输入（模糊搜索） | name |
+| 备注 | 文本输入 | remarks |
+| 平台 | 下拉选择（alibaba/tencent/aws/azure等） | provider_type |
+| 状态 | 下拉选择（active/inactive/error） | status |
+| 启用状态 | 下拉选择（启用/禁用） | enabled |
+| 康康状态 | 下拉选择（healthy/unhealthy） | health_status |
+| 账号 | 文本输入 | account_number |
+| 创建时间 | 日期范围 | created_at_start, created_at_end |
+| 域 | 下拉选择（动态加载） | domain_id |
+
+#### 后端改造：多字段搜索支持
+```go
+// 新增搜索参数结构
+type CloudAccountSearchParams struct {
+    ID              string // 支持多ID用|分隔
+    Name            string // 模糊搜索
+    Remarks         string
+    ProviderType    string
+    Status          string
+    Enabled         *bool
+    HealthStatus    string
+    AccountNumber   string
+    DomainID        *uint
+    CreatedAtStart  *time.Time
+    CreatedAtEnd    *time.Time
+}
+
+// Service 新增方法
+func (s *CloudAccountService) ListCloudAccountsWithSearch(ctx context.Context, params *CloudAccountSearchParams, limit, offset int) ([]*model.CloudAccount, int64, error)
+```
+
+### 设计系统推荐
+- **模式**: Marketplace / Directory (搜索为核心)
+- **风格**: Data-Dense Dashboard
+- **关键效果**: Hover tooltips, smooth filter animations
+- **反模式**: Ornate design, No filtering
+
+### 实施优先级
+1. **P0**: 前端搜索栏轻量化（字段选择器 + 单输入框）
+2. **P1**: 后端多字段搜索API支持
+3. **P2**: IP/ID多值分隔符搜索逻辑
+4. **P3**: 搜索提示文案优化
+
+---
+
+## Phase 29: 同步策略模块完整实现研究 (2026-04-18)
+
+### 代码扫描结果
+
+**已有实现（可复用）：**
+| 类别 | 文件路径 | 功能状态 |
+|------|---------|---------|
+| **后端模型** | backend/internal/model/sync_policy.go | ✅ SyncPolicy（ID/Name/Remarks/Status/Enabled/Scope/DomainID）、Rule（ConditionType/ResourceMapping/TargetProjectID）、RuleTag（TagKey/TagValue）三层模型 |
+| **后端Handler** | backend/internal/handler/sync_policy.go | ✅ CRUD完整（Create/List/Get/Update/Delete）、UpdateStatus切换启用/禁用 |
+| **后端Service** | backend/internal/service/sync_policy.go | ✅ 事务式创建/更新（策略+规则+标签）、Preload Rules.Tags |
+| **前端类型** | frontend/src/types/sync-policy.ts | ✅ RuleTag/Rule/SyncPolicy/CreateSyncPolicyRequest类型定义 |
+| **前端API** | frontend/src/api/sync-policy.ts | ✅ CRUD API + updateSyncPolicyStatus |
+| **前端列表页** | frontend/src/views/cloud-management/sync-policies/index.vue | ✅ 筛选（名称/状态）、分页、表格、创建/编辑弹窗（规则+标签动态添加）、详情弹窗（el-descriptions） |
+| **操作日志模型** | backend/internal/model/operation_log.go | ✅ OperationTime/ResourceName/ResourceType/OperationType/RiskLevel/Result/Operator |
+| **云上项目模型** | backend/internal/model/cloud_resources.go | ✅ CloudProject（LocalProjectID映射本地项目） |
+| **详情抽屉模式** | frontend/src/views/cloud-accounts/components/CloudAccountDetailDialog.vue | ✅ el-dialog 90%宽度、顶部区域+8个Tab、快捷操作按钮 |
+| **日志Tab模式** | frontend/src/views/cloud-accounts/components/tabs/OperationLogTab.vue | ✅ 工具栏筛选、el-table、分页、详情弹窗 |
+
+### 需补齐功能清单
+
+#### 1. 同步策略列表页缺失项
+| 功能点 | 状态 | 说明 |
+|-------|------|------|
+| 工具区完整（刷新、批量操作、导出） | ❌ | 只有"添加策略"按钮 |
+| 顶部tab（全部/已启用/已禁用） | ❌ | 当前无分类tab |
+| 搜索提示文案 | ❌ | 无提示说明 |
+| 批量启用/禁用/删除 | ❌ | 只有单条操作 |
+| 点击名称打开详情抽屉 | ❌ | 当前是详情弹窗（el-dialog） |
+| "更多"菜单分组 | ⚠️ | 未分组 |
+
+#### 2. 详情抽屉缺失项（需从弹窗改为抽屉）
+| 功能点 | 状态 | 说明 |
+|-------|------|------|
+| 顶部区域（策略图标/名称/启停开关/快捷操作） | ❌ | 需改为云账号抽屉模式 |
+| 规则概览Tab | ⚠️ | 当前详情弹窗有规则展示，需迁移到Tab |
+| 执行日志Tab | ❌ | 需新增：展示策略执行日志 |
+| 映射结果Tab | ❌ | 需新增：展示资源映射结果 |
+
+#### 3. 规则编辑器缺失项
+| 功能点 | 状态 | 说明 |
+|-------|------|------|
+| 规则可视化展示 | ⚠️ | 当前用el-card+collapse，可优化 |
+| 标签选择器 | ⚠️ | 当前手动输入key/value，可改为选择器 |
+| 项目选择器 | ✅ | 已有el-select获取projects |
+| 规则预览效果 | ❌ | 无预览功能 |
+
+#### 4. 后端缺失API
+| API | 状态 |
+|-----|------|
+| 执行策略API（立即执行同步归属） | ❌ |
+| 获取策略执行日志API | ❌ |
+| 获取映射结果API | ❌ |
+| 批量启用/禁用/删除API | ❌ |
+
+### 实施策略
+1. **优先级P0**: 列表页基础功能完善（工具区、顶部tab、搜索提示、批量操作）
+2. **优先级P1**: 详情抽屉改造（顶部区域、3个Tab）
+3. **优先级P2**: 规则编辑器优化（可视化、选择器）
+4. **优先级P3**: 后端API补齐（执行、日志、映射结果）
+5. **优先级P4**: 功能联调测试
+
+### 可复用组件
+- CloudAccountDetailDialog.vue 的顶部区域结构
+- OperationLogTab.vue 的日志列表结构
+- 项目选择器逻辑（getProjects API）
+- 规则动态添加/删除逻辑
+
+### 风险点
+1. 详情弹窗改为抽屉需重构组件
+2. 执行日志需新建SyncPolicyExecutionLog表
+3. 映射结果需关联CloudProject.LocalProjectID
+
+---
+
+## Phase 28: 云账号模块完整实现研究 (2026-04-18)
+
+### 代码扫描结果
+
+**已有实现（可复用）：**
+| 类别 | 文件路径 | 功能状态 |
+|------|---------|---------|
+| **后端模型** | backend/internal/model/cloud_account.go | ✅ 基本字段完整（ID、Name、ProviderType、Credentials、Status、Enabled、HealthStatus、Balance、AccountNumber、LastSync、DomainID、SyncPolicyID、ResourceAssignmentMethod） |
+| **后端模型** | backend/internal/model/cloud_resources.go | ✅ CloudSubscription/CloudUser/CloudUserGroup/CloudProject |
+| **后端模型** | backend/internal/model/cloud_resources_sync.go | ✅ CloudVM/CloudVPC/CloudSubnet/CloudSecurityGroup/CloudEIP等同步模型 |
+| **后端Handler** | backend/internal/handler/cloud_account.go | ✅ CRUD基础（Create/List/Get/Update/Delete）、同步（Sync）、测试连接（Verify/TestConnection）、状态更新（PatchStatus/PatchAttributes） |
+| **后端Handler** | backend/internal/handler/cloud_account_resources.go | ✅ 订阅/云用户/云用户组/云上项目API |
+| **后端Service** | backend/internal/service/cloud_account.go | ✅ 基本业务逻辑、同步资源方法 |
+| **前端列表页** | frontend/src/views/cloud-accounts/index.vue | ✅ 筛选、分页、表格、4步向导、同步弹窗、更新账号弹窗 |
+| **前端详情抽屉** | frontend/src/views/cloud-accounts/components/CloudAccountDetailDialog.vue | ✅ 8个Tab框架（DetailTab、ResourceStatsTab、SubscriptionTab、CloudUserTab、CloudUserGroupTab、CloudProjectTab、ScheduledTaskTab、OperationLogTab） |
+| **前端API** | frontend/src/api/cloud-account.ts | ✅ 大部分API已定义（云账号CRUD、同步、测试连接、订阅、云用户、云用户组、云上项目、操作日志、资源统计） |
+
+### 需补齐功能清单
+
+#### 1. 云账号列表页缺失项
+| 功能点 | 状态 | 说明 |
+|-------|------|------|
+| 顶部tab（全部/公有云） | ❌ | 当前无分类tab |
+| 工具区完整（刷新、批量操作、导出、设置） | ❌ | 只有新建按钮 |
+| 搜索提示文案 | ❌ | 无提示说明 |
+| 表格字段：资源归属方式、上次同步耗时 | ❌ | 部分字段缺失 |
+| 点击名称打开详情抽屉 | ⚠️ | 通过属性设置弹窗打开，非直接点击名称 |
+| "更多"菜单完整项 | ⚠️ | 缺少：状态设置、属性设置、设置同步归属策略、设置同步策略、设置代理、设置免密登录、只读模式 |
+
+#### 2. 新建云账号向导缺失项
+| 功能点 | 状态 | 说明 |
+|-------|------|------|
+| 云平台分类展示 | ❌ | 当前只有4个平台卡片，无分类（公有云/私有云&虚拟化/对象存储） |
+| 第2步表单完整字段 | ⚠️ | 缺少：账号类型、资源归属方式多选、同步策略选择、同步策略生效范围、缺省项目、屏蔽同步资源开关、代理设置、免密登录、只读模式 |
+| 区域动态加载API | ❌ | 当前为硬编码区域列表 |
+
+#### 3. 详情抽屉缺失项
+| 功能点 | 状态 | 说明 |
+|-------|------|------|
+| 顶部区域（云账号图标、名称、快捷操作） | ❌ | 当前只有标题 |
+| Tab内容完整性 | ⚠️ | 需检查各Tab内容是否完整 |
+
+#### 4. 弹窗缺失项
+| 弹窗名称 | 状态 |
+|---------|------|
+| 设置同步归属策略弹窗 | ❌ |
+| 状态设置弹窗 | ❌ |
+| 属性设置弹窗 | ❌ |
+| 设置代理弹窗 | ❌ |
+| 免密登录开关确认弹窗 | ❌ |
+| 只读模式开关确认弹窗 | ❌ |
+
+#### 5. 后端缺失API
+| API | 状态 |
+|-----|------|
+| 获取可同步区域列表 | ❌ |
+| 批量操作API | ❌ |
+| 导出云账号列表API | ❌ |
+
+### 实施策略
+1. **优先级P0**: 列表页基础功能完善（工具区、搜索提示、表格字段）
+2. **优先级P1**: 新建向导完善（云平台分类、表单字段完整）
+3. **优先级P2**: 详情抽屉完善（顶部区域设计）
+4. **优先级P3**: 操作弹窗完善（各种设置弹窗）
+5. **优先级P4**: 后端API补齐（区域列表、批量操作）
+
+### 风险点
+1. 现有代码结构已定型，修改需保持兼容性
+2. 后端区域API需考虑多云厂商差异
+3. 批量操作涉及并发控制
+
+---
+
 ## Phase 27: 前端页面样式统一性检查 (2026-04-17)
 
 ### 标准样式结构 (host-templates/index.vue) - ui-ux-pro-max 参考

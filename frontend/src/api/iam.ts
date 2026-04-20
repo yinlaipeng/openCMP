@@ -121,6 +121,156 @@ export function getRoleGroups(roleId: number, params?: { limit?: number; offset?
   })
 }
 
+// 获取角色的策略列表
+export function getRolePolicies(roleId: number) {
+  return request<{ items: any[], total: number }>({
+    url: `/roles/${roleId}/policies`,
+    method: 'get'
+  })
+}
+
+// 分配策略给角色
+export function assignPolicyToRole(roleId: number, policyId: string) {
+  return request({
+    url: `/roles/${roleId}/policies`,
+    method: 'post',
+    data: { policy_id: policyId }
+  })
+}
+
+// 从角色撤销策略
+export function revokePolicyFromRole(roleId: number, policyId: string) {
+  return request({
+    url: `/roles/${roleId}/policies`,
+    method: 'delete',
+    params: { policy_id: policyId }
+  })
+}
+
+// 批量删除角色
+export function batchDeleteRoles(roleIds: number[]) {
+  return request({
+    url: '/roles/batch-delete',
+    method: 'post',
+    data: { role_ids: roleIds }
+  })
+}
+
+// 获取策略列表（用于策略分配弹窗）
+export function getPolicies(params?: {
+  scope?: string
+  domain_id?: string
+  is_system?: boolean | string
+  show_fail_reason?: boolean
+  details?: boolean
+  summary_stats?: boolean
+  limit?: number
+  offset?: number
+}) {
+  return request({
+    url: '/policies',
+    method: 'get',
+    params
+  })
+}
+
+// 获取策略详情
+export function getPolicy(id: string) {
+  return request({
+    url: `/policies/${id}`,
+    method: 'get'
+  })
+}
+
+// 创建策略
+export function createPolicy(data: {
+  name: string
+  description?: string
+  scope: string
+  domain_id?: string
+  policy: any
+}) {
+  return request({
+    url: '/policies',
+    method: 'post',
+    data
+  })
+}
+
+// 更新策略
+export function updatePolicy(id: string, data: {
+  name?: string
+  description?: string
+  scope?: string
+  domain_id?: string
+  policy?: any
+}) {
+  return request({
+    url: `/policies/${id}`,
+    method: 'put',
+    data
+  })
+}
+
+// 删除策略
+export function deletePolicy(id: string) {
+  return request({
+    url: `/policies/${id}`,
+    method: 'delete'
+  })
+}
+
+// 启用策略
+export function enablePolicy(id: string) {
+  return request({
+    url: `/policies/${id}/enable`,
+    method: 'post'
+  })
+}
+
+// 禁用策略
+export function disablePolicy(id: string) {
+  return request({
+    url: `/policies/${id}/disable`,
+    method: 'post'
+  })
+}
+
+// 获取策略关联的角色列表
+export function getPolicyRoles(policyId: string) {
+  return request<{ items: any[], total: number }>({
+    url: `/policies/${policyId}/roles`,
+    method: 'get'
+  })
+}
+
+// 批量启用策略
+export function batchEnablePolicies(policyIds: string[]) {
+  return request({
+    url: '/policies/batch-enable',
+    method: 'post',
+    data: { policy_ids: policyIds }
+  })
+}
+
+// 批量禁用策略
+export function batchDisablePolicies(policyIds: string[]) {
+  return request({
+    url: '/policies/batch-disable',
+    method: 'post',
+    data: { policy_ids: policyIds }
+  })
+}
+
+// 批量删除策略
+export function batchDeletePolicies(policyIds: string[]) {
+  return request({
+    url: '/policies/batch-delete',
+    method: 'post',
+    data: { policy_ids: policyIds }
+  })
+}
+
 
 // ============= 认证源 API =============
 
@@ -618,6 +768,85 @@ export function getUserProjects(userId: number) {
   })
 }
 
+// 从项目移除用户（用户视角）
+export function removeUserProject(userId: number, projectId: number) {
+  return request({
+    url: `/users/${userId}/projects?project_id=${projectId}`,
+    method: 'delete'
+  })
+}
+
+// 重置用户MFA
+export function resetUserMFA(id: number) {
+  return request({
+    url: `/users/${id}/reset-mfa`,
+    method: 'post'
+  })
+}
+
+// 获取用户操作日志
+export function getUserOperationLogs(userId: number, params?: { limit?: number; offset?: number; keyword?: string }) {
+  return request({
+    url: `/users/${userId}/logs`,
+    method: 'get',
+    params
+  })
+}
+
+// 批量启用用户
+export function batchEnableUsers(userIds: number[]) {
+  return request({
+    url: '/users/batch-enable',
+    method: 'post',
+    data: { user_ids: userIds }
+  })
+}
+
+// 批量禁用用户
+export function batchDisableUsers(userIds: number[]) {
+  return request({
+    url: '/users/batch-disable',
+    method: 'post',
+    data: { user_ids: userIds }
+  })
+}
+
+// 批量重置密码
+export function batchResetPassword(userIds: number[], password: string) {
+  return request({
+    url: '/users/batch-reset-password',
+    method: 'post',
+    data: { user_ids: userIds, password }
+  })
+}
+
+// 批量删除用户
+export function batchDeleteUsers(userIds: number[]) {
+  return request({
+    url: '/users/batch-delete',
+    method: 'post',
+    data: { user_ids: userIds }
+  })
+}
+
+// 导入用户
+export function importUsers(domainId: number, users: Array<{ name: string; display_name?: string; email?: string; password?: string }>, conflictMode: string = 'skip') {
+  return request({
+    url: '/users/import',
+    method: 'post',
+    data: { domain_id: domainId, users, conflict_mode: conflictMode }
+  })
+}
+
+// 导出用户列表
+export function exportUsers(params?: { domain_id?: number; enabled?: boolean }) {
+  return request({
+    url: '/users/export',
+    method: 'get',
+    params
+  })
+}
+
 // 获取用户组列表
 export function getGroups(params?: { limit?: number; offset?: number }) {
   return request({
@@ -731,6 +960,15 @@ export function getGroupProjects(groupId: number, params?: { limit?: number; off
     params
   })
 }
+
+// 批量删除用户组
+export function batchDeleteGroups(groupIds: number[]) {
+  return request({
+    url: '/groups/batch-delete',
+    method: 'post',
+    data: { group_ids: groupIds }
+  })
+}
 // Get project-specific alerts
 export function getProjectSecurityAlerts(projectId: number, params?: any) {
   return request({
@@ -823,5 +1061,62 @@ export function getResourceOperationLogs(resourceType: string, resourceId: numbe
     url: `/operation-logs/${resourceType}/${resourceId}`,
     method: 'get',
     params
+  })
+}
+
+// ============= 安全告警 API =============
+
+// 获取安全告警列表
+export function getSecurityAlerts(params?: {
+  alerting?: boolean
+  status?: string
+  level?: string
+  limit?: number
+  offset?: number
+}) {
+  return request({
+    url: '/alerts',
+    method: 'get',
+    params
+  })
+}
+
+// 获取安全告警统计
+export function getSecurityAlertStats() {
+  return request({
+    url: '/alerts/stats',
+    method: 'get'
+  })
+}
+
+// 获取安全告警详情
+export function getSecurityAlert(id: number) {
+  return request({
+    url: `/alerts/${id}`,
+    method: 'get'
+  })
+}
+
+// 处理安全告警
+export function resolveSecurityAlert(id: number) {
+  return request({
+    url: `/alerts/${id}/resolve`,
+    method: 'post'
+  })
+}
+
+// 忽略安全告警
+export function ignoreSecurityAlert(id: number) {
+  return request({
+    url: `/alerts/${id}/ignore`,
+    method: 'post'
+  })
+}
+
+// 删除安全告警
+export function deleteSecurityAlert(id: number) {
+  return request({
+    url: `/alerts/${id}`,
+    method: 'delete'
   })
 }

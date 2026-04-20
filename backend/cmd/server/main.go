@@ -482,6 +482,9 @@ func main() {
 			groupGroup.DELETE("/:id/projects", groupHandler.RemoveProject)
 		}
 
+		// 策略 Handler (需要在角色路由前定义)
+		policyHandler := handler.NewPolicyHandler(db, logger)
+
 		// 角色路由
 		roleHandler := handler.NewRoleHandler(db, logger)
 		roleGroup := v1.Group("/roles")
@@ -496,6 +499,10 @@ func main() {
 			roleGroup.POST("/:id/public", roleHandler.MakePublic)
 			roleGroup.GET("/:id/users", roleHandler.GetRoleUsers)
 			roleGroup.GET("/:id/groups", roleHandler.GetRoleGroups)
+			// 角色策略关联
+			roleGroup.GET("/:id/policies", policyHandler.GetRolePolicies)
+			roleGroup.POST("/:id/policies", policyHandler.AssignPolicyToRole)
+			roleGroup.DELETE("/:id/policies", policyHandler.RevokePolicyFromRole)
 		}
 
 		// 权限路由
@@ -513,6 +520,22 @@ func main() {
 			permissionGroup.POST("/role/:role_id/assign/:permission_id", permissionHandler.AssignToRole)
 			permissionGroup.DELETE("/role/:role_id/remove/:permission_id", permissionHandler.RemoveFromRole)
 			permissionGroup.GET("/resource-action", permissionHandler.GetPermissionsForResourceAction)
+		}
+
+		// 策略路由
+		policyGroup := v1.Group("/policies")
+		{
+			policyGroup.GET("", policyHandler.List)
+			policyGroup.GET("/:id", policyHandler.GetPolicy)
+			policyGroup.POST("", policyHandler.CreatePolicy)
+			policyGroup.PUT("/:id", policyHandler.UpdatePolicy)
+			policyGroup.DELETE("/:id", policyHandler.DeletePolicy)
+			policyGroup.POST("/:id/enable", policyHandler.EnablePolicy)
+			policyGroup.POST("/:id/disable", policyHandler.DisablePolicy)
+			policyGroup.GET("/:id/roles", policyHandler.GetPolicyRoles)
+			policyGroup.POST("/batch-enable", policyHandler.BatchEnable)
+			policyGroup.POST("/batch-disable", policyHandler.BatchDisable)
+			policyGroup.POST("/batch-delete", policyHandler.BatchDelete)
 		}
 
 		// IAM 综合管理路由
@@ -541,6 +564,7 @@ func main() {
 			notifChannelGroup.GET("", notifChannelHandler.List)
 			notifChannelGroup.GET("/:id", notifChannelHandler.Get)
 			notifChannelGroup.POST("", notifChannelHandler.Create)
+			notifChannelGroup.POST("/test", notifChannelHandler.TestNew) // 新建时测试配置
 			notifChannelGroup.PUT("/:id", notifChannelHandler.Update)
 			notifChannelGroup.DELETE("/:id", notifChannelHandler.Delete)
 			notifChannelGroup.POST("/:id/enable", notifChannelHandler.Enable)

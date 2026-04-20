@@ -12,43 +12,93 @@
       </template>
 
       <!-- 筛选条件 -->
-      <el-form :inline="true" :model="filterForm" class="filter-form">
-        <el-form-item label="项目名称">
-          <el-input v-model="filterForm.name" placeholder="请输入项目名称" clearable @keyup.enter="loadProjects" />
-        </el-form-item>
-        <el-form-item label="状态">
-          <el-select v-model="filterForm.enabled" placeholder="全部" clearable style="width: 100px">
-            <el-option label="启用" :value="true" />
-            <el-option label="禁用" :value="false" />
-          </el-select>
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="loadProjects">查询</el-button>
-          <el-button @click="resetFilter">重置</el-button>
-        </el-form-item>
-      </el-form>
+      <div class="filter-bar">
+        <el-form :inline="true" :model="filterForm" class="filter-form">
+          <el-form-item label="搜索字段">
+            <el-select v-model="filterForm.searchField" placeholder="选择搜索字段" style="width: 140px">
+              <el-option label="名称" value="name" />
+              <el-option label="描述" value="description" />
+            </el-select>
+          </el-form-item>
+          <el-form-item>
+            <el-input
+              v-model="filterForm.keyword"
+              placeholder="请输入搜索关键词"
+              clearable
+              style="width: 200px"
+              @keyup.enter="loadProjects"
+            >
+              <template #prefix>
+                <el-icon><Search /></el-icon>
+              </template>
+            </el-input>
+          </el-form-item>
+          <el-divider direction="vertical" />
+          <el-form-item label="所属域">
+            <el-select v-model="filterForm.domain_id" placeholder="全部" clearable style="width: 150px">
+              <el-option v-for="item in domains" :key="item.id" :label="item.name" :value="item.id" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="状态">
+            <el-select v-model="filterForm.enabled" placeholder="全部" clearable style="width: 100px">
+              <el-option label="启用" :value="true" />
+              <el-option label="禁用" :value="false" />
+            </el-select>
+          </el-form-item>
+        </el-form>
+        <div class="filter-actions">
+          <el-button type="primary" @click="loadProjects">
+            <el-icon><Search /></el-icon>
+            查询
+          </el-button>
+          <el-button @click="resetFilter">
+            <el-icon><Refresh /></el-icon>
+            重置
+          </el-button>
+        </div>
+      </div>
 
       <!-- 项目列表 -->
       <el-table :data="projects" v-loading="loading" border stripe>
-        <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="name" label="名称" min-width="150" show-overflow-tooltip>
           <template #default="{ row }">
             <el-button link @click="handleView(row)" class="name-link">
               {{ row.name }}
             </el-button>
+            <el-tag v-if="row.name === 'system' || row.is_system" type="warning" size="small" style="margin-left: 8px;">系统</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="manager" label="项目管理员" width="120">
+        <el-table-column prop="description" label="描述" min-width="150" show-overflow-tooltip />
+        <el-table-column prop="enabled" label="启用状态" width="100">
           <template #default="{ row }">
-            <span>{{ getProjectManagerName(row) || '-' }}</span>
+            <el-tag :type="row.enabled ? 'success' : 'info'" size="small">
+              {{ row.enabled ? '启用' : '禁用' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="admin" label="管理员" width="120">
+          <template #default="{ row }">
+            <span>{{ row.admin || getProjectManagerName(row) || '-' }}</span>
           </template>
         </el-table-column>
         <el-table-column prop="domain_id" label="所属域" width="120">
           <template #default="{ row }">
-            <span>{{ getDomainName(row.domain_id) }}</span>
+            <el-tag :type="row.domain_id === 1 || row.domain_id === 'default' ? 'primary' : ''" size="small">
+              {{ getDomainName(row.domain_id) }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="250" fixed="right">
+        <el-table-column prop="user_count" label="用户数" width="80">
+          <template #default="{ row }">
+            {{ row.user_count || 0 }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="group_count" label="组数" width="80">
+          <template #default="{ row }">
+            {{ row.group_count || 0 }}
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
             <el-button size="small" @click="handleManageUsersGroups(row)">管理用户/组</el-button>
             <el-dropdown trigger="click" @command="(cmd) => handleCommand(cmd, row)">
@@ -57,9 +107,15 @@
               </el-button>
               <template #dropdown>
                 <el-dropdown-menu>
-                  <el-dropdown-item command="setManager">设置项目管理员</el-dropdown-item>
-                  <el-dropdown-item command="delete" divided>
-                    <span style="color: #F56C6C">删除</span>
+                  <el-dropdown-item command="view">详情</el-dropdown-item>
+                  <el-dropdown-item command="setManager">设置管理员</el-dropdown-item>
+                  <el-dropdown-item command="toggleEnable">
+                    {{ row.enabled ? '禁用' : '启用' }}
+                  </el-dropdown-item>
+                  <el-dropdown-item command="delete" :disabled="row.is_system" divided>
+                    <span :style="row.is_system ? '' : 'color: #F56C6C'">
+                      {{ row.is_system ? '删除（系统项目不可删）' : '删除' }}
+                    </span>
                   </el-dropdown-item>
                 </el-dropdown-menu>
               </template>
@@ -345,7 +401,7 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
-import { Plus, ArrowDown } from '@element-plus/icons-vue'
+import { Plus, ArrowDown, Search, Refresh } from '@element-plus/icons-vue'
 import { Project, Domain, User, Role } from '@/types/iam'
 import {
   getProjects,
@@ -397,7 +453,10 @@ const detailDialogTitle = computed(() => {
 })
 
 const filterForm = reactive({
+  searchField: 'name',
+  keyword: '',
   name: '',
+  domain_id: undefined as number | undefined,
   enabled: undefined as boolean | undefined
 })
 
@@ -443,13 +502,29 @@ const loadProjects = async () => {
   try {
     const params: any = {
       limit: pagination.limit,
-      offset: (pagination.page - 1) * pagination.limit
+      offset: (pagination.page - 1) * pagination.limit,
+      details: true
     }
-    if (filterForm.name) params.keyword = filterForm.name
+    // 根据搜索字段和关键词进行搜索
+    if (filterForm.keyword) {
+      if (filterForm.searchField === 'name') {
+        params.name = filterForm.keyword
+      } else if (filterForm.searchField === 'description') {
+        params.description = filterForm.keyword
+      }
+    }
+    if (filterForm.domain_id) params.domain_id = filterForm.domain_id
     if (filterForm.enabled !== undefined) params.enabled = filterForm.enabled
 
     const res = await getProjects(params)
-    projects.value = res.items || []
+    projects.value = (res.items || res.data || []).map(item => ({
+      ...item,
+      user_count: item.user_count || 0,
+      group_count: item.group_count || 0,
+      admin: item.admin || '',
+      is_system: item.name === 'system' || item.is_system || false,
+      can_delete: item.can_delete !== undefined ? item.can_delete : item.name !== 'system'
+    }))
     pagination.total = res.total || 0
   } catch (e: any) {
     ElMessage.error(e.message || '加载项目列表失败')
@@ -460,15 +535,18 @@ const loadProjects = async () => {
 
 const loadDomains = async () => {
   try {
-    const res = await getDomains({ limit: 100, enabled: true })
-    domains.value = res.items || []
+    const res = await getDomains({ limit: 100, enabled: true, details: true })
+    domains.value = (res.items || res.data || []).map(item => ({
+      ...item,
+      id: item.id
+    }))
     if (domains.value.length > 0) {
       // 设置默认域
       if (!form.domain_id) {
-        form.domain_id = domains.value[0].id
+        form.domain_id = domains.value[0].id as number
       }
       if (!addUserForm.domain_id) {
-        addUserForm.domain_id = domains.value[0].id
+        addUserForm.domain_id = domains.value[0].id as number
       }
     }
   } catch (e: any) {
@@ -520,7 +598,10 @@ const loadProjectRoles = async (projectId: number) => {
 }
 
 const resetFilter = () => {
+  filterForm.searchField = 'name'
+  filterForm.keyword = ''
   filterForm.name = ''
+  filterForm.domain_id = undefined
   filterForm.enabled = undefined
   pagination.page = 1
   loadProjects()
@@ -649,7 +730,9 @@ const getProjectManagerName = (project: Project) => {
 
 const handleCommand = (command: string, row: Project) => {
   switch (command) {
+    case 'view': handleView(row); break
     case 'setManager': handleSetManager(row); break
+    case 'toggleEnable': handleToggleEnable(row); break
     case 'delete': handleDelete(row); break
   }
 }
@@ -781,6 +864,7 @@ const handleAddUserSubmit = async () => {
 
 onMounted(() => {
   loadProjects()
+  loadDomains()  // Load domain list for both forms and filters
 })
 </script>
 
@@ -805,8 +889,40 @@ onMounted(() => {
   font-weight: bold;
 }
 
-.filter-form {
+.filter-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
   margin-bottom: 16px;
+  padding: 16px 20px;
+  background-color: #fff;
+  border-radius: 4px;
+  border: 1px solid #ebeef5;
+}
+
+.filter-form {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-form .el-form-item {
+  margin-bottom: 0;
+  margin-right: 8px;
+}
+
+.filter-form .el-divider--vertical {
+  height: 24px;
+  margin: 0 12px;
+}
+
+.filter-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 16px;
 }
 
 .pagination {

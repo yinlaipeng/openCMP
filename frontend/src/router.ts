@@ -518,13 +518,13 @@ const routes = [
             path: 'channels',
             name: 'NotificationChannels',
             component: () => import('@/views/message-center/channels/index.vue'),
-            meta: { title: '通知渠道' }
+            meta: { title: '通知渠道设置' }
           },
           {
             path: 'project-channels',
             name: 'ProjectNotificationChannels',
             component: () => import('@/views/message-center/channels/index.vue'), // 暂时使用相同组件
-            meta: { title: '项目通知渠道' }
+            meta: { title: '项目通知渠道设置' }
           },
           {
             path: 'robots',
@@ -555,6 +555,12 @@ const routes = [
             name: 'Subscriptions',
             component: () => import('@/views/message-center/subscriptions/index.vue'),
             meta: { title: '消息订阅' }
+          },
+          {
+            path: 'message-types',
+            name: 'MessageTypes',
+            component: () => import('@/views/message-center/message-types/index.vue'),
+            meta: { title: '消息订阅设置' }
           },
           {
             path: 'project-subscriptions',

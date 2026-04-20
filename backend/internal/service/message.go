@@ -60,7 +60,7 @@ func (s *MessageService) ListMessages(ctx context.Context, receiverID uint, limi
 func (s *MessageService) ListUnreadMessages(ctx context.Context, receiverID uint) ([]*model.Message, error) {
 	var messages []*model.Message
 	err := s.db.WithContext(ctx).
-		Where("receiver_id = ? AND read = false", receiverID).
+		Where("receiver_id = ? AND `read` = false", receiverID).
 		Order("created_at DESC").
 		Find(&messages).Error
 	return messages, err
@@ -78,7 +78,7 @@ func (s *MessageService) MarkAsRead(ctx context.Context, id uint) error {
 // MarkAllAsRead 标记所有消息为已读
 func (s *MessageService) MarkAllAsRead(ctx context.Context, receiverID uint) error {
 	now := time.Now()
-	return s.db.WithContext(ctx).Model(&model.Message{}).Where("receiver_id = ? AND read = false", receiverID).Updates(map[string]interface{}{
+	return s.db.WithContext(ctx).Model(&model.Message{}).Where("receiver_id = ? AND `read` = false", receiverID).Updates(map[string]interface{}{
 		"read":    true,
 		"read_at": now,
 	}).Error
@@ -92,7 +92,7 @@ func (s *MessageService) DeleteMessage(ctx context.Context, id uint) error {
 // GetUnreadCount 获取未读消息数量
 func (s *MessageService) GetUnreadCount(ctx context.Context, receiverID uint) (int64, error) {
 	var count int64
-	err := s.db.WithContext(ctx).Model(&model.Message{}).Where("receiver_id = ? AND read = false", receiverID).Count(&count).Error
+	err := s.db.WithContext(ctx).Model(&model.Message{}).Where("receiver_id = ? AND `read` = false", receiverID).Count(&count).Error
 	return count, err
 }
 

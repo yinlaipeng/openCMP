@@ -273,3 +273,164 @@ func (h *SyncPolicyHandler) UpdateStatus(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "status updated"})
 }
+
+// Execute 执行同步策略
+func (h *SyncPolicyHandler) Execute(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	var req struct {
+		CloudAccountID *uint   `json:"cloud_account_id"`
+		Operator       string  `json:"operator"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		// 使用默认值
+		req.Operator = "system"
+	}
+
+	result, err := h.service.ExecuteSyncPolicy(c.Request.Context(), uint(id), req.CloudAccountID, req.Operator)
+	if err != nil {
+		h.logger.Error("failed to execute sync policy", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
+}
+
+// GetExecutionLogs 获取执行日志
+func (h *SyncPolicyHandler) GetExecutionLogs(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	resultFilter := c.Query("result")
+
+	logs, total, err := h.service.GetExecutionLogs(c.Request.Context(), uint(id), limit, offset, resultFilter)
+	if err != nil {
+		h.logger.Error("failed to get execution logs", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"items": logs,
+		"total": total,
+	})
+}
+
+// GetMappingResults 获取映射结果
+func (h *SyncPolicyHandler) GetMappingResults(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	projectFilter := c.Query("project_id")
+
+	results, total, err := h.service.GetMappingResults(c.Request.Context(), uint(id), limit, offset, projectFilter)
+	if err != nil {
+		h.logger.Error("failed to get mapping results", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"items": results,
+		"total": total,
+	})
+}
+
+// BatchEnable 批量启用
+func (h *SyncPolicyHandler) BatchEnable(c *gin.Context) {
+	var req struct {
+		IDs []uint `json:"ids" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	count, err := h.service.BatchToggleStatus(c.Request.Context(), req.IDs, true)
+	if err != nil {
+		h.logger.Error("failed to batch enable policies", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "batch enable completed",
+		"count":   count,
+	})
+}
+
+// BatchDisable 批量禁用
+func (h *SyncPolicyHandler) BatchDisable(c *gin.Context) {
+	var req struct {
+		IDs []uint `json:"ids" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	count, err := h.service.BatchToggleStatus(c.Request.Context(), req.IDs, false)
+	if err != nil {
+		h.logger.Error("failed to batch disable policies", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "batch disable completed",
+		"count":   count,
+	})
+}
+
+// BatchDelete 批量删除
+func (h *SyncPolicyHandler) BatchDelete(c *gin.Context) {
+	var req struct {
+		IDs []uint `json:"ids" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	count, err := h.service.BatchDelete(c.Request.Context(), req.IDs)
+	if err != nil {
+		h.logger.Error("failed to batch delete policies", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "batch delete completed",
+		"count":   count,
+	})
+}
+
+// Export 导出策略列表
+func (h *SyncPolicyHandler) Export(c *gin.Context) {
+	policies, err := h.service.ExportPolicies(c.Request.Context())
+	if err != nil {
+		h.logger.Error("failed to export policies", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"items": policies,
+		"total": len(policies),
+	})
+}

@@ -3,21 +3,69 @@
 export * from './permission'
 
 export interface Domain {
-  id: number
+  id: number | string
   name: string
   description: string
   enabled: boolean
+  user_count?: number
+  group_count?: number
+  project_count?: number
+  role_count?: number
+  policy_count?: number
+  idp_count?: number
+  is_sso?: boolean
+  ext_resource?: {
+    cloudaccounts?: number
+    cloudroles?: number
+    cloudusers?: number
+    hosts?: number
+    storages?: number
+    vpcs?: number
+    route_tables?: number
+    wires?: number
+    proxysettings?: number
+    project_mappings?: number
+  }
+  can_delete?: boolean
+  can_update?: boolean
+  delete_fail_reason?: {
+    class?: string
+    code?: number
+    details?: string
+  }
+  update_fail_reason?: {
+    class?: string
+    code?: number
+    details?: string
+  }
   created_at: string
   updated_at: string
 }
 
 export interface Project {
-  id: number
+  id: number | string
   name: string
   description: string
-  domain_id: number
+  domain_id: number | string
   manager_id?: number
+  admin?: string
+  admin_id?: string
   enabled: boolean
+  user_count?: number
+  group_count?: number
+  is_system?: boolean
+  can_delete?: boolean
+  can_update?: boolean
+  ext_resource?: {
+    servers?: number
+    disks?: number
+    networks?: number
+    secgroups?: number
+    scheduledtasks?: number
+    loadbalancercertificates?: number
+    dns_zones?: number
+    externalprojects?: number
+  }
   created_at: string
   updated_at: string
 }
@@ -42,6 +90,11 @@ export interface Group {
   name: string
   description: string
   domain_id: number
+  user_count?: number
+  project_count?: number
+  is_sso?: boolean
+  can_delete?: boolean
+  can_update?: boolean
   created_at: string
   updated_at: string
 }
@@ -76,8 +129,9 @@ export interface AuthSource {
     user_search_base?: string
     group_search_base?: string
     user_enabled_attribute?: string
+    user_enabled_status?: 'enabled' | 'disabled'
     protocol?: string
-    auth_type?: string
+    auth_type?: 'ad_single' | 'ad_multiple' | 'openldap'
     target_domain?: string
   }
   enabled: boolean

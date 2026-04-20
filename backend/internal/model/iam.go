@@ -320,19 +320,51 @@ func (SecurityAlert) TableName() string {
 
 // ============= 消息中心 =============
 
-// MessageType 消息类型
+// MessageType 消息类型（参考 Cloudpods Topic 设计）
 type MessageType struct {
-	ID          uint      `gorm:"primaryKey" json:"id"`
-	Name        string    `gorm:"uniqueIndex;not null;size:100" json:"name"`
-	DisplayName string    `gorm:"size:100" json:"display_name"`
-	Description string    `gorm:"size:500" json:"description"`
-	Enabled     bool      `gorm:"default:true" json:"enabled"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID            uint      `gorm:"primaryKey" json:"id"`
+	Name          string    `gorm:"uniqueIndex;not null;size:100" json:"name"`           // 消息类型名称（如 user_lock）
+	DisplayName   string    `gorm:"size:100" json:"display_name"`                         // 显示名称
+	Description   string    `gorm:"size:500" json:"description"`                          // 描述
+	Type          string    `gorm:"type:varchar(30);default:'resource'" json:"type"`     // 类型：security/resource/automated_process
+	Enabled       bool      `gorm:"default:true" json:"enabled"`                          // 是否启用
+	TitleCN       string    `gorm:"type:text" json:"title_cn"`                            // 中文标题模板
+	TitleEN       string    `gorm:"type:text" json:"title_en"`                            // 英文标题模板
+	ContentCN     string    `gorm:"type:text" json:"content_cn"`                          // 中文内容模板
+	ContentEN     string    `gorm:"type:text" json:"content_en"`                          // 英文内容模板
+	ResourceTypes string    `gorm:"type:text" json:"resource_types"`                      // 关联资源类型（JSON数组）
+	GroupKeys     string    `gorm:"type:text" json:"group_keys"`                          // 分组键（JSON数组）
+	AdvanceDays   string    `gorm:"type:text" json:"advance_days"`                        // 提前天数（JSON数组，资源到期提醒）
+	IsSystem      bool      `gorm:"default:false" json:"is_system"`                       // 是否系统内置
+	CanDelete     bool      `gorm:"default:true" json:"can_delete"`                       // 是否可删除
+	CanUpdate     bool      `gorm:"default:true" json:"can_update"`                       // 是否可更新
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }
 
 func (MessageType) TableName() string {
 	return "message_types"
+}
+
+// TopicReceiver 消息类型接收人（参考 Cloudpods）
+type TopicReceiver struct {
+	ID            uint      `gorm:"primaryKey" json:"id"`
+	TopicID       uint      `gorm:"index;not null" json:"topic_id"`                     // 消息类型ID
+	ReceiverType  string    `gorm:"type:varchar(20);not null" json:"receiver_type"`     // 接收人类型：user/group/role
+	ReceiverID    uint      `gorm:"not null" json:"receiver_id"`                        // 接收人ID
+	ReceiverName  string    `gorm:"size:100" json:"receiver_name"`                      // 接收人名称（缓存字段）
+	Inbox         bool      `gorm:"default:true" json:"inbox"`                          // 站内信渠道
+	Email         bool      `gorm:"default:false" json:"email"`                         // 邮件渠道
+	Wechat        bool      `gorm:"default:false" json:"wechat"`                        // 企业微信渠道
+	Dingtalk      bool      `gorm:"default:false" json:"dingtalk"`                      // 钉钉渠道
+	Webhook       bool      `gorm:"default:false" json:"webhook"`                       // Webhook渠道
+	Enabled       bool      `gorm:"default:true" json:"enabled"`                        // 是否启用
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
+}
+
+func (TopicReceiver) TableName() string {
+	return "topic_receivers"
 }
 
 // Message 消息
@@ -398,14 +430,26 @@ type Robot struct {
 	ID           uint           `gorm:"primaryKey" json:"id"`
 	Name         string         `gorm:"uniqueIndex;not null;size:100" json:"name"`
 	Description  string         `gorm:"size:500" json:"description"`
-	Type         string         `gorm:"type:varchar(20);not null" json:"type"` // webhook/dingtalk/wechat/feishu
-	WebhookURL   string         `gorm:"size:500" json:"webhook_url"`
-	Secret       string         `gorm:"size:255" json:"-"` // 签名密钥
-	Enabled      bool           `gorm:"default:true" json:"enabled"`
-	MessageTypes datatypes.JSON `gorm:"type:json" json:"message_types"` // 订阅的消息类型
-	CreatedAt    time.Time      `json:"created_at"`
+	Type         string         `gorm:"type:varchar(20);not null;index" json:"type"` // webhook/dingtalk/feishu/workwx
+	WebhookURL   string         `gorm:"size:500" json:"webhook_url"`                 // 机器人Webhook地址
+	Secret       string         `gorm:"size:255" json:"secret,omitempty"`            // 签名密钥（可选）
+	Header       string         `gorm:"size:500" json:"header,omitempty"`            // Webhook类型：请求头（可选）
+	Body         string         `gorm:"type:text" json:"body,omitempty"`             // Webhook类型：请求体模板（可选）
+	MsgKey       string         `gorm:"size:100" json:"msg_key,omitempty"`           // Webhook类型：消息键（可选）
+	SecretKey    string         `gorm:"size:255" json:"secret_key,omitempty"`        // Webhook类型：密钥（可选）
+	Enabled      bool           `gorm:"default:true;index" json:"enabled"`
+	Status       string         `gorm:"type:varchar(20);default:'ready'" json:"status"` // ready/creating/updating/error
+	ProjectID    *uint          `gorm:"index" json:"project_id"`                      // 所属项目（可选）
+	DomainID     *uint          `gorm:"index" json:"domain_id"`                       // 所属域（可选）
+	SharedScope  string         `gorm:"type:varchar(20)" json:"shared_scope"`         // 共享范围
+	MessageTypes datatypes.JSON `gorm:"type:json" json:"message_types"`               // 订阅的消息类型
+	CreatedAt    time.Time      `gorm:"index" json:"created_at"`
 	UpdatedAt    time.Time      `json:"updated_at"`
 	DeletedAt    gorm.DeletedAt `gorm:"index" json:"-"`
+
+	// Associations
+	Domain  *Domain  `gorm:"foreignKey:DomainID" json:"domain,omitempty"`
+	Project *Project `gorm:"foreignKey:ProjectID" json:"project,omitempty"`
 }
 
 func (Robot) TableName() string {

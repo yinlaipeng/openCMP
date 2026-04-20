@@ -200,12 +200,22 @@ func (h *NotificationChannelHandler) Test(c *gin.Context) {
 		return
 	}
 
-	// 简单的连通性测试：验证渠道存在且启用
-	if !channel.Enabled {
-		c.JSON(http.StatusOK, gin.H{"success": false, "message": "channel is disabled"})
+	h.testChannel(c, channel)
+}
+
+// TestNew 测试新建通知渠道配置（无需保存）
+func (h *NotificationChannelHandler) TestNew(c *gin.Context) {
+	var channel model.NotificationChannel
+	if err := c.ShouldBindJSON(&channel); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
+	h.testChannel(c, &channel)
+}
+
+// testChannel 测试通知渠道配置的通用方法
+func (h *NotificationChannelHandler) testChannel(c *gin.Context, channel *model.NotificationChannel) {
 	// 根据渠道类型进行具体的连通性测试
 	testPassed := true
 	testMessage := "channel test passed"
@@ -219,12 +229,11 @@ func (h *NotificationChannelHandler) Test(c *gin.Context) {
 			testPassed = false
 			testMessage = "failed to parse email config: " + err.Error()
 		} else {
-			// 简单验证必要的字段是否存在
-			if emailCfg.SMTPHost == "" || emailCfg.SMTPPort == 0 || emailCfg.SMTPUser == "" {
+			// 验证必要的字段
+			if emailCfg.SMTPHost == "" || emailCfg.SMTPPort == 0 || emailCfg.SMTPUser == "" || emailCfg.SMTPPassword == "" || emailCfg.FromAddress == "" {
 				testPassed = false
-				testMessage = "missing required email config fields (host, port, username)"
+				testMessage = "missing required email config fields (host, port, username, password, from_address)"
 			} else {
-				// 在实际应用中，这里应该尝试连接到SMTP服务器
 				testMessage = "email config validation passed"
 			}
 		}
@@ -237,76 +246,77 @@ func (h *NotificationChannelHandler) Test(c *gin.Context) {
 			testMessage = "failed to parse SMS config: " + err.Error()
 		} else {
 			// 验证短信服务必需的字段
-			if smsCfg.Provider == "" || smsCfg.AccessKeyID == "" || smsCfg.AccessKeySecret == "" {
+			if smsCfg.Provider == "" || smsCfg.AccessKeyID == "" || smsCfg.AccessKeySecret == "" || smsCfg.Signature == "" {
 				testPassed = false
-				testMessage = "missing required SMS config fields (provider, access key, secret)"
+				testMessage = "missing required SMS config fields (provider, access_key_id, access_key_secret, signature)"
 			} else {
-				// 在实际应用中，这里应该尝试连接到短信服务提供商
-				testMessage = "SMS config validation passed"
+				// 检查是否有验证码模板
+				if smsCfg.VerifyCodeTemplate == "" && smsCfg.DomesticTemplates.VerifyCode == "" {
+					testPassed = false
+					testMessage = "missing SMS verify code template"
+				} else {
+					testMessage = "SMS config validation passed"
+				}
 			}
 		}
 	case "dingtalk":
-		// 测试钉钉机器人
+		// 测试钉钉应用配置
 		configBytes := []byte(channel.Config)
 		dingtalkCfg, err := service.UnmarshalDingTalkConfig(json.RawMessage(configBytes))
 		if err != nil {
 			testPassed = false
 			testMessage = "failed to parse DingTalk config: " + err.Error()
 		} else {
-			if dingtalkCfg.WebhookURL == "" {
-				testPassed = false
-				testMessage = "missing required DingTalk config field (webhook URL)"
-			} else {
-				// 在实际应用中，这里应该尝试向Webhook发送测试消息
+			// 支持应用凭证模式和 Webhook 模式
+			if dingtalkCfg.AgentId != "" && dingtalkCfg.AppKey != "" && dingtalkCfg.AppSecret != "" {
+				// 应用凭证模式
+				testMessage = "DingTalk app config validation passed"
+			} else if dingtalkCfg.WebhookURL != "" {
+				// Webhook 模式（向后兼容）
 				testMessage = "DingTalk webhook validation passed"
+			} else {
+				testPassed = false
+				testMessage = "missing DingTalk config: need (agent_id, app_key, app_secret) or webhook_url"
 			}
 		}
-	case "wechat":
-		// 测试企业微信机器人
+	case "wechat", "workwx":
+		// 测试企业微信应用配置
 		configBytes := []byte(channel.Config)
 		weChatCfg, err := service.UnmarshalWeChatConfig(json.RawMessage(configBytes))
 		if err != nil {
 			testPassed = false
 			testMessage = "failed to parse WeChat config: " + err.Error()
 		} else {
-			if weChatCfg.WebhookURL == "" {
-				testPassed = false
-				testMessage = "missing required WeChat config field (webhook URL)"
+			// 支持应用凭证模式和 Webhook 模式
+			if weChatCfg.CorpId != "" && weChatCfg.AgentId != "" && weChatCfg.Secret != "" {
+				// 应用凭证模式
+				testMessage = "WeCom app config validation passed"
+			} else if weChatCfg.WebhookURL != "" {
+				// Webhook 模式（向后兼容）
+				testMessage = "WeCom webhook validation passed"
 			} else {
-				// 在实际应用中，这里应该尝试向Webhook发送测试消息
-				testMessage = "WeChat webhook validation passed"
+				testPassed = false
+				testMessage = "missing WeChat config: need (corp_id, agent_id, secret) or webhook_url"
 			}
 		}
-	case "feishu":
-		// 测试飞书机器人
+	case "feishu", "lark":
+		// 测试飞书/Lark应用配置
 		configBytes := []byte(channel.Config)
 		feishuCfg, err := service.UnmarshalFeishuConfig(json.RawMessage(configBytes))
 		if err != nil {
 			testPassed = false
 			testMessage = "failed to parse Feishu config: " + err.Error()
 		} else {
-			if feishuCfg.WebhookURL == "" {
-				testPassed = false
-				testMessage = "missing required Feishu config field (webhook URL)"
+			// 支持应用凭证模式和 Webhook 模式
+			if feishuCfg.AppId != "" && feishuCfg.AppSecret != "" {
+				// 应用凭证模式
+				testMessage = "Feishu/Lark app config validation passed"
+			} else if feishuCfg.WebhookURL != "" {
+				// Webhook 模式（向后兼容）
+				testMessage = "Feishu/Lark webhook validation passed"
 			} else {
-				// 在实际应用中，这里应该尝试向Webhook发送测试消息
-				testMessage = "Feishu webhook validation passed"
-			}
-		}
-	case "lark":
-		// 测试Lark机器人
-		configBytes := []byte(channel.Config)
-		larkCfg, err := service.UnmarshalLarkConfig(json.RawMessage(configBytes))
-		if err != nil {
-			testPassed = false
-			testMessage = "failed to parse Lark config: " + err.Error()
-		} else {
-			if larkCfg.WebhookURL == "" {
 				testPassed = false
-				testMessage = "missing required Lark config field (webhook URL)"
-			} else {
-				// 在实际应用中，这里应该尝试向Webhook发送测试消息
-				testMessage = "Lark webhook validation passed"
+				testMessage = "missing Feishu config: need (app_id, app_secret) or webhook_url"
 			}
 		}
 	case "webhook":
@@ -319,9 +329,8 @@ func (h *NotificationChannelHandler) Test(c *gin.Context) {
 		} else {
 			if webhookCfg.URL == "" {
 				testPassed = false
-				testMessage = "missing required Webhook config field (URL)"
+				testMessage = "missing required Webhook config field (url)"
 			} else {
-				// 在实际应用中，这里应该尝试向Webhook发送测试请求
 				testMessage = "Webhook validation passed"
 			}
 		}

@@ -15,6 +15,7 @@ import (
 // ProjectHandler 项目 Handler
 type ProjectHandler struct {
 	service *service.ProjectService
+	db      *gorm.DB
 	logger  *zap.Logger
 }
 
@@ -22,8 +23,29 @@ type ProjectHandler struct {
 func NewProjectHandler(db *gorm.DB, logger *zap.Logger) *ProjectHandler {
 	return &ProjectHandler{
 		service: service.NewProjectService(db),
+		db:      db,
 		logger:  logger,
 	}
+}
+
+// ProjectResponse 项目响应结构（带统计字段）
+type ProjectResponse struct {
+	ID          uint   `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	DomainID    uint   `json:"domain_id"`
+	ManagerID   *uint  `json:"manager_id"`
+	Enabled     bool   `json:"enabled"`
+	CreatedAt   string `json:"created_at"`
+	UpdatedAt   string `json:"updated_at"`
+	// 统计字段
+	UserCount  int  `json:"user_count"`
+	GroupCount int  `json:"group_count"`
+	IsSystem   bool `json:"is_system"`
+	CanDelete  bool `json:"can_delete"`
+	CanUpdate  bool `json:"can_update"`
+	Admin      string `json:"admin"`
+	AdminID    string `json:"admin_id"`
 }
 
 // CreateProjectRequest 创建项目请求
@@ -45,6 +67,7 @@ type JoinProjectRequest struct {
 func (h *ProjectHandler) List(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	details := c.Query("details") == "true"
 
 	// 获取筛选参数
 	var domainID *uint
@@ -55,6 +78,7 @@ func (h *ProjectHandler) List(c *gin.Context) {
 	}
 
 	keyword := c.Query("keyword")
+	name := c.Query("name")
 	enabledStr := c.Query("enabled")
 
 	var enabled *bool
@@ -66,6 +90,11 @@ func (h *ProjectHandler) List(c *gin.Context) {
 		}
 	}
 
+	// 使用 name 或 keyword
+	if name != "" && keyword == "" {
+		keyword = name
+	}
+
 	projects, total, err := h.service.ListProjects(c.Request.Context(), domainID, keyword, enabled, limit, offset)
 	if err != nil {
 		h.logger.Error("failed to list projects", zap.Error(err))
@@ -73,10 +102,72 @@ func (h *ProjectHandler) List(c *gin.Context) {
 		return
 	}
 
+	// 如果需要详细信息，添加统计字段
+	if details {
+		var responses []ProjectResponse
+		for _, p := range projects {
+			resp := h.buildProjectResponse(p)
+			responses = append(responses, resp)
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"items": responses,
+			"total": total,
+		})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"items": projects,
 		"total": total,
 	})
+}
+
+// buildProjectResponse 构建项目响应（带统计字段）
+func (h *ProjectHandler) buildProjectResponse(p *model.Project) ProjectResponse {
+	resp := ProjectResponse{
+		ID:          p.ID,
+		Name:        p.Name,
+		Description: p.Description,
+		DomainID:    p.DomainID,
+		ManagerID:   p.ManagerID,
+		Enabled:     p.Enabled,
+		CreatedAt:   p.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		UpdatedAt:   p.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+		IsSystem:    p.Name == "system",
+		CanDelete:   p.Name != "system",
+		CanUpdate:   true,
+	}
+
+	// 计算统计字段
+	resp.UserCount = h.countProjectUsers(p.ID)
+	resp.GroupCount = h.countProjectGroups(p.ID)
+
+	// 获取管理员信息
+	if p.ManagerID != nil {
+		var user model.User
+		if err := h.db.First(&user, *p.ManagerID).Error; err == nil {
+			resp.Admin = user.Name
+			resp.AdminID = strconv.FormatUint(uint64(user.ID), 10)
+		}
+	}
+
+	return resp
+}
+
+// countProjectUsers 计算项目用户数量
+func (h *ProjectHandler) countProjectUsers(projectID uint) int {
+	var count int64
+	// 通过 user_projects 关联表计算
+	h.db.Table("user_projects").Where("project_id = ?", projectID).Count(&count)
+	return int(count)
+}
+
+// countProjectGroups 计算项目组数量
+func (h *ProjectHandler) countProjectGroups(projectID uint) int {
+	var count int64
+	// 通过 group_projects 关联表计算
+	h.db.Table("group_projects").Where("project_id = ?", projectID).Count(&count)
+	return int(count)
 }
 
 // Get 获取项目详情

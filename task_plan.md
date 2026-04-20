@@ -4,8 +4,390 @@
 实现 openCMP 多云管理平台的完整功能落地，前端页面与后端 API 真实对接，云厂商适配器调用真实 SDK，实现从云账号添加 → 资源同步 → 资源管理的完整业务流程。
 
 ## Current Phase
-Phase 27 - 前端页面样式统一检查与修复 (Complete)
-Next: 执行specs/目录中的开发Specs
+Phase 40 - IAM 模块测试与完善 (Complete)
+
+### Phase 40: IAM 模块测试与完善
+- **目标**: 测试并完善认证与安全模块（用户管理、用户组、角色、权限、认证源、项目）
+- **Status:** complete ✅
+- **测试环境**: http://localhost:3000
+- **登录**: admin / admin@123
+- **任务清单**:
+  - [x] **T1: 环境检查** - 前端运行在3000端口，后端运行在8080端口 ✅
+  - [x] **T2: 登录测试** - admin / admin@123 登录成功 ✅
+  - [x] **T3: IAM模块页面测试** - 所有7个模块页面功能正常 ✅
+  - [x] **T4: 新建弹窗测试** - 所有模块新建弹窗可打开，表单字段完整 ✅
+
+#### 测试结果汇总
+
+| 模块 | 页面 | 工具栏 | 表格 | 数据行 | 分页 | 新建弹窗 | 弹窗字段 |
+|------|:----:|:------:|:----:|:------:|:----:|:--------:|:--------:|
+| 用户管理 | ✅ | ✅ | ✅ | 1 | ✅ | ✅ | 12字段 |
+| 用户组 | ✅ | ✅ | ✅ | 1 | ✅ | ✅ | 3字段 |
+| 角色 | ✅ | ✅ | ✅ | 17 | ✅ | ✅ | 4字段 |
+| 权限 | ✅ | ✅ | ✅ | 0 | ✅ | ✅ | 4字段 |
+| 认证源 | ✅ | ✅ | ✅ | 1 | ✅ | ✅ | 19字段 |
+| 项目 | ✅ | ✅ | ✅ | 1 | ✅ | ✅ | 6字段 |
+| 域 | ✅ | ✅ | ✅ | 1 | ✅ | ✅ | 3字段 |
+
+#### 新建弹窗字段详情
+
+**用户管理**: 用户名、显示名、备注、邮箱、手机号、密码、所属域、控制台登录、启用MFA、选择域、选择项目、选择角色
+
+**用户组**: 用户组名、备注、域
+
+**角色**: 名称、显示名、描述、类型
+
+**权限**: 名称、描述、策略范围、策略内容
+
+**认证源**: 名称、认证源归属、备注、认证协议、认证类型、用户归属目标域、启用、服务器地址、基本DN、用户名、密码、用户DN、组DN、用户启用状态、用户过滤器、用户唯一ID属性、用户名属性
+
+**项目**: 项目名称、描述、所属域、选择域、选择用户、选择角色
+
+**域**: 域名称、描述、启用
+
+#### 发现的小问题
+
+1. **权限模块无数据**: 表格显示"暂无数据"，但新建功能正常
+2. **图标按钮无文本**: 部分工具栏按钮只有图标无文本（刷新、设置等）
+
+---
+
+### Phase 39: 机器人新建弹窗完善
+- **目标**: 参考 Cloudpods `/robot` 新建弹窗，完善 openCMP 机器人新建弹窗的 Webhook 类型特殊字段及后端 API
+- **Status:** complete ✅
+- **参考页面**: https://127.0.0.1/robot（已通过 Playwright 详细分析）
+- **发现**: Webhook 类型有额外字段（URL、header、body、msg_key、secret_key）
+- **任务清单**:
+  - [x] **T1: Cloudpods 弹窗详细分析** - 分析不同类型下的表单变化 ✅
+  - [x] **T2: 前端弹窗更新** - 添加 Webhook 类型特殊字段 ✅
+  - [x] **T3: 后端 API 检查** - 检查 Robot API 是否支持 Webhook 配置字段 ✅
+  - [x] **T4: 后端 API 更新** - 更新 Robot 模型和 Handler 支持 Webhook 配置 ✅
+  - [x] **T5: 前端编译验证** ✅
+  - [x] **T6: 后端测试验证** ✅
+
+#### Cloudpods 新建机器人弹窗分析结果
+
+**弹窗字段结构**：
+
+| 类型 | 字段 | 必填 | 说明 |
+|------|------|------|------|
+| **通用字段** | | | |
+| | Project | 否 | 下拉选择，默认值: system |
+| | Name | 是 | 输入框，2-128字符规则 |
+| | Type | 是 | Radio Button 组 |
+| **钉钉/飞书/企业微信** | | | |
+| | Webhook | 是 | 输入框，机器人 Webhook 地址 |
+| **Webhook 类型** | | | |
+| | URL | 是 | 输入框 |
+| | header | 否 | 输入框 |
+| | body | 否 | 输入框 |
+| | msg_key | 否 | 输入框 |
+| | secret_key | 否 | 输入框 |
+
+**Type Radio 选项**:
+- DingTalk Bot（钉钉机器人）
+- Lark Bot（飞书机器人）
+- WeCom Bot（企业微信机器人）
+- Webhook
+
+#### 文件修改清单
+| 文件 | 修改内容 |
+|------|----------|
+| `frontend/src/views/message-center/robots/index.vue` | 添加 Webhook 类型特殊字段 |
+| `backend/internal/model/robot.go` | 添加 Webhook 配置字段 |
+| `backend/internal/handler/robot.go` | 更新创建/更新接口支持 Webhook 配置 |
+
+---
+
+### Phase 38: 机器人管理页面开发
+- **目标**: 参考 Cloudpods `/robot` 页面，更新 openCMP 机器人管理页面
+- **Status:** complete ✅
+- **参考页面**: https://127.0.0.1/robot（已通过 Playwright 分析）
+- **任务清单**:
+  - [x] **T1: Cloudpods 页面分析** - 分析 robot 页面布局、工具栏、表格、新建弹窗 ✅
+  - [x] **T2: 工具栏更新** - 添加刷新、新建、批量操作下拉、设置按钮 ✅
+  - [x] **T3: 选择列添加** - 添加 checkbox 全选列 ✅
+  - [x] **T4: 搜索框添加** - 添加属性选择器 + 输入框 ✅
+  - [x] **T5: 表格表头调整** - 调整列名（名称、状态、启用状态、类型、所属域、共享范围、创建时间、操作） ✅
+  - [x] **T6: 操作列调整** - 编辑按钮 + 更多下拉（测试、启用、禁用、删除） ✅
+  - [x] **T7: 批量操作** - 批量启用、批量禁用、批量删除 ✅
+  - [x] **T8: 新建弹窗更新** - Type Radio Button组、Webhook帮助文档链接 ✅
+  - [x] **T9: 全中文显示** - 所有标签、提示、按钮使用中文 ✅
+  - [x] **T10: 前端编译验证** ✅
+
+#### 文件修改清单
+| 文件 | 修改内容 |
+|------|----------|
+| `frontend/src/views/message-center/robots/index.vue` | 页面全面重构 |
+
+---
+
+### Phase 37: 接收人管理页面开发
+- **目标**: 参考 Cloudpods `/contact` 页面，更新 openCMP 接收人管理页面
+- **Status:** complete ✅
+- **参考页面**: https://127.0.0.1/contact（已通过 Playwright 分析）
+- **任务清单**:
+  - [x] **T1: Cloudpods 页面分析** - 分析 contact 页面布局、弹窗、表格设计 ✅
+  - [x] **T2: 工具栏更新** - 添加刷新、删除、设置按钮 ✅
+  - [x] **T3: 选择列添加** - 添加 checkbox 全选列 ✅
+  - [x] **T4: 搜索框添加** - 添加属性选择器 + 输入框 ✅
+  - [x] **T5: 表格表头调整** - 调整列名和顺序 ✅
+  - [x] **T6: 操作列调整** - Edit按钮 + More下拉(Enable/Disable/Delete) ✅
+  - [x] **T7: 新建弹窗更新** - Mobile 国际号码组件、Channels 信息提示 ✅
+  - [x] **T8: 前端编译验证** ✅
+
+#### 文件修改清单
+| 文件 | 修改内容 |
+|------|----------|
+| `frontend/src/views/message-center/receivers/index.vue` | 页面全面重构 |
+
+---
+
+### Phase 36: 通知渠道后端适配与测试
+- **目标**: 检查并完成通知渠道后端接口对邮件、短信、钉钉、飞书、企业微信的适配，编写测试用例和单元测试
+- **Status:** complete ✅
+- **任务清单**:
+  - [x] **T1: 现状研究** - 分析后端通知渠道接口现状 ✅
+  - [x] **T2: 配置结构更新** - 更新 Service 层配置结构以匹配 Cloudpods ✅
+    - 钉钉: agent_id/app_key/app_secret + webhook_url/secret（向后兼容）
+    - 飞书: app_id/app_secret + webhook_url/secret（向后兼容）
+    - 企业微信: corp_id/agent_id/secret + webhook_url（向后兼容）
+    - 邮件: 添加 use_ssl 字段
+    - 短信: 添加简化模板字段 verify_code_template/alert_template/abnormal_login_template
+  - [x] **T3: Handler层更新** - 更新测试逻辑以匹配新配置 ✅
+    - 添加 TestNew 方法（新建时测试）
+    - 更新 Test 方法支持新配置结构
+    - 支持应用凭证模式和 Webhook 模式双重验证
+  - [x] **T4: 新增测试路由** - 添加 POST /notification-channels/test 接口 ✅
+  - [x] **T5: 单元测试编写** - 编写各类型配置的详细测试用例 ✅
+    - EmailConfigParsing 测试（完整配置/最小配置/无效JSON）
+    - SMSConfigParsing 测试（简化模板/嵌套模板）
+    - DingTalkConfigParsing 测试（应用模式/Webhook模式/混合模式）
+    - WeChatConfigParsing 测试（应用模式/Webhook模式）
+    - FeishuConfigParsing 测试（应用模式/Webhook模式）
+    - WorkwxConfigParsing 测试
+    - LarkConfigParsing 测试（应用模式/Webhook模式）
+    - WebhookConfigParsing 测试
+    - CreateChannelWithTypeByType 各类型创建测试
+  - [x] **T6: 集成验证** - 验证前后端联调 ✅
+
+#### 测试结果
+```
+=== RUN   TestEmailConfigParsing ... PASS
+=== RUN   TestSMSConfigParsing ... PASS
+=== RUN   TestDingTalkConfigParsing ... PASS
+=== RUN   TestWeChatConfigParsing ... PASS
+=== RUN   TestFeishuConfigParsing ... PASS
+=== RUN   TestWorkwxConfigParsing ... PASS
+=== RUN   TestLarkConfigParsing ... PASS
+=== RUN   TestWebhookConfigParsing ... PASS
+=== RUN   TestCreateChannelWithTypeByType ... PASS
+PASS
+```
+
+#### 文件修改清单
+| 文件 | 修改内容 |
+|------|----------|
+| `service/notification_channel.go` | 更新钉钉/飞书/企业微信/邮件/短信配置结构 |
+| `handler/notification_channel.go` | 添加 TestNew 方法，更新 Test 方法 |
+| `cmd/server/main.go` | 添加 POST /notification-channels/test 路由 |
+| `service/notification_channel_test.go` | 扩展单元测试（9个测试函数） |
+
+---
+
+### Phase 35: 通知渠道新建弹窗开发
+- **目标**: 参考 Cloudpods `/notifyconfig/create` 页面，更新 openCMP 通知渠道新建弹窗
+- **Status:** complete ✅
+- **已完成**:
+  - 类型选择改为 Radio Button Group
+  - 各类型配置字段更新
+  - 添加帮助文本和外部链接
+  - 前端编译验证通过
+
+### Phase 34: 通知渠道设置页面开发
+- **目标**: 参考 Cloudpods `/notifyconfig` 页面，更新 openCMP 通知渠道设置页面，并将菜单名称改为"通知渠道设置"
+- **Status:** complete ✅
+- **参考页面**: https://127.0.0.1/notifyconfig（已通过 Playwright 分析）
+- **现有实现**: frontend/src/views/message-center/channels/index.vue
+- **任务清单**:
+  - [x] **T1: Cloudpods 页面分析** - 分析 notifyconfig 页面的布局、按钮、表格设计 ✅ 完成
+  - [x] **T2: 差距分析** - 对比系统页面与现有实现的差异 ✅ 完成
+  - [x] **T3: 菜单名称修改** - 将"通知渠道"改为"通知渠道设置" ✅ 完成
+  - [x] **T4: 前端页面更新** - 更新页面设计以匹配 Cloudpods ✅ 完成
+  - [x] **T5: 测试验证** - 使用 Playwright 测试验证 ✅ 完成
+
+#### Cloudpods vs openCMP 差距分析
+
+| 功能点 | Cloudpods 实现 | 现有 openCMP 实现 | 状态 |
+|-------|---------------|-----------------|------|
+| 页面标题 | "通知渠道设置" | "通知渠道" | ❌ 需修改 |
+| 选择列 | vxe-checkbox | 无 | ❌ 需添加 |
+| 表头列 | 选择、名称、类型、所属范围、操作 | ID、名称、类型、所属范围、描述、状态、操作 | ❌ 需调整 |
+| 工具栏 | 刷新、新建、删除(disabled)、设置 | 新建渠道 | ❌ 需调整 |
+| 搜索框 | 轻量搜索框+属性选择 | inline form + 类型筛选 | ❌ 需调整 |
+| API端点 | `/api/v1/notifyconfigs` | `/api/v1/notification-channels` | ⚠️ 可能需调整 |
+
+### Phase 33: 用户组管理页面开发
+- **目标**: 参考 openCMP 系统现有风格（/group 页面），完善本地项目用户组管理页面，确保布局、按钮、弹窗、状态指示灯还原到位
+- **Status:** planning（正在规划）
+- **参考页面**: https://127.0.0.1/group（已通过 Playwright 分析）
+- **现有实现**: frontend/src/views/iam/groups/index.vue
+- **任务清单**:
+  - [ ] **T1: 系统页面分析** - 分析 /group 页面的布局、按钮、表格、弹窗设计 ✅ 完成（见 findings.md）
+  - [ ] **T2: 现有实现差距分析** - 对比系统页面与现有实现的差异
+  - [ ] **T3: UI/UX 设计方案** - 创建详细设计方案
+  - [ ] **T4: 后端API差距分析** - 检查后端API完整性
+  - [ ] **T5: 实施计划制定** - 确定优先级和文件修改清单
+
+### Phase 32: 前后端代码审查与架构图绘制
+- **目标**: 对前后端代码进行全面审查，绘制系统架构图和流程图
+- **Status:** planning（正在规划）
+- **任务清单**:
+  - [ ] **T1: 前端代码审查** - 使用 /frontend-code-review 技能
+    - 检查前端代码质量、样式统一性、最佳实践
+    - 输出审查报告到 findings.md
+  - [ ] **T2: 后端代码审查** - 使用 /code-reviewer 技能
+    - 检查后端代码质量、架构设计、测试覆盖
+    - 输出审查报告到 findings.md
+  - [ ] **T3: 系统架构图绘制** - 使用 /fireworks-tech-graph 技能
+    - 阅读前后端代码，理解系统架构
+    - 绘制系统架构图、核心流程图
+    - 将架构图添加到设计文档合适位置
+
+---
+
+## Phase 31 - 云账号模块增强改造 (Complete ✅)
+- **目标**: 删除逻辑改造、连接状态检测、资源归属动态说明
+- **Status:** planning（正在规划）
+- **设计方案**: findings.md Phase 31 章节
+
+#### 一、删除逻辑改造（先禁用再删除）
+- [ ] **P0-1: 后端删除校验**
+  - Service.DeleteCloudAccount 增加 Enabled 校验
+  - 返回错误 "账号为启用状态，请先禁用后再删除"
+  - 文件：`backend/internal/service/cloud_account.go`
+- [ ] **P0-2: 前端删除按钮禁用**
+  - `row.enabled === true` 时禁用删除按钮
+  - 或点击时弹出明确提示
+  - 文件：`frontend/src/views/cloud-accounts/index.vue`
+
+#### 二、账号连接状态检测
+- [ ] **P1-1: 后端状态字段扩展**
+  - 新增 LastConnectionCheckTime 字段
+  - 新增 ConnectionCheckError 字段
+  - 新增状态枚举 connected/disconnected/checking
+  - 文件：`backend/internal/model/cloud_account.go`
+- [ ] **P1-2: 后端连接检测自动更新状态**
+  - TestConnection/VerifyCredentials 成功后更新 Status=connected
+  - 失败后更新 Status=disconnected + ConnectionCheckError
+  - 新增 RefreshAccountConnectionStatus 方法
+  - 文件：`backend/internal/service/cloud_account.go`
+- [ ] **P1-3: 前端新建向导连接测试**
+  - 测试成功标记内部状态
+  - 测试失败禁止进入下一步或显示警告
+  - 修改 AK/SK 时清除测试状态
+  - 文件：`frontend/src/views/cloud-accounts/index.vue`
+
+#### 三、定时巡检账号连接状态
+- [ ] **P2-1: 后端新增巡检任务类型**
+  - task_runner.go 新增 check_account_connection 任务
+  - BatchRefreshAccountStatus 批量检测所有启用账号
+  - 文件：`backend/pkg/scheduler/task_runner.go`
+- [ ] **P2-2: 默认巡检任务**
+  - 系统启动时自动添加每小时巡检任务
+  - 文件：`backend/cmd/server/main.go`
+
+#### 四、资源归属方式动态说明
+- [ ] **P3-1: 前端组合函数**
+  - 创建 useResourceAssignmentDescription.ts
+  - 根据勾选组合生成优先级说明文案
+  - 文件：`frontend/src/views/cloud-accounts/composables/useResourceAssignmentDescription.ts`（新建）
+- [ ] **P3-2: 前端联动逻辑改造**
+  - 根据勾选状态显示/隐藏不同控件
+  - 同步策略选择器联动
+  - 缺省项目显示逻辑
+  - 文件：`frontend/src/views/cloud-accounts/index.vue`
+
+#### 五、验收标准
+1. 启用状态下的账号不能直接删除
+2. 必须先禁用再删除
+3. 列表状态列可正确显示"已连接/连接断开"
+4. 新建账号时可执行连接测试并刷新状态
+5. 更新凭证时可执行连接测试并刷新状态
+6. 后端可定时巡检账号状态
+7. 资源归属方式支持多选
+8. 不同勾选组合显示不同说明文案
+9. 不同勾选组合显示不同输入框和下拉框
+10. UI行为逻辑清晰可维护
+
+---
+
+## Phase 30 - 云账号搜索栏轻量化改造 (Complete ✅)
+- **目标**: 将云账号列表页搜索从"大表单筛选"模式调整为"轻量搜索入口 + 可切换搜索字段"模式
+- **Status:** complete ✅
+- **需求来源**: 用户明确要求修改搜索逻辑
+- [x] **P0: 后端多字段搜索API支持** ✅
+  - CloudAccountSearchParams结构体（支持9个字段） ✅
+  - ListCloudAccountsWithSearch方法（多字段组合查询） ✅
+  - parseMultiValues函数（解析`|`分隔符） ✅
+  - isIPFormat/isIDFormat函数（格式自动识别） ✅
+- [x] **P1: 前端搜索栏轻量化** ✅
+  - 搜索区域改为轻量div.search-bar ✅
+  - 字段选择器下拉（9个字段选项） ✅
+  - 动态输入组件（文本用input，选择用select） ✅
+  - 默认按名称搜索，提示自动匹配IP或ID ✅
+- [x] **P2: 前端API参数更新** ✅
+  - loadAccounts使用CloudAccountSearchParams ✅
+  - handleSearch/handleResetSearch方法 ✅
+  - resetQuery调用handleResetSearch ✅
+- [x] **编译验证** ✅
+  - 前端npm run build成功 ✅
+  - 后端go build成功 ✅
+
+### 文件修改清单
+- backend/internal/service/cloud_account.go (新增搜索方法和辅助函数)
+- backend/internal/handler/cloud_account.go (解析搜索参数)
+- frontend/src/api/cloud-account.ts (新增CloudAccountSearchParams接口)
+- frontend/src/views/cloud-accounts/index.vue (搜索栏组件、loadAccounts方法、CSS)
+
+---
+
+## Phase 29 - 同步策略模块完整实现 (Complete ✅)
+- **目标**: 补齐"多云管理 -> 同步策略"模块前后端功能
+- **Status:** complete ✅
+- **模块功能**: 基于资源标签规则将云资源自动映射归属到指定项目
+- **设计方案**: docs/design/sync-policy-module-design.md
+- [x] **扫描现有代码** ✅
+- [x] **调用ui-ux-pro-max获取设计指导** ✅
+- [x] **创建设计方案文档** ✅
+- [x] **P0: 列表页基础功能完善** ✅
+  - 工具区完整（刷新/新建/批量操作/导出） ✅
+  - 顶部tab（全部/已启用/已禁用） ✅
+  - 搜索提示文案 ✅
+  - 点击名称打开详情抽屉 ✅
+  - 批量启用/禁用/删除功能 ✅
+  - 更多菜单分组（执行/编辑/复制/启停/删除） ✅
+- [x] **P1: 详情抽屉改造** ✅
+  - 顶部区域（策略图标/名称/启停开关/快捷操作） ✅
+  - 规则概览Tab ✅
+  - 执行日志Tab（占位符） ✅
+  - 映射结果Tab（占位符） ✅
+- [x] **P3: 后端API补齐** ✅
+  - 执行策略API ✅
+  - 执行日志API ✅
+  - 映射结果API ✅
+  - 批量操作API ✅
+  - 导出API ✅
+  - 新增数据模型（SyncPolicyExecutionLog、SyncPolicyMappingResult） ✅
+
+### 文件修改清单
+- frontend/src/views/cloud-management/sync-policies/index.vue (大改)
+- frontend/src/api/sync-policy.ts (新增API)
+- backend/internal/model/sync_policy_log.go (新增)
+- backend/internal/handler/sync_policy.go (新增方法)
+- backend/internal/service/sync_policy.go (新增方法)
+- backend/cmd/server/main.go (新增路由)
+- docs/design/sync-policy-module-design.md (新增)
 
 ## Specs (Ralph Wiggum)
 开发Specs基于设计文档创建，按优先级执行：
@@ -513,6 +895,42 @@ Next: 执行specs/目录中的开发Specs
   - 多云场景测试
   - 性能测试
 - **Status:** pending
+
+### Phase 28: 云账号模块完整实现
+- **目标**: 按用户需求补齐云账号模块前后端功能，实现完整的列表页、新建向导、详情抽屉和操作弹窗
+- **Status:** planning
+- [ ] **P0: 列表页基础功能完善**
+  - [ ] 顶部tab（全部/公有云）切换
+  - [ ] 工具区按钮完整（刷新、批量操作、导出、设置）
+  - [ ] 搜索提示文案
+  - [ ] 表格字段补齐（资源归属方式、上次同步耗时）
+  - [ ] 点击名称打开详情抽屉
+- [ ] **P1: 新建云账号向导完善**
+  - [ ] 云平台分类展示（公有云/私有云&虚拟化/对象存储）
+  - [ ] 第2步表单字段完整（账号类型、资源归属方式、同步策略、代理、免密登录、只读模式）
+  - [ ] 区域动态加载API
+- [ ] **P2: 详情抽屉完善**
+  - [ ] 顶部区域设计（云账号图标、名称、快捷操作按钮）
+  - [ ] 各Tab内容完整性检查与补齐
+- [ ] **P3: 操作弹窗完善**
+  - [ ] 设置同步归属策略弹窗
+  - [ ] 状态设置弹窗
+  - [ ] 属性设置弹窗
+  - [ ] 设置代理弹窗
+  - [ ] 免密登录/只读模式开关确认弹窗
+- [ ] **P4: 后端API补齐**
+  - [ ] 获取可同步区域列表API
+  - [ ] 批量操作API
+  - [ ] 导出API
+- [ ] **P5: 编译验证**
+  - [ ] 前端 npm run build 成功
+  - [ ] 后端 go build 成功
+- **已有可复用文件**:
+  - frontend/src/views/cloud-accounts/index.vue (修改)
+  - frontend/src/views/cloud-accounts/components/CloudAccountDetailDialog.vue (修改)
+  - frontend/src/api/cloud-account.ts (扩展)
+  - backend/internal/handler/cloud_account.go (扩展)
+  - backend/internal/service/cloud_account.go (扩展)
 
 ## Key Architecture Points
 

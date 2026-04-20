@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"go.uber.org/zap"
@@ -13,6 +15,7 @@ import (
 
 	"github.com/opencmp/opencmp/internal/model"
 	"github.com/opencmp/opencmp/pkg/cloudprovider"
+	"github.com/opencmp/opencmp/pkg/utils"
 )
 
 // CloudAccountService 云账户服务
@@ -70,13 +73,175 @@ func (s *CloudAccountService) ListCloudAccounts(ctx context.Context, limit, offs
 	return accounts, total, err
 }
 
+// CloudAccountSearchParams 云账户搜索参数
+type CloudAccountSearchParams struct {
+	ID            string // 支持多ID用|分隔，如 "1|2|3"
+	Name          string // 模糊搜索
+	Remarks       string // 模糊搜索备注
+	ProviderType  string // 精确匹配
+	Status        string // 精确匹配
+	Enabled       *bool  // 精确匹配
+	HealthStatus  string // 精确匹配
+	AccountNumber string // 模糊搜索
+	DomainID      *uint  // 精确匹配
+}
+
+// ListCloudAccountsWithSearch 列出云账户（支持多字段搜索）
+func (s *CloudAccountService) ListCloudAccountsWithSearch(ctx context.Context, params *CloudAccountSearchParams, limit, offset int) ([]*model.CloudAccount, int64, error) {
+	var accounts []*model.CloudAccount
+	var total int64
+
+	query := s.db.WithContext(ctx).Model(&model.CloudAccount{})
+
+	// 应用搜索过滤条件
+	if params != nil {
+		// ID搜索（支持多值分隔符）
+		if params.ID != "" {
+			ids := parseMultiValues(params.ID)
+			if len(ids) > 0 {
+				query = query.Where("id IN ?", ids)
+			}
+		}
+
+		// 名称模糊搜索（转义特殊字符防止注入）
+		if params.Name != "" {
+			escapedName := utils.EscapeLikePattern(params.Name)
+			// 自动检测是否为IP或ID格式
+			if isIPFormat(params.Name) {
+				// IP格式：搜索账号或备注中包含该IP
+				query = query.Where("account_number LIKE ? OR name LIKE ?", "%"+escapedName+"%", "%"+escapedName+"%")
+			} else if isIDFormat(params.Name) {
+				// ID格式：可能包含多个ID（用|分隔）
+				ids := parseMultiValues(params.Name)
+				if len(ids) > 0 {
+					query = query.Where("id IN ? OR name LIKE ?", ids, "%"+escapedName+"%")
+				} else {
+					query = query.Where("name LIKE ?", "%"+escapedName+"%")
+				}
+			} else {
+				// 普通名称搜索
+				query = query.Where("name LIKE ?", "%"+escapedName+"%")
+			}
+		}
+
+		// 备注模糊搜索（转义特殊字符）
+		if params.Remarks != "" {
+			escapedRemarks := utils.EscapeLikePattern(params.Remarks)
+			query = query.Where("description LIKE ?", "%"+escapedRemarks+"%")
+		}
+
+		// 平台精确匹配
+		if params.ProviderType != "" {
+			query = query.Where("provider_type = ?", params.ProviderType)
+		}
+
+		// 状态精确匹配
+		if params.Status != "" {
+			query = query.Where("status = ?", params.Status)
+		}
+
+		// 启用状态精确匹配
+		if params.Enabled != nil {
+			query = query.Where("enabled = ?", *params.Enabled)
+		}
+
+		// 健康状态精确匹配
+		if params.HealthStatus != "" {
+			query = query.Where("health_status = ?", params.HealthStatus)
+		}
+
+		// 账号模糊搜索
+		if params.AccountNumber != "" {
+			query = query.Where("account_number LIKE ?", "%"+params.AccountNumber+"%")
+		}
+
+		// 域ID精确匹配
+		if params.DomainID != nil {
+			query = query.Where("domain_id = ?", *params.DomainID)
+		}
+	}
+
+	// 获取总数
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// 获取列表
+	err := query.Limit(limit).Offset(offset).Order("created_at DESC").Find(&accounts).Error
+	return accounts, total, err
+}
+
+// parseMultiValues 解析多值分隔符字符串（支持|分隔）
+func parseMultiValues(input string) []interface{} {
+	if input == "" {
+		return nil
+	}
+
+	values := strings.Split(input, "|")
+	result := make([]interface{}, 0, len(values))
+	for _, v := range values {
+		v = strings.TrimSpace(v)
+		if v != "" {
+			// 尝试转换为数字
+			if id, err := strconv.ParseUint(v, 10, 32); err == nil {
+				result = append(result, uint(id))
+			} else {
+				result = append(result, v)
+			}
+		}
+	}
+	return result
+}
+
+// isIPFormat 检查是否为IP地址格式
+func isIPFormat(input string) bool {
+	// IP地址正则匹配
+	ipPattern := `^(\d{1,3}\.){3}\d{1,3}$`
+ matched, _ := regexp.MatchString(ipPattern, input)
+	return matched
+}
+
+// isIDFormat 检查是否为ID格式（纯数字或数字|数字格式）
+func isIDFormat(input string) bool {
+	// 检查是否为纯数字或数字|数字格式
+	parts := strings.Split(input, "|")
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		// 如果包含非数字字符，则不是ID格式
+		for _, c := range part {
+			if c < '0' || c > '9' {
+				return false
+			}
+		}
+	}
+	// 至少有一个有效数字
+	return len(parts) > 0 && strings.TrimSpace(parts[0]) != ""
+}
+
 // UpdateCloudAccount 更新云账户
 func (s *CloudAccountService) UpdateCloudAccount(ctx context.Context, account *model.CloudAccount) error {
 	return s.db.WithContext(ctx).Save(account).Error
 }
 
-// DeleteCloudAccount 删除云账户
+// DeleteCloudAccount 删除云账户（必须先禁用）
 func (s *CloudAccountService) DeleteCloudAccount(ctx context.Context, id uint) error {
+	// 检查账号状态
+	var account model.CloudAccount
+	if err := s.db.WithContext(ctx).First(&account, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.New("云账号不存在")
+		}
+		return err
+	}
+
+	// 检查是否为启用状态
+	if account.Enabled {
+		return errors.New("账号为启用状态，请先禁用后再删除")
+	}
+
 	return s.db.WithContext(ctx).Delete(&model.CloudAccount{}, id).Error
 }
 
@@ -1311,4 +1476,170 @@ func (s *CloudAccountService) TestConnectionWithCredentials(ctx context.Context,
 	}
 
 	return true, "连接成功，" + strconv.Itoa(len(regions)) + " 个区域可用", regionNames, nil
+}
+
+// RegionInfo 区域信息结构
+type RegionInfo struct {
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	Status string `json:"status"` // available/unavailable
+}
+
+// GetAvailableRegions 获取云账号可同步的区域列表
+func (s *CloudAccountService) GetAvailableRegions(ctx context.Context, account *model.CloudAccount) ([]RegionInfo, error) {
+	// 解析凭证
+	creds := make(map[string]string)
+	if len(account.Credentials) > 0 {
+		if err := json.Unmarshal(account.Credentials, &creds); err != nil {
+			return nil, err
+		}
+	}
+
+	// 默认区域
+	region := "cn-hangzhou"
+	if creds["region_id"] != "" {
+		region = creds["region_id"]
+	}
+
+	config := cloudprovider.CloudAccountConfig{
+		ID:           strconv.Itoa(int(account.ID)),
+		Name:         account.Name,
+		ProviderType: account.ProviderType,
+		Credentials:  creds,
+		Region:       region,
+	}
+
+	provider, err := cloudprovider.GetProvider(account.ProviderType, config)
+	if err != nil {
+		return nil, err
+	}
+
+	// 获取区域列表
+	regions, err := provider.ListRegions()
+	if err != nil {
+		return nil, err
+	}
+
+	// 转换为RegionInfo格式
+	result := make([]RegionInfo, 0)
+	for _, r := range regions {
+		result = append(result, RegionInfo{
+			ID:     r.ID,
+			Name:   r.Name,
+			Status: "available",
+		})
+	}
+
+	// 如果没有区域，返回默认区域列表
+	if len(result) == 0 {
+		defaultRegions := getDefaultRegions(account.ProviderType)
+		result = defaultRegions
+	}
+
+	return result, nil
+}
+
+// getDefaultRegions 获取云厂商默认区域列表（备用）
+func getDefaultRegions(providerType string) []RegionInfo {
+	switch providerType {
+	case "alibaba":
+		return []RegionInfo{
+			{ID: "cn-hangzhou", Name: "华东1（杭州）", Status: "available"},
+			{ID: "cn-shanghai", Name: "华东2（上海）", Status: "available"},
+			{ID: "cn-beijing", Name: "华北2（北京）", Status: "available"},
+			{ID: "cn-shenzhen", Name: "华南1（深圳）", Status: "available"},
+			{ID: "cn-qingdao", Name: "华北1（青岛）", Status: "available"},
+			{ID: "cn-chengdu", Name: "西南1（成都）", Status: "available"},
+			{ID: "cn-hongkong", Name: "中国（香港）", Status: "available"},
+			{ID: "ap-southeast-1", Name: "新加坡", Status: "available"},
+		}
+	case "tencent":
+		return []RegionInfo{
+			{ID: "ap-guangzhou", Name: "华南（广州）", Status: "available"},
+			{ID: "ap-shanghai", Name: "华东（上海）", Status: "available"},
+			{ID: "ap-beijing", Name: "华北（北京）", Status: "available"},
+			{ID: "ap-chengdu", Name: "西南（成都）", Status: "available"},
+			{ID: "ap-hongkong", Name: "港澳台（香港）", Status: "available"},
+		}
+	case "aws":
+		return []RegionInfo{
+			{ID: "us-west-2", Name: "美国西部（俄勒冈）", Status: "available"},
+			{ID: "us-east-1", Name: "美国东部（弗吉尼亚）", Status: "available"},
+			{ID: "ap-northeast-1", Name: "亚太（东京）", Status: "available"},
+			{ID: "ap-southeast-1", Name: "亚太（新加坡）", Status: "available"},
+		}
+	case "azure":
+		return []RegionInfo{
+			{ID: "eastus", Name: "美国东部", Status: "available"},
+			{ID: "westus", Name: "美国西部", Status: "available"},
+			{ID: "eastasia", Name: "东亚", Status: "available"},
+			{ID: "southeastasia", Name: "东南亚", Status: "available"},
+		}
+	default:
+		return []RegionInfo{
+			{ID: "default", Name: "默认区域", Status: "available"},
+		}
+	}
+}
+
+// RefreshAccountConnectionStatus 刷新单个账号的连接状态
+// 执行连接测试并更新 Status、LastConnectionCheckTime、ConnectionCheckError 字段
+func (s *CloudAccountService) RefreshAccountConnectionStatus(ctx context.Context, accountID uint) error {
+	account, err := s.GetCloudAccount(ctx, accountID)
+	if err != nil {
+		return err
+	}
+	if account == nil {
+		return errors.New("account not found")
+	}
+
+	// 执行连接测试
+	valid, message, err := s.VerifyCredentials(ctx, account)
+
+	// 更新状态
+	now := time.Now()
+	account.LastConnectionCheckTime = &now
+
+	if valid && err == nil {
+		account.Status = string(model.CloudAccountStatusConnected)
+		account.ConnectionCheckError = ""
+	} else {
+		account.Status = string(model.CloudAccountStatusDisconnected)
+		if err != nil {
+			account.ConnectionCheckError = err.Error()
+		} else if message != "" {
+			account.ConnectionCheckError = message
+		} else {
+			account.ConnectionCheckError = "连接测试失败"
+		}
+	}
+
+	return s.UpdateCloudAccount(ctx, account)
+}
+
+// BatchRefreshAccountStatus 批量刷新所有启用账号的连接状态
+// 用于定时巡检任务
+func (s *CloudAccountService) BatchRefreshAccountStatus(ctx context.Context) ([]uint, []uint, error) {
+	var accounts []*model.CloudAccount
+
+	// 查询所有启用状态的云账号
+	if err := s.db.WithContext(ctx).
+		Where("enabled = ?", true).
+		Find(&accounts).Error; err != nil {
+		return nil, nil, err
+	}
+
+	successIDs := []uint{}
+	failedIDs := []uint{}
+
+	for _, account := range accounts {
+		err := s.RefreshAccountConnectionStatus(ctx, account.ID)
+		if err != nil {
+			failedIDs = append(failedIDs, account.ID)
+		} else {
+			successIDs = append(successIDs, account.ID)
+		}
+	}
+
+	return successIDs, failedIDs, nil
 }

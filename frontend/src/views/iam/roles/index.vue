@@ -4,84 +4,127 @@
       <template #header>
         <div class="card-header">
           <span class="title">角色</span>
-          <el-button type="primary" @click="handleCreate">
-            <el-icon><Plus /></el-icon>
-            新建角色
-          </el-button>
+          <!-- 工具栏 -->
+          <div class="toolbar">
+            <el-button @click="handleRefresh" :loading="loading">
+              <el-icon><Refresh /></el-icon>
+            </el-button>
+            <el-button type="primary" @click="handleCreate">
+              <el-icon><Plus /></el-icon>
+              新建
+            </el-button>
+            <el-button :disabled="selectedRoles.length === 0" @click="handleBatchDelete">
+              <el-icon><Delete /></el-icon>
+              删除
+            </el-button>
+            <div class="toolbar-icons">
+              <el-tooltip content="下载" placement="top">
+                <el-button @click="handleDownload">
+                  <el-icon><Download /></el-icon>
+                </el-button>
+              </el-tooltip>
+              <el-tooltip content="设置" placement="top">
+                <el-button @click="handleSettings">
+                  <el-icon><Setting /></el-icon>
+                </el-button>
+              </el-tooltip>
+            </div>
+          </div>
         </div>
       </template>
 
-      <!-- 筛选条件 -->
-      <el-form :inline="true" :model="filterForm" class="filter-form">
-        <el-form-item label="角色名">
-          <el-input v-model="filterForm.name" placeholder="请输入角色名" clearable @keyup.enter="loadRoles" />
-        </el-form-item>
-        <el-form-item label="类型">
-          <el-select v-model="filterForm.type" placeholder="全部" clearable style="width: 120px">
-            <el-option label="系统" value="system" />
-            <el-option label="自定义" value="custom" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="状态">
-          <el-select v-model="filterForm.enabled" placeholder="全部" clearable style="width: 100px">
-            <el-option label="启用" :value="true" />
-            <el-option label="禁用" :value="false" />
-          </el-select>
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="loadRoles">查询</el-button>
-          <el-button @click="resetFilter">重置</el-button>
-        </el-form-item>
-      </el-form>
+      <!-- 轻量化搜索栏 -->
+      <div class="search-bar">
+        <el-dropdown trigger="click" @command="handleFieldChange">
+          <el-button>
+            {{ currentFieldLabel }} <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+          </el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="name">名称</el-dropdown-item>
+              <el-dropdown-item command="id">ID</el-dropdown-item>
+              <el-dropdown-item command="type">类型</el-dropdown-item>
+              <el-dropdown-item command="enabled">状态</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+        <el-input
+          v-model="searchKeyword"
+          :placeholder="searchPlaceholder"
+          clearable
+          style="width: 300px"
+          @keyup.enter="loadRoles"
+        >
+          <template #suffix>
+            <el-icon class="search-icon" @click="loadRoles"><Search /></el-icon>
+          </template>
+        </el-input>
+        <el-button type="primary" @click="loadRoles">查询</el-button>
+        <el-button @click="handleResetSearch">重置</el-button>
+      </div>
 
       <!-- 角色列表 -->
-      <el-table :data="roles" v-loading="loading" border stripe>
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="name" label="角色名" min-width="150" show-overflow-tooltip />
-        <el-table-column prop="display_name" label="显示名" min-width="150" show-overflow-tooltip />
-        <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
-        <el-table-column prop="type" label="类型" width="100">
+      <el-table
+        :data="roles"
+        v-loading="loading"
+        border
+        stripe
+        row-key="id"
+        @selection-change="handleSelectionChange"
+      >
+        <el-table-column type="selection" width="55" />
+        <el-table-column prop="id" label="ID" width="80" sortable />
+        <el-table-column label="名称" min-width="180" show-overflow-tooltip sortable>
           <template #default="{ row }">
-            <el-tag :type="row.type === 'system' ? 'warning' : 'success'">
+            <el-button type="primary" link @click="handleView(row)" class="name-link">
+              <span>{{ row.name }}</span>
+            </el-button>
+            <br>
+            <small style="color: #999;">{{ row.display_name || row.description || '-' }}</small>
+          </template>
+        </el-table-column>
+        <el-table-column label="策略" min-width="150" show-overflow-tooltip>
+          <template #default="{ row }">
+            <el-tag v-if="row.policies_count > 0" type="info" size="small">
+              {{ row.policies_count }} 个策略
+            </el-tag>
+            <span v-else style="color: #999;">-</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="type" label="类型" width="100" sortable>
+          <template #default="{ row }">
+            <el-tag :type="row.type === 'system' ? 'warning' : 'success'" size="small">
               {{ row.type === 'system' ? '系统' : '自定义' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="enabled" label="状态" width="100">
+        <el-table-column prop="enabled" label="状态" width="80">
           <template #default="{ row }">
-            <el-tag :type="row.enabled ? 'success' : 'info'">
+            <el-tag :type="row.enabled ? 'success' : 'info'" size="small">
               {{ row.enabled ? '启用' : '禁用' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="is_public" label="公开" width="80">
+        <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
-            <el-tag :type="row.is_public ? 'primary' : 'info'" size="small">
-              {{ row.is_public ? '是' : '否' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="220" fixed="right">
-          <template #default="{ row }">
-            <el-button size="small" @click="handleView(row)">详情</el-button>
-            <el-button size="small" @click="handleEdit(row)" :disabled="row.type === 'system'">编辑</el-button>
-            <el-button
-              size="small"
-              :type="row.enabled ? 'warning' : 'success'"
-              @click="handleToggleEnable(row)"
-              :disabled="row.type === 'system'"
-            >
-              {{ row.enabled ? '禁用' : '启用' }}
+            <el-button size="small" type="primary" link @click="handleSetPolicies(row)">
+              设置策略
             </el-button>
-            <el-button
-              size="small"
-              type="info"
-              @click="handleMakePublic(row)"
-              :disabled="row.type === 'system' || row.is_public"
-            >
-              公开
-            </el-button>
-            <el-button size="small" type="danger" @click="handleDelete(row)" :disabled="row.type === 'system'">删除</el-button>
+            <el-dropdown trigger="click" @command="(cmd: string) => handleMoreCommand(cmd, row)">
+              <el-button size="small" type="primary" link>
+                更多 <el-icon><ArrowDown /></el-icon>
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="view">详情</el-dropdown-item>
+                  <el-dropdown-item command="edit" :disabled="row.type === 'system'">编辑</el-dropdown-item>
+                  <el-dropdown-item command="enable" v-if="!row.enabled" :disabled="row.type === 'system'">启用</el-dropdown-item>
+                  <el-dropdown-item command="disable" v-if="row.enabled" :disabled="row.type === 'system'">禁用</el-dropdown-item>
+                  <el-dropdown-item command="public" :disabled="row.type === 'system' || row.is_public">公开</el-dropdown-item>
+                  <el-dropdown-item command="delete" :disabled="row.type === 'system'" divided>删除</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </template>
         </el-table-column>
       </el-table>
@@ -100,9 +143,9 @@
     </el-card>
 
     <!-- 添加/编辑角色对话框 -->
-    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑角色' : '新建角色'" width="700px">
+    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑角色' : '新建角色'" width="600px">
       <el-form :model="form" :rules="rules" ref="formRef" label-width="100px">
-        <el-form-item label="角色名" prop="name">
+        <el-form-item label="名称" prop="name">
           <el-input v-model="form.name" placeholder="请输入角色名（英文）" :disabled="isEdit" />
         </el-form-item>
         <el-form-item label="显示名" prop="display_name">
@@ -121,6 +164,57 @@
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
         <el-button type="primary" @click="handleSubmit" :loading="submitting">确定</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 策略分配对话框 -->
+    <el-dialog v-model="policyDialogVisible" title="设置策略" width="800px">
+      <div v-if="currentRoleForPolicy" class="policy-dialog-header">
+        <span>角色: <strong>{{ currentRoleForPolicy.name }}</strong></span>
+      </div>
+
+      <!-- 已分配的策略 -->
+      <div class="assigned-policies">
+        <h4>已分配策略</h4>
+        <el-table :data="assignedPolicies" v-loading="policiesLoading" border stripe max-height="200">
+          <el-table-column prop="id" label="ID" width="200" show-overflow-tooltip />
+          <el-table-column prop="name" label="名称" min-width="150" show-overflow-tooltip />
+          <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
+          <el-table-column label="操作" width="100">
+            <template #default="{ row }">
+              <el-button size="small" type="danger" link @click="handleRevokePolicy(row)">
+                移除
+              </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+
+      <!-- 可分配的策略 -->
+      <div class="available-policies" style="margin-top: 20px;">
+        <h4>可分配策略</h4>
+        <el-table :data="availablePolicies" v-loading="allPoliciesLoading" border stripe max-height="300">
+          <el-table-column prop="id" label="ID" width="200" show-overflow-tooltip />
+          <el-table-column prop="name" label="名称" min-width="150" show-overflow-tooltip />
+          <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
+          <el-table-column label="操作" width="100">
+            <template #default="{ row }">
+              <el-button
+                size="small"
+                type="primary"
+                link
+                @click="handleAssignPolicy(row)"
+                :disabled="isPolicyAssigned(row.id)"
+              >
+                添加
+              </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+
+      <template #footer>
+        <el-button @click="policyDialogVisible = false">关闭</el-button>
       </template>
     </el-dialog>
 
@@ -166,19 +260,47 @@
             <el-table-column prop="description" label="描述" />
           </el-table>
         </el-tab-pane>
+        <el-tab-pane label="关联策略" name="policies">
+          <el-table :data="rolePolicies" v-loading="policiesLoading">
+            <el-table-column prop="id" label="ID" width="200" show-overflow-tooltip />
+            <el-table-column prop="name" label="名称" />
+            <el-table-column prop="description" label="描述" show-overflow-tooltip />
+          </el-table>
+        </el-tab-pane>
       </el-tabs>
 
       <template #footer>
         <el-button @click="detailDialogVisible = false">关闭</el-button>
       </template>
     </el-dialog>
+
+    <!-- 批量删除确认弹窗 -->
+    <el-dialog v-model="batchDeleteVisible" title="批量删除确认" width="500px">
+      <p>确定要删除以下 {{ selectedRoles.length }} 个角色吗？</p>
+      <el-table :data="selectedRoles" border stripe max-height="300">
+        <el-table-column prop="id" label="ID" width="80" />
+        <el-table-column prop="name" label="角色名" />
+        <el-table-column prop="type" label="类型" width="100">
+          <template #default="{ row }">
+            <el-tag :type="row.type === 'system' ? 'warning' : 'success'" size="small">
+              {{ row.type === 'system' ? '系统' : '自定义' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+      </el-table>
+      <template #footer>
+        <el-button @click="batchDeleteVisible = false">取消</el-button>
+        <el-button type="danger" @click="handleBatchDeleteConfirm" :loading="batchDeleting">删除</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
+import { Refresh, Plus, Delete, Download, Setting, ArrowDown, Search } from '@element-plus/icons-vue'
 import { Role } from '@/types/iam'
 import {
   getRoles,
@@ -189,23 +311,72 @@ import {
   disableRole,
   makeRolePublic,
   getRoleUsers,
-  getRoleGroups
+  getRoleGroups,
+  getRolePolicies,
+  assignPolicyToRole,
+  revokePolicyFromRole,
+  batchDeleteRoles,
+  getPolicies
 } from '@/api/iam'
 
-const roles = ref<Role[]>([])
+interface Policy {
+  id: string
+  name: string
+  description?: string
+}
+
+interface RoleWithPolicies extends Role {
+  policies_count?: number
+}
+
+const roles = ref<RoleWithPolicies[]>([])
 const loading = ref(false)
 const dialogVisible = ref(false)
 const detailDialogVisible = ref(false)
+const policyDialogVisible = ref(false)
+const batchDeleteVisible = ref(false)
 const detailTab = ref('users')
 const isEdit = ref(false)
 const submitting = ref(false)
+const batchDeleting = ref(false)
 const currentRoleId = ref(0)
 const currentRole = ref<Role | null>(null)
-const roleUsers = ref<Role[]>([])
-const roleGroups = ref<Role[]>([])
+const currentRoleForPolicy = ref<Role | null>(null)
+const roleUsers = ref<any[]>([])
+const roleGroups = ref<any[]>([])
+const rolePolicies = ref<Policy[]>([])
+const assignedPolicies = ref<Policy[]>([])
+const availablePolicies = ref<Policy[]>([])
+const selectedRoles = ref<Role[]>([])
 const usersLoading = ref(false)
 const groupsLoading = ref(false)
+const policiesLoading = ref(false)
+const allPoliciesLoading = ref(false)
 const formRef = ref<FormInstance>()
+
+// 搜索相关
+const searchField = ref('name')
+const searchKeyword = ref('')
+
+const currentFieldLabel = computed(() => {
+  const labels: Record<string, string> = {
+    name: '名称',
+    id: 'ID',
+    type: '类型',
+    enabled: '状态'
+  }
+  return labels[searchField.value] || '名称'
+})
+
+const searchPlaceholder = computed(() => {
+  const placeholders: Record<string, string> = {
+    name: '请输入角色名称...',
+    id: '请输入角色ID...',
+    type: '请选择类型：system/custom...',
+    enabled: '请输入状态：true/false...'
+  }
+  return placeholders[searchField.value] || '请输入搜索关键词...'
+})
 
 const filterForm = reactive({
   name: '',
@@ -227,8 +398,12 @@ const form = reactive({
 })
 
 const rules: FormRules = {
-  name: [{ required: true, message: '请输入角色名', trigger: 'blur' }],
-  display_name: [{ required: true, message: '请输入显示名', trigger: 'blur' }]
+  name: [{ required: true, message: '请输入角色名', trigger: 'blur' }]
+}
+
+const handleFieldChange = (field: string) => {
+  searchField.value = field
+  searchKeyword.value = ''
 }
 
 const loadRoles = async () => {
@@ -238,13 +413,34 @@ const loadRoles = async () => {
       limit: pagination.limit,
       offset: (pagination.page - 1) * pagination.limit
     }
-    if (filterForm.name) params.keyword = filterForm.name
-    if (filterForm.type) params.type = filterForm.type
-    if (filterForm.enabled !== undefined) params.enabled = filterForm.enabled
+
+    // 根据搜索字段添加参数
+    if (searchKeyword.value) {
+      if (searchField.value === 'name') {
+        params.keyword = searchKeyword.value
+      } else if (searchField.value === 'type') {
+        params.type = searchKeyword.value
+      } else if (searchField.value === 'enabled') {
+        params.enabled = searchKeyword.value === 'true'
+      } else if (searchField.value === 'id') {
+        // ID 搜索暂不支持
+        params.keyword = searchKeyword.value
+      }
+    }
 
     const res = await getRoles(params)
     roles.value = res.items || []
     pagination.total = res.total || 0
+
+    // 加载每个角色的策略数量
+    for (const role of roles.value) {
+      try {
+        const policiesRes = await getRolePolicies(role.id)
+        role.policies_count = policiesRes.total || 0
+      } catch {
+        role.policies_count = 0
+      }
+    }
   } catch (e: any) {
     ElMessage.error(e.message || '加载角色列表失败')
   } finally {
@@ -276,12 +472,47 @@ const loadRoleGroups = async (roleId: number) => {
   }
 }
 
-const resetFilter = () => {
-  filterForm.name = ''
-  filterForm.type = ''
-  filterForm.enabled = undefined
+const loadRolePolicies = async (roleId: number) => {
+  policiesLoading.value = true
+  try {
+    const res = await getRolePolicies(roleId)
+    rolePolicies.value = res.items || []
+  } catch (e: any) {
+    console.error(e)
+  } finally {
+    policiesLoading.value = false
+  }
+}
+
+const loadAllPolicies = async () => {
+  allPoliciesLoading.value = true
+  try {
+    const res = await getPolicies({ limit: 100 })
+    availablePolicies.value = res.data || []
+  } catch (e: any) {
+    console.error(e)
+  } finally {
+    allPoliciesLoading.value = false
+  }
+}
+
+const isPolicyAssigned = (policyId: string) => {
+  return assignedPolicies.value.some(p => p.id === policyId)
+}
+
+const handleRefresh = () => {
+  loadRoles()
+}
+
+const handleResetSearch = () => {
+  searchKeyword.value = ''
+  searchField.value = 'name'
   pagination.page = 1
   loadRoles()
+}
+
+const handleSelectionChange = (selection: Role[]) => {
+  selectedRoles.value = selection
 }
 
 const handleCreate = async () => {
@@ -293,12 +524,12 @@ const handleCreate = async () => {
   dialogVisible.value = true
 }
 
-const handleEdit = async (row: Role) => {
+const handleEdit = (row: Role) => {
   isEdit.value = true
   currentRoleId.value = row.id
   form.name = row.name
-  form.display_name = row.display_name
-  form.description = row.description
+  form.display_name = row.display_name || ''
+  form.description = row.description || ''
   form.type = row.type
   dialogVisible.value = true
 }
@@ -308,7 +539,73 @@ const handleView = async (row: Role) => {
   detailTab.value = 'users'
   await loadRoleUsers(row.id)
   await loadRoleGroups(row.id)
+  await loadRolePolicies(row.id)
   detailDialogVisible.value = true
+}
+
+const handleSetPolicies = async (row: Role) => {
+  currentRoleForPolicy.value = row
+  await loadRolePolicies(row.id)
+  assignedPolicies.value = [...rolePolicies.value]
+  await loadAllPolicies()
+  policyDialogVisible.value = true
+}
+
+const handleAssignPolicy = async (policy: Policy) => {
+  if (!currentRoleForPolicy.value) return
+
+  try {
+    await assignPolicyToRole(currentRoleForPolicy.value.id, policy.id)
+    ElMessage.success('策略分配成功')
+    assignedPolicies.value.push(policy)
+    // 更新角色的策略数量
+    const role = roles.value.find(r => r.id === currentRoleForPolicy.value!.id)
+    if (role) {
+      role.policies_count = (role.policies_count || 0) + 1
+    }
+  } catch (e: any) {
+    ElMessage.error(e.message || '策略分配失败')
+  }
+}
+
+const handleRevokePolicy = async (policy: Policy) => {
+  if (!currentRoleForPolicy.value) return
+
+  try {
+    await revokePolicyFromRole(currentRoleForPolicy.value.id, policy.id)
+    ElMessage.success('策略移除成功')
+    assignedPolicies.value = assignedPolicies.value.filter(p => p.id !== policy.id)
+    // 更新角色的策略数量
+    const role = roles.value.find(r => r.id === currentRoleForPolicy.value!.id)
+    if (role) {
+      role.policies_count = Math.max(0, (role.policies_count || 1) - 1)
+    }
+  } catch (e: any) {
+    ElMessage.error(e.message || '策略移除失败')
+  }
+}
+
+const handleMoreCommand = (command: string, row: Role) => {
+  switch (command) {
+    case 'view':
+      handleView(row)
+      break
+    case 'edit':
+      handleEdit(row)
+      break
+    case 'enable':
+      handleToggleEnable(row)
+      break
+    case 'disable':
+      handleToggleEnable(row)
+      break
+    case 'public':
+      handleMakePublic(row)
+      break
+    case 'delete':
+      handleDelete(row)
+      break
+  }
 }
 
 const handleToggleEnable = async (row: Role) => {
@@ -326,7 +623,7 @@ const handleToggleEnable = async (row: Role) => {
     loadRoles()
   } catch (e: any) {
     if (e !== 'cancel') {
-      ElMessage.error(e.message || `${action}失败`)
+      ElMessage.error(e.message || `${row.enabled ? '禁用' : '启用'}失败`)
     }
   }
 }
@@ -357,6 +654,36 @@ const handleDelete = async (row: Role) => {
   }
 }
 
+const handleBatchDelete = () => {
+  if (selectedRoles.value.length === 0) {
+    ElMessage.warning('请先选择要删除的角色')
+    return
+  }
+  // 检查是否包含系统角色
+  const systemRoles = selectedRoles.value.filter(r => r.type === 'system')
+  if (systemRoles.length > 0) {
+    ElMessage.warning('不能删除系统角色，请重新选择')
+    return
+  }
+  batchDeleteVisible.value = true
+}
+
+const handleBatchDeleteConfirm = async () => {
+  batchDeleting.value = true
+  try {
+    const roleIds = selectedRoles.value.map(r => r.id)
+    await batchDeleteRoles(roleIds)
+    ElMessage.success(`成功删除 ${selectedRoles.value.length} 个角色`)
+    batchDeleteVisible.value = false
+    selectedRoles.value = []
+    loadRoles()
+  } catch (e: any) {
+    ElMessage.error(e.message || '批量删除失败')
+  } finally {
+    batchDeleting.value = false
+  }
+}
+
 const handleSubmit = async () => {
   if (!formRef.value) return
 
@@ -380,6 +707,14 @@ const handleSubmit = async () => {
       submitting.value = false
     }
   })
+}
+
+const handleDownload = () => {
+  ElMessage.info('导出功能待实现')
+}
+
+const handleSettings = () => {
+  ElMessage.info('设置功能待实现')
 }
 
 const formatDate = (date: string) => {
@@ -413,8 +748,26 @@ onMounted(() => {
   font-weight: bold;
 }
 
-.filter-form {
-  margin-bottom: 16px;
+.toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.toolbar-icons {
+  display: flex;
+  gap: 4px;
+}
+
+.search-bar {
+  display: flex;
+  gap: 8px;
+  padding: 12px 0;
+  align-items: center;
+}
+
+.search-icon {
+  cursor: pointer;
 }
 
 .pagination {
@@ -423,16 +776,17 @@ onMounted(() => {
   justify-content: flex-end;
 }
 
-.perm-dialog-header {
+.policy-dialog-header {
   margin-bottom: 16px;
   padding: 10px;
   background-color: #f5f7fa;
   border-radius: 4px;
 }
 
-.form-item-tip {
-  font-size: 12px;
-  color: #999;
-  margin-top: 4px;
+.assigned-policies h4,
+.available-policies h4 {
+  margin-bottom: 10px;
+  font-size: 14px;
+  color: #606266;
 }
 </style>

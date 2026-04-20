@@ -30,6 +30,7 @@ func NewPolicyHandler(db *gorm.DB, logger *zap.Logger) *PolicyHandler {
 type ListPoliciesRequest struct {
 	Scope          string `form:"scope"`
 	DomainID       string `form:"domain_id"`
+	IsSystem       string `form:"is_system"` // "true", "false" 或空（不筛选）
 	ShowFailReason bool   `form:"show_fail_reason"`
 	Details        bool   `form:"details"`
 	SummaryStats   bool   `form:"summary_stats"`
@@ -57,7 +58,15 @@ func (h *PolicyHandler) List(c *gin.Context) {
 		domainID = &req.DomainID
 	}
 
-	policies, total, err := h.service.ListPolicies(c.Request.Context(), req.Scope, domainID, req.Limit, req.Offset)
+	// 解析 is_system 参数
+	var isSystem *bool
+	if req.IsSystem == "true" {
+		isSystem = &[]bool{true}[0]
+	} else if req.IsSystem == "false" {
+		isSystem = &[]bool{false}[0]
+	}
+
+	policies, total, err := h.service.ListPolicies(c.Request.Context(), req.Scope, domainID, isSystem, req.Limit, req.Offset)
 	if err != nil {
 		h.logger.Error("failed to list policies", zap.Error(err))
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -253,4 +262,126 @@ func (h *PolicyHandler) RevokePolicyFromRole(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "revoked"})
+}
+
+// EnablePolicy 启用策略
+func (h *PolicyHandler) EnablePolicy(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid policy id"})
+		return
+	}
+
+	if err := h.service.SetPolicyEnabled(c.Request.Context(), id, true); err != nil {
+		h.logger.Error("failed to enable policy", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "enabled"})
+}
+
+// DisablePolicy 禁用策略
+func (h *PolicyHandler) DisablePolicy(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid policy id"})
+		return
+	}
+
+	if err := h.service.SetPolicyEnabled(c.Request.Context(), id, false); err != nil {
+		h.logger.Error("failed to disable policy", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "disabled"})
+}
+
+// GetPolicyRoles 获取策略关联的角色
+func (h *PolicyHandler) GetPolicyRoles(c *gin.Context) {
+	policyID := c.Param("id")
+	if policyID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid policy id"})
+		return
+	}
+
+	roles, err := h.service.GetPolicyRoles(c.Request.Context(), policyID)
+	if err != nil {
+		h.logger.Error("failed to get policy roles", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"items": roles,
+		"total": len(roles),
+	})
+}
+
+// BatchEnable 批量启用策略
+func (h *PolicyHandler) BatchEnable(c *gin.Context) {
+	var req struct {
+		PolicyIDs []string `json:"policy_ids" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	for _, id := range req.PolicyIDs {
+		if err := h.service.SetPolicyEnabled(c.Request.Context(), id, true); err != nil {
+			h.logger.Error("failed to enable policy", zap.String("id", id), zap.Error(err))
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "batch enabled"})
+}
+
+// BatchDisable 批量禁用策略
+func (h *PolicyHandler) BatchDisable(c *gin.Context) {
+	var req struct {
+		PolicyIDs []string `json:"policy_ids" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	for _, id := range req.PolicyIDs {
+		if err := h.service.SetPolicyEnabled(c.Request.Context(), id, false); err != nil {
+			h.logger.Error("failed to disable policy", zap.String("id", id), zap.Error(err))
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "batch disabled"})
+}
+
+// BatchDelete 批量删除策略
+func (h *PolicyHandler) BatchDelete(c *gin.Context) {
+	var req struct {
+		PolicyIDs []string `json:"policy_ids" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	failed := []string{}
+	for _, id := range req.PolicyIDs {
+		if err := h.service.DeletePolicy(c.Request.Context(), id); err != nil {
+			h.logger.Error("failed to delete policy", zap.String("id", id), zap.Error(err))
+			failed = append(failed, id)
+		}
+	}
+
+	if len(failed) > 0 {
+		c.JSON(http.StatusPartialContent, gin.H{
+			"message": "some policies failed to delete",
+			"failed":  failed,
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "batch deleted"})
 }

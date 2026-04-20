@@ -121,3 +121,60 @@ func (s *OperationLogService) GetResourceOperationLogs(resourceType string, reso
 	pg.Items = logs
 	return pg, nil
 }
+
+// GetUserOperationLogs retrieves operation logs for a specific user
+// Includes logs where user_id matches OR operator_id matches
+func (s *OperationLogService) GetUserOperationLogs(userID uint, limit, offset int) ([]model.OperationLog, int64, error) {
+	var logs []model.OperationLog
+	var total int64
+
+	query := s.DB.Model(&model.OperationLog{}).
+		Where("user_id = ? OR operator_id = ?", userID, userID)
+
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	err := query.Order("operation_time DESC").
+		Limit(limit).
+		Offset(offset).
+		Find(&logs).Error
+
+	return logs, total, err
+}
+
+// CreateUserOperationLog creates an operation log for user-related operations
+func (s *OperationLogService) CreateUserOperationLog(userID uint, operationType, result, operator string, operatorID uint, details string) error {
+	log := &model.OperationLog{
+		OperationTime:  time.Now(),
+		ResourceName:  fmt.Sprintf("用户 #%d", userID),
+		ResourceType:  "User",
+		ResourceID:    userID,
+		OperationType: operationType,
+		ServiceType:   "IAM",
+		RiskLevel:     getUserOperationRiskLevel(operationType),
+		EventType:     "api_call",
+		TimeType:      "realtime",
+		Result:        result,
+		Operator:      operator,
+		OperatorID:    &operatorID,
+		UserID:        &userID,
+		Details:       details,
+	}
+
+	return s.CreateOperationLog(log)
+}
+
+// getUserOperationRiskLevel returns risk level based on operation type
+func getUserOperationRiskLevel(operationType string) string {
+	switch operationType {
+	case "create", "import":
+		return "medium"
+	case "update", "enable", "reset_password":
+		return "low"
+	case "delete", "disable", "reset_mfa":
+		return "high"
+	default:
+		return "medium"
+	}
+}

@@ -4,9 +4,14 @@ import request from '@/utils/request'
 
 export function getMessages(params?: {
   user_id?: number
-  read?: boolean
+  read?: string
+  priority?: string
+  topic_type?: string
+  limit?: number
+  offset?: number
   page?: number
   page_size?: number
+  details?: string
 }) {
   return request({ url: '/messages', method: 'get', params })
 }
@@ -19,16 +24,16 @@ export function markRead(id: number) {
   return request({ url: `/messages/${id}/read`, method: 'put' })
 }
 
-export function markAllRead(userId: number) {
-  return request({ url: '/messages/mark-all-read', method: 'post', params: { user_id: userId } })
+export function markAllRead(userId?: number) {
+  return request({ url: '/messages/mark-all-read', method: 'post', params: userId ? { user_id: userId } : {} })
 }
 
 export function deleteMessage(id: number) {
   return request({ url: `/messages/${id}`, method: 'delete' })
 }
 
-export function getUnreadCount(userId: number) {
-  return request({ url: '/messages/unread-count', method: 'get', params: { user_id: userId } })
+export function getUnreadCount(userId?: number) {
+  return request({ url: '/messages/unread-count', method: 'get', params: userId ? { user_id: userId } : {} })
 }
 
 // ============= 通知渠道 =============
@@ -67,7 +72,11 @@ export function disableNotificationChannel(id: number) {
   return request({ url: `/notification-channels/${id}/disable`, method: 'post' })
 }
 
-export function testNotificationChannel(id: number) {
+export function testNotificationChannel(id: number, data?: any) {
+  // 如果传入 data，则用于新建时测试连接（id=0）
+  if (data) {
+    return request({ url: '/notification-channels/test', method: 'post', data })
+  }
   return request({ url: `/notification-channels/${id}/test`, method: 'post' })
 }
 
