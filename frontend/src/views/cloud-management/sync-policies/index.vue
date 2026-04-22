@@ -66,16 +66,6 @@
       </el-form>
     </el-card>
 
-    <!-- 空状态 -->
-    <EmptyState
-      v-if="!loading && policies.length === 0"
-      title="暂无同步策略"
-      description="当前没有任何同步策略，点击下方按钮创建策略。同步策略可基于资源标签规则自动将云资源映射到指定项目。"
-      :icon="Document"
-      createButtonText="新建策略"
-      @create="showCreateDialog"
-    />
-
     <!-- 数据表格 -->
     <el-table
       ref="tableRef"
@@ -84,7 +74,6 @@
       style="width: 100%"
       row-key="id"
       @selection-change="handleSelectionChange"
-      v-if="policies.length > 0 || loading"
     >
       <el-table-column type="selection" width="50" />
       <el-table-column prop="id" label="ID" width="80" />
@@ -357,7 +346,6 @@ import { getSyncPolicies, getSyncPolicy, createSyncPolicy, updateSyncPolicy, del
 import { getDomains } from '@/api/iam'
 import { getProjects } from '@/api/project'
 import type { SyncPolicy, CreateSyncPolicyRequest } from '@/types/sync-policy'
-import EmptyState from '@/components/common/EmptyState.vue'
 
 interface TagItem {
   tag_key: string

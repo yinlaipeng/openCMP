@@ -1,72 +1,40 @@
 <template>
-  <div class="alerts-page">
-    <el-card class="page-card">
-      <template #header>
-        <div class="card-header">
-          <span class="title">安全告警</span>
-          <!-- 工具栏按钮 - 参考 Cloudpods -->
-          <div class="toolbar">
-            <el-button @click="handleViewMode">
-              <el-icon><View /></el-icon>
-              查看
-            </el-button>
-            <el-button @click="handleRefresh">
-              <el-icon><Refresh /></el-icon>
-              刷新
-            </el-button>
-          </div>
-        </div>
-      </template>
+  <div class="alerts-container">
+    <div class="page-header">
+      <h2>安全告警</h2>
+      <div class="toolbar">
+        <el-button @click="handleRefresh">
+          <el-icon><Refresh /></el-icon>
+          刷新
+        </el-button>
+        <el-button @click="handleExport">
+          <el-icon><Download /></el-icon>
+          导出
+        </el-button>
+      </div>
+    </div>
 
-      <!-- 统计卡片 - 参考 Cloudpods 顶部统计 -->
-      <el-row :gutter="16" class="stats-row">
-        <el-col :span="3">
-          <div class="stat-card critical" v-if="fatalCount > 0">
-            <div class="stat-icon">
-              <el-icon><WarningFilled /></el-icon>
-            </div>
-            <div class="stat-content">
-              <div class="stat-value">{{ fatalCount }}</div>
-              <div class="stat-label">致命</div>
-            </div>
-          </div>
-        </el-col>
-        <el-col :span="3">
-          <div class="stat-card important">
-            <div class="stat-icon">
-              <el-icon><InfoFilled /></el-icon>
-            </div>
-            <div class="stat-content">
-              <div class="stat-value">{{ importantCount }}</div>
-              <div class="stat-label">重要</div>
-            </div>
-          </div>
-        </el-col>
-        <el-col :span="3">
-          <div class="stat-card normal">
-            <div class="stat-icon">
-              <el-icon><CircleCheckFilled /></el-icon>
-            </div>
-            <div class="stat-content">
-              <div class="stat-value">{{ normalCount }}</div>
-              <div class="stat-label">普通</div>
-            </div>
-          </div>
-        </el-col>
-        <el-col :span="3">
-          <div class="stat-card total">
-            <div class="stat-icon">
-              <el-icon><BellFilled /></el-icon>
-            </div>
-            <div class="stat-content">
-              <div class="stat-value">{{ pagination.total }}</div>
-              <div class="stat-label">总计</div>
-            </div>
-          </div>
-        </el-col>
-      </el-row>
+    <el-card class="filter-card">
+      <el-form :inline="true" @submit.prevent="loadAlerts">
+        <el-form-item label="搜索">
+          <el-select v-model="searchField" placeholder="选择字段" style="width: 100px">
+            <el-option label="标题" value="title" />
+            <el-option label="级别" value="level" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-input v-model="searchValue" placeholder="输入关键词" clearable style="width: 180px" @keyup.enter="loadAlerts">
+            <template #prefix><el-icon><Search /></el-icon></template>
+          </el-input>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="loadAlerts">查询</el-button>
+          <el-button @click="resetFilter">重置</el-button>
+        </el-form-item>
+      </el-form>
+    </el-card>
 
-      <!-- 表格 - 中文表头 -->
+    <el-card>
       <el-table
         :data="alerts"
         v-loading="loading"
@@ -76,15 +44,12 @@
         @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="55" />
-        <!-- 标题 - 告警名称 -->
+        <!-- 标题 - 点击打开详情 -->
         <el-table-column label="标题" min-width="200" show-overflow-tooltip>
           <template #default="{ row }">
             <el-button type="primary" link @click="handleView(row)">
               <span>{{ row.alert_name || row.title || row.name }}</span>
             </el-button>
-            <div class="alert-desc" v-if="row.message">
-              <small>{{ row.message.substring(0, 50) }}...</small>
-            </div>
           </template>
         </el-table-column>
         <!-- 严重级别 -->
@@ -102,7 +67,7 @@
           </template>
         </el-table-column>
         <!-- 触发时间 -->
-        <el-table-column label="触发时间" width="180">
+        <el-table-column label="触发时间" width="180" sortable>
           <template #default="{ row }">
             {{ formatTime(row.trigger_time || row.created_at) }}
           </template>
@@ -113,25 +78,12 @@
             <span>{{ row.message || row.content || getAlertContent(row) }}</span>
           </template>
         </el-table-column>
-        <!-- 操作 -->
-        <el-table-column label="操作" width="100" fixed="right">
-          <template #default="{ row }">
-            <el-button size="small" type="primary" link @click="handleView(row)">
-              详情
-            </el-button>
-          </template>
-        </el-table-column>
       </el-table>
-
-      <!-- 分页 -->
       <el-pagination
         v-model:current-page="pagination.page"
         v-model:page-size="pagination.limit"
         :total="pagination.total"
-        :page-sizes="[10, 20, 50, 100]"
-        layout="total, sizes, prev, pager, next, jumper"
-        @size-change="loadAlerts"
-        @current-change="loadAlerts"
+        layout="total, sizes, prev, pager, next"
         class="pagination"
       />
     </el-card>
@@ -205,7 +157,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { View, Refresh, WarningFilled, InfoFilled, CircleCheckFilled, BellFilled } from '@element-plus/icons-vue'
+import { Refresh, Download, Setting, Search } from '@element-plus/icons-vue'
 import { getSecurityAlerts, getSecurityAlertStats, resolveSecurityAlert, deleteSecurityAlert } from '@/api/iam'
 
 const loading = ref(false)
@@ -220,17 +172,15 @@ const pagination = reactive({
 })
 
 const alerts = ref<any[]>([])
-const stats = reactive({
-  total: 0,
-  active: 0,
-  critical: 0,
-  handled: 0
-})
 
-// 计算各级别告警数量 - 参考 Cloudpods 级别设计
-const fatalCount = computed(() => alerts.value.filter(a => a.level === 'critical' || a.level === 'fatal').length)
-const importantCount = computed(() => alerts.value.filter(a => a.level === 'important' || a.level === 'high').length)
-const normalCount = computed(() => alerts.value.filter(a => a.level === 'normal' || a.level === 'medium' || a.level === 'low').length)
+// 搜索
+const searchField = ref('title')
+const searchValue = ref('')
+const searchPlaceholder = computed(() => {
+  if (searchField.value === 'title') return '请输入标题搜索...'
+  if (searchField.value === 'level') return '请选择严重级别...'
+  return '请输入搜索关键词...'
+})
 
 // 级别映射 - Cloudpods 级别: fatal, important, normal
 const getLevelName = (level: string) => {
@@ -279,9 +229,24 @@ const handleSelectionChange = (selection: any[]) => {
   selectedAlerts.value = selection
 }
 
-const handleViewMode = () => {
-  // 切换视图模式
-  ElMessage.info('视图切换功能')
+const handleSearch = () => {
+  pagination.page = 1
+  loadAlerts()
+}
+
+const resetFilter = () => {
+  searchField.value = 'title'
+  searchValue.value = ''
+  pagination.page = 1
+  loadAlerts()
+}
+
+const handleExport = () => {
+  ElMessage.info('导出功能')
+}
+
+const handleSettings = () => {
+  ElMessage.info('设置功能')
 }
 
 const loadAlerts = async () => {
@@ -293,6 +258,15 @@ const loadAlerts = async () => {
       details: 'true'
     }
 
+    // 添加搜索参数
+    if (searchValue.value) {
+      if (searchField.value === 'title') {
+        params.title = searchValue.value
+      } else if (searchField.value === 'level') {
+        params.level = searchValue.value
+      }
+    }
+
     const res = await getSecurityAlerts(params)
     alerts.value = res.items || []
     pagination.total = res.total || 0
@@ -300,18 +274,6 @@ const loadAlerts = async () => {
     ElMessage.error(e.message || '加载安全告警失败')
   } finally {
     loading.value = false
-  }
-}
-
-const loadStats = async () => {
-  try {
-    const res = await getSecurityAlertStats()
-    stats.total = res.total || 0
-    stats.active = res.active || 0
-    stats.critical = res.critical || 0
-    stats.handled = res.handled || 0
-  } catch (e: any) {
-    console.error('加载统计失败', e)
   }
 }
 
@@ -326,7 +288,6 @@ const handleResolve = async (row: any) => {
     ElMessage.success('告警已处理')
     detailVisible.value = false
     loadAlerts()
-    loadStats()
   } catch (e: any) {
     ElMessage.error(e.message || '处理失败')
   }
@@ -348,139 +309,19 @@ const handleDelete = async (row: any) => {
 
 const handleRefresh = () => {
   loadAlerts()
-  loadStats()
   ElMessage.success('刷新成功')
 }
 
 onMounted(() => {
-  loadStats()
   loadAlerts()
 })
 </script>
 
 <style scoped>
-.alerts-page {
-  height: 100%;
-  padding: 20px;
-}
-
-.page-card {
-  height: 100%;
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.title {
-  font-size: 18px;
-  font-weight: bold;
-}
-
-.toolbar {
-  display: flex;
-  gap: 8px;
-}
-
-/* 统计卡片样式 - 参考 Cloudpods */
-.stats-row {
-  margin-bottom: 20px;
-}
-
-.stat-card {
-  display: flex;
-  align-items: center;
-  padding: 12px 16px;
-  border-radius: 8px;
-  background: #f5f7fa;
-  transition: all 0.3s;
-}
-
-.stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.stat-card.critical {
-  background: linear-gradient(135deg, #fff5f5 0%, #ffe0e0 100%);
-  border-left: 4px solid #f56c6c;
-}
-
-.stat-card.important {
-  background: linear-gradient(135deg, #fffaf0 0%, #ffe8d0 100%);
-  border-left: 4px solid #e6a23c;
-}
-
-.stat-card.normal {
-  background: linear-gradient(135deg, #f0f9ff 0%, #d0e8ff 100%);
-  border-left: 4px solid #409eff;
-}
-
-.stat-card.total {
-  background: linear-gradient(135deg, #f5f7fa 0%, #e5e7ea 100%);
-  border-left: 4px solid #909399;
-}
-
-.stat-icon {
-  font-size: 28px;
-  margin-right: 12px;
-}
-
-.stat-card.critical .stat-icon {
-  color: #f56c6c;
-}
-
-.stat-card.important .stat-icon {
-  color: #e6a23c;
-}
-
-.stat-card.normal .stat-icon {
-  color: #409eff;
-}
-
-.stat-card.total .stat-icon {
-  color: #909399;
-}
-
-.stat-content {
-  flex: 1;
-}
-
-.stat-value {
-  font-size: 24px;
-  font-weight: bold;
-  line-height: 1.2;
-}
-
-.stat-label {
-  font-size: 12px;
-  color: #909399;
-}
-
-.alert-desc {
-  color: #909399;
-  margin-top: 4px;
-}
-
-.pagination {
-  margin-top: 20px;
-  display: flex;
-  justify-content: flex-end;
-}
-
-.alert-detail {
-  padding: 10px 0;
-}
-
-.alert-rule-section {
-  margin-top: 20px;
-}
-
-.alert-rule-section h4 {
-  margin-bottom: 10px;
-  font-size: 14px;
-  color: #606266;
-}
+.alerts-container { padding: 20px; }
+.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.page-header h2 { margin: 0; font-size: 18px; font-weight: 600; }
+.filter-card { margin-bottom: 20px; }
+.pagination { margin-top: 20px; text-align: right; }
+.alert-detail { padding: 10px 0; }
 </style>

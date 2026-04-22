@@ -87,3 +87,35 @@ type CloudProject struct {
 func (CloudProject) TableName() string {
 	return "cloud_projects"
 }
+
+// Image 镜像
+type Image struct {
+	ID              string         `gorm:"primaryKey;size:64" json:"id"`
+	Name            string         `gorm:"size:200;not null" json:"name"`
+	Description     string         `gorm:"size:500" json:"description"`
+	Status          string         `gorm:"size:20;default:'Creating'" json:"status"`
+	Format          string         `gorm:"size:20" json:"format"`       // qcow2, raw, vhd, iso
+	OsName          string         `gorm:"size:50" json:"os_name"`      // CentOS, Ubuntu, Windows
+	OsVersion       string         `gorm:"size:20" json:"os_version"`   // 20.04, 7.9
+	Size            int64          `json:"size"`                        // bytes
+	CpuArch         string         `gorm:"size:20;default:'x86_64'" json:"cpu_arch"` // x86_64, arm64
+	ImageType       string         `gorm:"size:20;default:'system'" json:"image_type"` // system, custom
+	ShareScope      string         `gorm:"size:20;default:'private'" json:"share_scope"` // private, public
+	CloudAccountID  uint           `gorm:"index" json:"cloud_account_id"`
+	ProjectID       string         `gorm:"size:64" json:"project_id"`
+	ExternalID      string         `gorm:"size:100" json:"external_id"` // 云厂商镜像ID
+	Platform        string         `gorm:"size:20" json:"platform"`     // alibaba, tencent, aws, azure
+	RegionID        string         `gorm:"size:64" json:"region_id"`
+	Checksum        string         `gorm:"size:128" json:"checksum"`    // MD5/SHA256
+	MinDiskSize     int            `json:"min_disk_size"`               // 最小磁盘大小 GB
+	MinMemorySize   int            `json:"min_memory_size"`             // 最小内存大小 MB
+	IsPublic        bool           `gorm:"default:false" json:"is_public"`
+	Tags            string         `gorm:"size:500" json:"tags"`        // JSON 格式
+	CreatedAt       time.Time      `json:"created_at"`
+	UpdatedAt       time.Time      `json:"updated_at"`
+	DeletedAt       gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+func (Image) TableName() string {
+	return "images"
+}

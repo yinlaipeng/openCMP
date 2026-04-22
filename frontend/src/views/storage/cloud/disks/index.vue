@@ -176,7 +176,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
-import { getCloudDisks, createCloudDisk, deleteCloudDisk, attachCloudDisk, detachCloudDisk, resizeCloudDisk, syncCloudDisks, createCloudSnapshot } from '@/api/storage'
+import { getCloudDisks, createCloudDisk, deleteCloudDisk, attachCloudDisk, detachCloudDisk, resizeCloudDisk, syncCloudDisks, createCloudDiskSnapshot } from '@/api/storage'
 import { getCloudAccounts } from '@/api/cloud-account'
 import type { CloudDisk } from '@/api/storage'
 
@@ -357,7 +357,7 @@ async function handleSnapshotSubmit() {
   if (!currentDisk.value || !snapshotName.value) return
   creatingSnapshot.value = true
   try {
-    await createCloudSnapshot(currentDisk.value.id, snapshotName.value)
+    await createCloudDiskSnapshot({ disk_id: currentDisk.value.id, name: snapshotName.value })
     ElMessage.success('快照创建请求已提交')
     showSnapshotDialog.value = false
   } catch {

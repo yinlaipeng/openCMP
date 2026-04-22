@@ -1,69 +1,47 @@
 <template>
-  <div class="permissions-page">
-    <el-card class="page-card">
-      <template #header>
-        <div class="card-header">
-          <span class="title">权限</span>
-          <!-- 工具栏 -->
-          <div class="toolbar">
-            <el-button @click="handleRefresh" :loading="loading">
-              <el-icon><Refresh /></el-icon>
-            </el-button>
-            <el-button type="primary" @click="handleCreate">
-              <el-icon><Plus /></el-icon>
-              新建
-            </el-button>
-            <el-button :disabled="selectedPolicies.length === 0" @click="handleBatchDisable">
-              禁用
-            </el-button>
-            <el-button :disabled="selectedPolicies.length === 0" @click="handleBatchEnable">
-              启用
-            </el-button>
-            <el-button :disabled="selectedPolicies.length === 0" @click="handleBatchDelete">
-              <el-icon><Delete /></el-icon>
-              删除
-            </el-button>
-          </div>
-        </div>
-      </template>
-
-      <!-- 权限类型切换 Tabs -->
-      <el-tabs v-model="activeTab" @tab-change="handleTabChange" class="permission-tabs">
-        <el-tab-pane label="全部" name="all"></el-tab-pane>
-        <el-tab-pane label="自定义权限" name="custom"></el-tab-pane>
-        <el-tab-pane label="系统权限" name="system"></el-tab-pane>
-      </el-tabs>
-
-      <!-- 搜索栏 -->
-      <div class="search-bar">
-        <el-dropdown trigger="click" @command="handleFieldChange">
-          <el-button>
-            {{ currentFieldLabel }} <el-icon class="el-icon--right"><ArrowDown /></el-icon>
-          </el-button>
-          <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item command="name">名称</el-dropdown-item>
-              <el-dropdown-item command="scope">策略范围</el-dropdown-item>
-              <el-dropdown-item command="enabled">启用状态</el-dropdown-item>
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
-        <el-input
-          v-model="searchKeyword"
-          :placeholder="searchPlaceholder"
-          clearable
-          style="width: 300px"
-          @keyup.enter="loadPolicies"
-        >
-          <template #suffix>
-            <el-icon class="search-icon" @click="loadPolicies"><Search /></el-icon>
-          </template>
-        </el-input>
-        <el-button type="primary" @click="loadPolicies">查询</el-button>
-        <el-button @click="handleResetSearch">重置</el-button>
+  <div class="permissions-container">
+    <div class="page-header">
+      <h2>权限</h2>
+      <div class="toolbar">
+        <el-button type="primary" @click="handleCreate">
+          <el-icon><Plus /></el-icon>
+          新建权限
+        </el-button>
+        <el-button :disabled="selectedPolicies.length === 0" @click="handleBatchDelete">
+          <el-icon><Delete /></el-icon>
+          批量删除
+        </el-button>
       </div>
+    </div>
 
-      <!-- 策略列表 -->
+    <el-card class="filter-card">
+      <el-form :inline="true" @submit.prevent="loadPolicies">
+        <el-form-item label="类型">
+          <el-select v-model="activeTab" placeholder="全部" style="width: 100px" @change="handleTabChange">
+            <el-option label="全部" value="all" />
+            <el-option label="自定义" value="custom" />
+            <el-option label="系统" value="system" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="搜索">
+          <el-select v-model="searchField" placeholder="选择字段" style="width: 100px">
+            <el-option label="名称" value="name" />
+            <el-option label="范围" value="scope" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-input v-model="searchKeyword" placeholder="输入关键词" clearable style="width: 180px" @keyup.enter="loadPolicies">
+            <template #prefix><el-icon><Search /></el-icon></template>
+          </el-input>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="loadPolicies">查询</el-button>
+          <el-button @click="resetFilter">重置</el-button>
+        </el-form-item>
+      </el-form>
+    </el-card>
+
+    <el-card>
       <el-table
         :data="policies"
         v-loading="loading"
@@ -123,16 +101,11 @@
           </template>
         </el-table-column>
       </el-table>
-
-      <!-- 分页 -->
       <el-pagination
         v-model:current-page="pagination.page"
         v-model:page-size="pagination.limit"
         :total="pagination.total"
-        :page-sizes="[10, 20, 50, 100]"
-        layout="total, sizes, prev, pager, next, jumper"
-        @size-change="loadPolicies"
-        @current-change="loadPolicies"
+        layout="total, sizes, prev, pager, next"
         class="pagination"
       />
     </el-card>
@@ -416,9 +389,10 @@ const handleRefresh = () => {
   loadPolicies()
 }
 
-const handleResetSearch = () => {
+const resetFilter = () => {
   searchKeyword.value = ''
   searchField.value = 'name'
+  activeTab.value = 'all'
   pagination.page = 1
   loadPolicies()
 }
@@ -629,59 +603,10 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.permissions-page {
-  height: 100%;
-  padding: 20px;
-}
-
-.page-card {
-  height: 100%;
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.title {
-  font-size: 18px;
-  font-weight: bold;
-}
-
-.toolbar {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.permission-tabs {
-  margin-bottom: 16px;
-}
-
-.search-bar {
-  display: flex;
-  gap: 8px;
-  padding: 12px 0;
-  align-items: center;
-}
-
-.search-icon {
-  cursor: pointer;
-}
-
-.pagination {
-  margin-top: 20px;
-  display: flex;
-  justify-content: flex-end;
-}
-
-.policy-content {
-  background-color: #f5f7fa;
-  padding: 15px;
-  border-radius: 4px;
-  overflow-x: auto;
-  font-size: 12px;
-  max-height: 300px;
-}
+.permissions-container { padding: 20px; }
+.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.page-header h2 { margin: 0; font-size: 18px; font-weight: 600; }
+.filter-card { margin-bottom: 20px; }
+.pagination { margin-top: 20px; text-align: right; }
+.name-link { color: #409eff; cursor: pointer; }
 </style>

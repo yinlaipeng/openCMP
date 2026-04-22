@@ -78,6 +78,25 @@
             />
           </el-form-item>
 
+          <el-form-item label="描述" prop="description">
+            <el-input
+              v-model="formData.description"
+              type="textarea"
+              placeholder="请输入描述信息"
+              maxlength="256"
+              show-word-limit
+              :rows="3"
+            />
+          </el-form-item>
+
+          <el-form-item label="计费类型" prop="billingType">
+            <el-radio-group v-model="formData.billingType">
+              <el-radio value="postpaid">按量付费</el-radio>
+              <el-radio value="prepaid">包年包月</el-radio>
+            </el-radio-group>
+            <div class="form-tip">按量付费按小时计费，包年包月按月/年计费</div>
+          </el-form-item>
+
           <el-form-item label="创建数量" prop="count">
             <el-input-number
               v-model="formData.count"
@@ -86,6 +105,25 @@
               :step="1"
             />
             <span class="form-tip">可创建 1-100 台虚拟机</span>
+          </el-form-item>
+
+          <el-form-item label="标签" prop="tags">
+            <el-select
+              v-model="formData.tags"
+              placeholder="选择或输入标签"
+              multiple
+              filterable
+              allow-create
+              default-first-option
+            >
+              <el-option
+                v-for="tag in availableTags"
+                :key="tag"
+                :label="tag"
+                :value="tag"
+              />
+            </el-select>
+            <div class="form-tip">可输入自定义标签</div>
           </el-form-item>
         </el-form>
       </div>
@@ -390,8 +428,17 @@
           <el-descriptions-item label="名称">
             {{ formData.name }}
           </el-descriptions-item>
+          <el-descriptions-item label="描述">
+            {{ formData.description || '无' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="计费类型">
+            {{ formData.billingType === 'postpaid' ? '按量付费' : '包年包月' }}
+          </el-descriptions-item>
           <el-descriptions-item label="创建数量">
             {{ formData.count }} 台
+          </el-descriptions-item>
+          <el-descriptions-item label="标签">
+            {{ formData.tags.length ? formData.tags.join(', ') : '无' }}
           </el-descriptions-item>
 
           <el-descriptions-item label="区域">
@@ -520,7 +567,10 @@ interface VMCreateState {
   createMode: 'template' | 'custom'
   templateId: string | null
   name: string
+  description: string
+  billingType: 'postpaid' | 'prepaid'
   count: number
+  tags: string[]
   regionId: string
   zoneId: string
   imageId: string
@@ -551,7 +601,10 @@ const formData = reactive<VMCreateState>({
   createMode: 'custom',
   templateId: null,
   name: '',
+  description: '',
+  billingType: 'postpaid',
   count: 1,
+  tags: [],
   regionId: '',
   zoneId: '',
   imageId: '',
@@ -566,6 +619,9 @@ const formData = reactive<VMCreateState>({
   systemDiskType: 'cloud_ssd',
   dataDisks: []
 })
+
+// Available tags for selection
+const availableTags = ref<string[]>(['production', 'development', 'test', 'staging', 'important', 'temporary'])
 
 // Loading states
 const loading = ref(false)
@@ -760,7 +816,10 @@ const resetForm = () => {
     createMode: props.templateId ? 'template' : 'custom',
     templateId: props.templateId || null,
     name: '',
+    description: '',
+    billingType: 'postpaid',
     count: 1,
+    tags: [],
     regionId: '',
     zoneId: '',
     imageId: '',

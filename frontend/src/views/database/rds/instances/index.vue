@@ -1,8 +1,23 @@
 <template>
   <div class="rds-container">
     <div class="page-header">
-      <h2>RDS实例管理</h2>
-      <el-button type="primary" @click="showCreateDialog">新建实例</el-button>
+      <h2>RDS实例</h2>
+      <div class="toolbar">
+        <el-button @click="handleRefresh" :icon="Refresh" circle />
+        <el-button type="primary" @click="showCreateDialog">新建</el-button>
+        <el-button @click="handleSyncStatus" :disabled="selectedRows.length === 0">同步状态</el-button>
+        <el-dropdown @command="handleBatchCommand" :disabled="selectedRows.length === 0">
+          <el-button>批量操作<el-icon class="el-icon--right"><arrow-down /></el-icon></el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="start">批量启动</el-dropdown-item>
+              <el-dropdown-item command="stop">批量停止</el-dropdown-item>
+              <el-dropdown-item command="delete">批量删除</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+        <el-button @click="handleTags" :icon="PriceTag">标签</el-button>
+      </div>
     </div>
 
     <el-card class="filter-card">
@@ -41,38 +56,44 @@
       v-loading="loading"
       style="width: 100%"
       row-key="id"
+      @selection-change="handleSelectionChange"
     >
-      <el-table-column label="名称" min-width="180">
+      <el-table-column type="selection" width="55" />
+      <el-table-column label="名称" min-width="150">
         <template #default="{ row }">
           <el-link type="primary" @click="viewDetail(row)">{{ row.name }}</el-link>
         </template>
       </el-table-column>
-      <el-table-column label="平台/云账号" width="150">
-        <template #default="{ row }">
-          <div class="platform-cell">
-            <el-tag size="small" :type="getPlatformType(row.platform)" effect="plain">
-              {{ getPlatformLabel(row.platform) }}
-            </el-tag>
-            <span class="account-name">{{ row.account_name || '-' }}</span>
-          </div>
-        </template>
-      </el-table-column>
       <el-table-column prop="status" label="状态" width="100">
         <template #default="{ row }">
-          <el-tag :type="getStatusType(row.status)">{{ row.status }}</el-tag>
+          <el-tag :type="getStatusType(row.status)">{{ getStatusLabel(row.status) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="instance_type" label="规格" width="120" />
-      <el-table-column label="数据库引擎" width="150">
+      <el-table-column prop="instance_type" label="类型" width="120" />
+      <el-table-column label="引擎" width="100">
         <template #default="{ row }">
-          {{ row.engine }} {{ row.engine_version }}
+          {{ row.engine }}
         </template>
       </el-table-column>
-      <el-table-column prop="endpoint" label="连接地址" width="200" />
+      <el-table-column prop="endpoint" label="地址" width="180" />
       <el-table-column prop="port" label="端口" width="80" />
       <el-table-column prop="storage_type" label="存储类型" width="100" />
-      <el-table-column prop="storage_size" label="存储(GB)" width="80" />
-      <el-table-column label="操作" width="180" fixed="right">
+      <el-table-column prop="security_group" label="安全组" width="120" />
+      <el-table-column prop="billing_type" label="计费类型" width="100">
+        <template #default="{ row }">
+          {{ row.billing_type || '按量付费' }}
+        </template>
+      </el-table-column>
+      <el-table-column label="平台" width="100">
+        <template #default="{ row }">
+          <el-tag size="small" :type="getPlatformType(row.platform)" effect="plain">
+            {{ getPlatformLabel(row.platform) }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column prop="project" label="项目" width="100" />
+      <el-table-column prop="region" label="区域" width="100" />
+      <el-table-column label="操作" width="140" fixed="right">
         <template #default="{ row }">
           <el-dropdown trigger="click">
             <el-button size="small">操作<el-icon class="el-icon--right"><arrow-down /></el-icon></el-button>
@@ -114,6 +135,9 @@
         <el-descriptions-item label="端口">{{ selectedRDS?.port }}</el-descriptions-item>
         <el-descriptions-item label="存储类型">{{ selectedRDS?.storage_type }}</el-descriptions-item>
         <el-descriptions-item label="存储大小">{{ selectedRDS?.storage_size }} GB</el-descriptions-item>
+        <el-descriptions-item label="安全组">{{ selectedRDS?.security_group }}</el-descriptions-item>
+        <el-descriptions-item label="计费类型">{{ selectedRDS?.billing_type }}</el-descriptions-item>
+        <el-descriptions-item label="项目">{{ selectedRDS?.project }}</el-descriptions-item>
         <el-descriptions-item label="VPC">{{ selectedRDS?.vpc_id }}</el-descriptions-item>
         <el-descriptions-item label="子网">{{ selectedRDS?.subnet_id }}</el-descriptions-item>
         <el-descriptions-item label="可用区">{{ selectedRDS?.zone_id }}</el-descriptions-item>
@@ -126,33 +150,96 @@
     </el-dialog>
 
     <!-- Create Dialog -->
-    <el-dialog v-model="createDialogVisible" title="创建RDS实例" width="600px">
+    <el-dialog v-model="createDialogVisible" title="创建RDS实例" width="700px">
       <el-form :model="createForm" label-width="120px">
+        <el-form-item label="指定项目">
+          <el-select v-model="createForm.project_id" placeholder="选择项目" clearable>
+            <el-option v-for="p in projects" :key="p.id" :label="p.name" :value="p.id" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="实例名称" required>
           <el-input v-model="createForm.name" placeholder="请输入实例名称" />
         </el-form-item>
+        <el-form-item label="描述">
+          <el-input v-model="createForm.description" type="textarea" placeholder="请输入描述" />
+        </el-form-item>
+        <el-form-item label="计费类型">
+          <el-radio-group v-model="createForm.billing_type">
+            <el-radio label="postpay">按量付费</el-radio>
+            <el-radio label="prepay">包年包月</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="过期释放">
+          <el-radio-group v-model="createForm.auto_release">
+            <el-radio label="false">不自动释放</el-radio>
+            <el-radio label="true">自动释放</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="创建数量">
+          <el-input-number v-model="createForm.quantity" :min="1" :max="10" />
+        </el-form-item>
+        <el-form-item label="区域">
+          <el-select v-model="createForm.region_id" placeholder="选择区域" @change="loadRDSSKUs">
+            <el-option label="华东1(杭州)" value="cn-hangzhou" />
+            <el-option label="华东2(上海)" value="cn-shanghai" />
+            <el-option label="华北2(北京)" value="cn-beijing" />
+            <el-option label="华南1(深圳)" value="cn-shenzhen" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="数据库引擎" required>
-          <el-select v-model="createForm.engine" placeholder="选择数据库引擎">
+          <el-select v-model="createForm.engine" placeholder="选择数据库引擎" @change="loadRDSSKUs">
             <el-option label="MySQL" value="MySQL" />
             <el-option label="PostgreSQL" value="PostgreSQL" />
             <el-option label="SQLServer" value="SQLServer" />
             <el-option label="MariaDB" value="MariaDB" />
           </el-select>
         </el-form-item>
-        <el-form-item label="引擎版本" required>
-          <el-input v-model="createForm.engine_version" placeholder="如: 5.7, 8.0, 14" />
+        <el-form-item label="版本" required>
+          <el-select v-model="createForm.engine_version" placeholder="选择版本" @change="loadRDSSKUs">
+            <el-option label="MySQL 5.7" value="5.7" v-if="createForm.engine === 'MySQL'" />
+            <el-option label="MySQL 8.0" value="8.0" v-if="createForm.engine === 'MySQL'" />
+            <el-option label="PostgreSQL 12" value="12" v-if="createForm.engine === 'PostgreSQL'" />
+            <el-option label="PostgreSQL 14" value="14" v-if="createForm.engine === 'PostgreSQL'" />
+          </el-select>
         </el-form-item>
-        <el-form-item label="实例规格" required>
-          <el-input v-model="createForm.instance_type" placeholder="如: mysql.n2.medium.1c" />
-        </el-form-item>
-        <el-form-item label="存储大小(GB)" required>
-          <el-input-number v-model="createForm.storage_size" :min="10" :max="2000" />
+        <el-form-item label="实例类型">
+          <el-radio-group v-model="createForm.category">
+            <el-radio label="ha">高可用版</el-radio>
+            <el-radio label="basic">基础版</el-radio>
+          </el-radio-group>
         </el-form-item>
         <el-form-item label="存储类型">
-          <el-select v-model="createForm.storage_type" placeholder="选择存储类型">
+          <el-select v-model="createForm.storage_type" placeholder="选择存储类型" @change="loadRDSSKUs">
             <el-option label="SSD云盘" value="cloud_ssd" />
             <el-option label="ESSD云盘" value="cloud_essd" />
           </el-select>
+        </el-form-item>
+        <el-form-item label="CPU">
+          <el-select v-model="createForm.cpu" placeholder="选择CPU核数" @change="filterSKUsByCPU">
+            <el-option label="1核" :value="1" />
+            <el-option label="2核" :value="2" />
+            <el-option label="4核" :value="4" />
+            <el-option label="8核" :value="8" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="内存">
+          <el-select v-model="createForm.memory_mb" placeholder="选择内存大小">
+            <el-option label="1GB" :value="1024" />
+            <el-option label="2GB" :value="2048" />
+            <el-option label="4GB" :value="4096" />
+            <el-option label="8GB" :value="8192" />
+            <el-option label="16GB" :value="16384" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="实例规格" required>
+          <el-select v-model="createForm.instance_type" placeholder="选择实例规格">
+            <el-option v-for="sku in availableSkus" :key="sku.id"
+              :label="`${sku.instance_type} (${sku.cpu}核${sku.memory_mb/1024}GB)`"
+              :value="sku.instance_type" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="存储大小(GB)" required>
+          <el-input-number v-model="createForm.storage_size" :min="10" :max="2000" />
         </el-form-item>
         <el-form-item label="VPC" required>
           <el-input v-model="createForm.vpc_id" placeholder="VPC ID" />
@@ -210,19 +297,42 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowDown } from '@element-plus/icons-vue'
+import { ArrowDown, Refresh, PriceTag } from '@element-plus/icons-vue'
 import CloudAccountSelector from '@/components/common/CloudAccountSelector.vue'
-import { listRDS, createRDS, deleteRDS, rdsAction, resizeRDS, createRDSBackup, type RDSInstance, type RDSConfig } from '@/api/database'
+import {
+  listRDS, createRDS, deleteRDS, rdsAction, resizeRDS, createRDSBackup,
+  listRDSSKUs, type RDSInstance, type RDSConfig, type RDSInstanceSKU
+} from '@/api/database'
 
 interface RDS extends RDSInstance {
   platform?: string
   account_name?: string
+  billing_type?: string
+  security_group?: string
+  project?: string
+  region?: string
+}
+
+interface Project {
+  id: number
+  name: string
 }
 
 const rdsInstances = ref<RDS[]>([])
 const loading = ref(false)
 const detailDialogVisible = ref(false)
 const selectedRDS = ref<RDS | null>(null)
+const selectedRows = ref<RDS[]>([])
+
+// Projects list (should be loaded from API)
+const projects = ref<Project[]>([
+  { id: 1, name: '默认项目' },
+  { id: 2, name: '生产环境' },
+  { id: 3, name: '测试环境' },
+])
+
+// SKU data
+const availableSkus = ref<RDSInstanceSKU[]>([])
 
 // 分页数据
 const pagination = reactive({
@@ -241,7 +351,17 @@ const filters = reactive({
 // Create dialog
 const createDialogVisible = ref(false)
 const createLoading = ref(false)
-const createForm = ref<RDSConfig>({
+const createForm = ref<RDSConfig & {
+  project_id?: number
+  description?: string
+  billing_type?: string
+  auto_release?: string
+  quantity?: number
+  region_id?: string
+  category?: string
+  cpu?: number
+  memory_mb?: number
+}>({
   account_id: 0,
   name: '',
   engine: 'MySQL',
@@ -253,7 +373,13 @@ const createForm = ref<RDSConfig>({
   subnet_id: '',
   zone_id: '',
   master_username: 'root',
-  master_password: ''
+  master_password: '',
+  billing_type: 'postpay',
+  auto_release: 'false',
+  quantity: 1,
+  category: 'ha',
+  cpu: 2,
+  memory_mb: 4096,
 })
 
 // Resize dialog
@@ -288,12 +414,24 @@ const platformTypes: Record<string, 'primary' | 'warning' | 'success' | 'info'> 
   azure: 'info'
 }
 
+const statusLabels: Record<string, string> = {
+  Running: '运行中',
+  Stopped: '已停止',
+  Creating: '创建中',
+  Starting: '启动中',
+  Stopping: '停止中'
+}
+
 const getPlatformLabel = (platform: string): string => {
   return platformLabels[platform] || platform || '未知'
 }
 
 const getPlatformType = (platform: string): 'primary' | 'warning' | 'success' | 'info' => {
   return platformTypes[platform] || 'info'
+}
+
+const getStatusLabel = (status: string): string => {
+  return statusLabels[status] || status
 }
 
 const getStatusType = (status: string) => {
@@ -303,6 +441,8 @@ const getStatusType = (status: string) => {
       return 'success'
     case 'creating':
     case 'pending':
+    case 'starting':
+    case 'stopping':
       return 'warning'
     case 'stopped':
     case 'error':
@@ -312,12 +452,83 @@ const getStatusType = (status: string) => {
   }
 }
 
+const handleSelectionChange = (rows: RDS[]) => {
+  selectedRows.value = rows
+}
+
 const handleAccountChange = (accountId: number | null) => {
   filters.account_id = accountId
   if (accountId) {
     loadRDSInstances()
   } else {
     rdsInstances.value = []
+  }
+}
+
+const handleRefresh = () => {
+  loadRDSInstances()
+}
+
+const handleSyncStatus = async () => {
+  if (selectedRows.value.length === 0) return
+  ElMessage.info(`正在同步 ${selectedRows.value.length} 个实例的状态...`)
+  await loadRDSInstances()
+  ElMessage.success('状态同步完成')
+}
+
+const handleBatchCommand = async (command: string) => {
+  if (selectedRows.value.length === 0) return
+
+  try {
+    await ElMessageBox.confirm(`确认对 ${selectedRows.value.length} 个实例执行 ${command} 操作？`, '确认', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+
+    for (const row of selectedRows.value) {
+      if (command === 'delete') {
+        await deleteRDS(filters.account_id!, row.id)
+      } else {
+        await rdsAction(filters.account_id!, row.id, command)
+      }
+    }
+    ElMessage.success('批量操作执行成功')
+    selectedRows.value = []
+    loadRDSInstances()
+  } catch (e: any) {
+    if (e !== 'cancel') {
+      ElMessage.error(e.message || '操作失败')
+    }
+  }
+}
+
+const handleTags = () => {
+  ElMessage.info('标签管理功能开发中')
+}
+
+const loadRDSSKUs = async () => {
+  if (!filters.account_id) return
+
+  try {
+    const skus = await listRDSSKUs({
+      account_id: filters.account_id,
+      engine: createForm.value.engine,
+      engine_version: createForm.value.engine_version,
+      category: createForm.value.category,
+      storage_type: createForm.value.storage_type,
+      region_id: createForm.value.region_id,
+    })
+    availableSkus.value = skus
+  } catch (e) {
+    console.error('Failed to load SKUs', e)
+  }
+}
+
+const filterSKUsByCPU = () => {
+  // Filter available SKUs based on CPU selection
+  if (createForm.value.cpu) {
+    availableSkus.value = availableSkus.value.filter(s => s.cpu === createForm.value.cpu)
   }
 }
 
@@ -494,6 +705,12 @@ onMounted(() => {
   font-weight: 600;
 }
 
+.toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
 .filter-card {
   margin-bottom: 20px;
 }
@@ -501,19 +718,5 @@ onMounted(() => {
 .pagination {
   margin-top: 20px;
   text-align: right;
-}
-
-.platform-cell {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.account-name {
-  font-size: 12px;
-  color: var(--text-color-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 </style>

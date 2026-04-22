@@ -128,9 +128,21 @@ func main() {
 		&model.CloudSnapshot{},     // 云快照模型
 		&model.CloudRDS{},          // 云RDS模型
 		&model.CloudRedis{},        // 云Redis模型
+		&model.KeyPair{},           // SSH密钥模型
+		&model.CloudRegion{},       // 云区域模型
+		&model.CloudZone{},         // 云可用区模型
+		&model.CloudGlobalVPC{},    // 全局VPC模型
+		&model.CloudVPCInterconnect{}, // VPC互联模型
+		&model.CloudL2Network{},    // 二层网络模型
+		&model.CloudRouteTable{},   // 路由表模型
+		&model.CloudLBInstance{},   // 负载均衡实例模型
+		&model.CloudLBACL{},        // 负载均衡ACL模型
+		&model.CloudLBCertificate{}, // 负载均衡证书模型
+		&model.CloudCDNDomain{},    // CDN域名模型
 		&model.OperationLog{},      // 操作日志模型
 		&model.HostTemplate{},      // 主机模版模型
 		&model.AutoscalingGroup{},  // 弹性伸缩组模型
+			&model.Image{},             // 镜像模型
 		&model.Bill{},              // 账单模型
 		&model.Order{},             // 订单模型
 		&model.Budget{},            // 预算模型
@@ -139,7 +151,17 @@ func main() {
 		&model.AlertPolicy{},       // 告警策略模型
 		&model.AlertHistory{},      // 告警历史模型
 		&model.MonitorResource{},   // 监控资源模型
-	); err != nil {
+		 &model.WAFInstance{},       // WAF策略模型
+			&model.WebappInstance{},   // 应用程序服务模型
+			// 同步资源模型
+			&model.CloudDNSZone{},     // DNS Zone同步模型
+			&model.CloudDNSRecord{},   // DNS记录同步模型
+			&model.CloudIPv6Gateway{}, // IPv6网关同步模型
+			&model.CloudNATGateway{},  // NAT网关同步模型
+			&model.CloudNATRule{},     // NAT规则同步模型
+			&model.CloudAccessGroup{}, // 云访问组模型
+			&model.ProxySetting{},     // 代理设置模型
+		); err != nil {
 		log.Fatalf("failed to migrate database: %v", err)
 	}
 
@@ -240,6 +262,9 @@ func main() {
 			computeGroup.DELETE("/vms/:id", computeHandler.DeleteVM)
 			computeGroup.POST("/vms/:id/action", computeHandler.VMAction)
 
+			// 批量操作
+			computeGroup.POST("/vms/batch-action", computeHandler.BatchVMAction)
+
 			// 详细的 VM 信息和操作端点
 			computeGroup.GET("/vms/:id/details", computeHandler.GetVMDetails)
 			computeGroup.GET("/vms/:id/security-groups", computeHandler.GetVMSecurityGroups)
@@ -276,55 +301,42 @@ func main() {
 				autoscalingGroupGroup.DELETE("/:id", autoscalingGroupHandler.DeleteAutoscalingGroup)
 			}
 
+
+		// 镜像路由
+		imageHandler := handler.NewImageHandler(db, logger)
+		imageGroup := v1.Group("/images")
+		{
+			imageGroup.GET("", imageHandler.ListImages)
+			imageGroup.GET("/:id", imageHandler.GetImage)
+			imageGroup.POST("", imageHandler.CreateImage)
+			imageGroup.PUT("/:id", imageHandler.UpdateImage)
+			imageGroup.DELETE("/:id", imageHandler.DeleteImage)
+			imageGroup.POST("/batch-delete", imageHandler.BatchDeleteImages)
+			imageGroup.POST("/sync", imageHandler.SyncImages)
+		}
+
 		// 网络资源路由
 		networkHandler := handler.NewNetworkHandler(db, logger)
 		networkGroup := v1.Group("/network")
 		{
+			// VPC 创建和删除（需要调用云API）
 			networkGroup.POST("/vpcs", networkHandler.CreateVPC)
-			networkGroup.GET("/vpcs", networkHandler.ListVPCs)
 			networkGroup.DELETE("/vpcs/:id", networkHandler.DeleteVPC)
 
-				networkGroup.POST("/subnets", networkHandler.CreateSubnet)
-				networkGroup.GET("/subnets", networkHandler.ListSubnets)
-				networkGroup.PUT("/subnets/:id", networkHandler.UpdateSubnet)
-				networkGroup.DELETE("/subnets/:id", networkHandler.DeleteSubnet)
-				networkGroup.POST("/subnets/:id/change-project", networkHandler.ChangeSubnetProject)
-				networkGroup.POST("/subnets/:id/split", networkHandler.SplitSubnet)
-				networkGroup.POST("/subnets/:id/reserve-ip", networkHandler.ReserveIP)
-				networkGroup.POST("/subnets/:id/release-ip", networkHandler.ReleaseIP)
-				networkGroup.GET("/subnets/reserved-ips", networkHandler.ListReservedIPs)
-
-				networkGroup.POST("/security-groups", networkHandler.CreateSecurityGroup)
-				networkGroup.GET("/security-groups", networkHandler.ListSecurityGroups)
-				networkGroup.DELETE("/security-groups/:id", networkHandler.DeleteSecurityGroup)
-				networkGroup.POST("/security-groups/:id/rules", networkHandler.AddSecurityGroupRule)
-				networkGroup.DELETE("/security-groups/:id/rules/:rule_id", networkHandler.DeleteSecurityGroupRule)
-
-				networkGroup.POST("/eips", networkHandler.CreateEIP)
-				networkGroup.GET("/eips", networkHandler.ListEIPs)
-				networkGroup.DELETE("/eips/:id", networkHandler.DeleteEIP)
-				networkGroup.POST("/eips/:id/bind", networkHandler.BindEIP)
-				networkGroup.POST("/eips/:id/unbind", networkHandler.UnbindEIP)
-
-				// 地理资源路由
-				networkGroup.GET("/regions", networkHandler.ListRegions)
-				networkGroup.GET("/zones", networkHandler.ListZones)
-
-				// 高级网络资源路由
+				// VPC互通 创建和删除
 				networkGroup.POST("/vpc-interconnects", networkHandler.CreateVPCInterconnect)
-				networkGroup.GET("/vpc-interconnects", networkHandler.ListVPCInterconnects)
 				networkGroup.DELETE("/vpc-interconnects/:id", networkHandler.DeleteVPCInterconnect)
 
+				// VPC Peering 创建和删除
 				networkGroup.POST("/vpc-peerings", networkHandler.CreateVPCPeering)
-				networkGroup.GET("/vpc-peerings", networkHandler.ListVPCPeerings)
 				networkGroup.DELETE("/vpc-peerings/:id", networkHandler.DeleteVPCPeering)
 
+				// 路由表 创建和删除
 				networkGroup.POST("/route-tables", networkHandler.CreateRouteTable)
-				networkGroup.GET("/route-tables", networkHandler.ListRouteTables)
 				networkGroup.DELETE("/route-tables/:id", networkHandler.DeleteRouteTable)
 
+				// 二层网络 创建和删除
 				networkGroup.POST("/l2-networks", networkHandler.CreateL2Network)
-				networkGroup.GET("/l2-networks", networkHandler.ListL2Networks)
 				networkGroup.DELETE("/l2-networks/:id", networkHandler.DeleteL2Network)
 		}
 
@@ -345,9 +357,154 @@ func main() {
 			storageGroup.GET("/cloud-snapshots", storageHandler.ListCloudSnapshots)
 			storageGroup.POST("/cloud-snapshots", storageHandler.CreateCloudSnapshot)
 			storageGroup.DELETE("/cloud-snapshots/:id", storageHandler.DeleteCloudSnapshot)
+
+			// 主机快照
+			storageGroup.GET("/instance-snapshots", storageHandler.ListInstanceSnapshots)
+			storageGroup.GET("/instance-snapshots/:id", storageHandler.GetInstanceSnapshot)
+			storageGroup.POST("/instance-snapshots", storageHandler.CreateInstanceSnapshot)
+			storageGroup.DELETE("/instance-snapshots/:id", storageHandler.DeleteInstanceSnapshot)
+			storageGroup.POST("/instance-snapshots/batch-delete", storageHandler.BatchDeleteInstanceSnapshots)
+			storageGroup.POST("/instance-snapshots/:id/rollback", storageHandler.RollbackInstanceSnapshot)
+			storageGroup.POST("/instance-snapshots/:id/create-vm", storageHandler.CreateVMFromSnapshot)
+
+			// 快照策略
+			storageGroup.GET("/snapshot-policies", storageHandler.ListSnapshotPolicies)
+			storageGroup.GET("/snapshot-policies/:id", storageHandler.GetSnapshotPolicy)
+			storageGroup.POST("/snapshot-policies", storageHandler.CreateSnapshotPolicy)
+			storageGroup.PUT("/snapshot-policies/:id", storageHandler.UpdateSnapshotPolicy)
+			storageGroup.DELETE("/snapshot-policies/:id", storageHandler.DeleteSnapshotPolicy)
+			storageGroup.POST("/snapshot-policies/batch-delete", storageHandler.BatchDeleteSnapshotPolicies)
+			storageGroup.POST("/snapshot-policies/:id/toggle", storageHandler.ToggleSnapshotPolicy)
+			storageGroup.POST("/snapshot-policies/:id/associate", storageHandler.AssociateResourcesToPolicy)
+			storageGroup.POST("/snapshot-policies/:id/disassociate", storageHandler.DisassociateResourceFromPolicy)
 		}
 
-		// 数据库资源路由
+
+			// 网络同步资源路由
+			networkSyncHandler := handler.NewNetworkSyncHandler(db, logger)
+			networkSyncGroup := v1.Group("/network")
+			{
+				// 安全组
+				networkSyncGroup.GET("/security-groups", networkSyncHandler.ListSecurityGroups)
+				networkSyncGroup.GET("/security-groups/:id", networkSyncHandler.GetSecurityGroup)
+				networkSyncGroup.POST("/security-groups", networkSyncHandler.CreateSecurityGroup)
+				networkSyncGroup.DELETE("/security-groups/:id", networkSyncHandler.DeleteSecurityGroup)
+				networkSyncGroup.POST("/security-groups/batch-delete", networkSyncHandler.BatchDeleteSecurityGroups)
+
+				// IP子网
+				networkSyncGroup.GET("/subnets", networkSyncHandler.ListNetworks)
+				networkSyncGroup.GET("/subnets/:id", networkSyncHandler.GetNetwork)
+				networkSyncGroup.POST("/subnets", networkSyncHandler.CreateNetwork)
+				networkSyncGroup.DELETE("/subnets/:id", networkSyncHandler.DeleteNetwork)
+				networkSyncGroup.POST("/subnets/batch-delete", networkSyncHandler.BatchDeleteNetworks)
+
+				// 弹性公网IP
+				networkSyncGroup.GET("/eips", networkSyncHandler.ListEIPs)
+				networkSyncGroup.GET("/eips/:id", networkSyncHandler.GetEIP)
+				networkSyncGroup.POST("/eips", networkSyncHandler.CreateEIP)
+				networkSyncGroup.DELETE("/eips/:id", networkSyncHandler.DeleteEIP)
+				networkSyncGroup.POST("/eips/:id/bind", networkSyncHandler.BindEIP)
+				networkSyncGroup.POST("/eips/:id/unbind", networkSyncHandler.UnbindEIP)
+				networkSyncGroup.POST("/eips/batch-delete", networkSyncHandler.BatchDeleteEIPs)
+
+				// SSH密钥
+				networkSyncGroup.GET("/keypairs", networkSyncHandler.ListKeyPairs)
+				networkSyncGroup.GET("/keypairs/:id", networkSyncHandler.GetKeyPair)
+				networkSyncGroup.POST("/keypairs", networkSyncHandler.CreateKeyPair)
+				networkSyncGroup.DELETE("/keypairs/:id", networkSyncHandler.DeleteKeyPair)
+				networkSyncGroup.POST("/keypairs/batch-delete", networkSyncHandler.BatchDeleteKeyPairs)
+
+					// NAT网关
+					networkSyncGroup.GET("/nat-gateways", networkSyncHandler.ListNATGateways)
+					networkSyncGroup.GET("/nat-gateways/:id", networkSyncHandler.GetNATGateway)
+					networkSyncGroup.POST("/nat-gateways", networkSyncHandler.CreateNATGateway)
+					networkSyncGroup.PUT("/nat-gateways/:id", networkSyncHandler.UpdateNATGateway)
+					networkSyncGroup.DELETE("/nat-gateways/:id", networkSyncHandler.DeleteNATGateway)
+					networkSyncGroup.POST("/nat-gateways/batch-delete", networkSyncHandler.BatchDeleteNATGateways)
+
+					// NAT规则
+					networkSyncGroup.GET("/nat-gateways/:id/rules", networkSyncHandler.ListNATRules)
+					networkSyncGroup.POST("/nat-gateways/:id/rules", networkSyncHandler.CreateNATRule)
+					networkSyncGroup.DELETE("/nat-gateways/:id/rules/:rule_id", networkSyncHandler.DeleteNATRule)
+
+					// IPv6网关
+					networkSyncGroup.GET("/ipv6-gateways", networkSyncHandler.ListIPv6Gateways)
+					networkSyncGroup.GET("/ipv6-gateways/:id", networkSyncHandler.GetIPv6Gateway)
+					networkSyncGroup.POST("/ipv6-gateways", networkSyncHandler.CreateIPv6Gateway)
+					networkSyncGroup.DELETE("/ipv6-gateways/:id", networkSyncHandler.DeleteIPv6Gateway)
+					networkSyncGroup.POST("/ipv6-gateways/batch-delete", networkSyncHandler.BatchDeleteIPv6Gateways)
+
+					// DNS解析
+					networkSyncGroup.GET("/dns-zones", networkSyncHandler.ListDNSZones)
+					networkSyncGroup.GET("/dns-zones/:id", networkSyncHandler.GetDNSZone)
+					networkSyncGroup.POST("/dns-zones", networkSyncHandler.CreateDNSZone)
+					networkSyncGroup.DELETE("/dns-zones/:id", networkSyncHandler.DeleteDNSZone)
+					networkSyncGroup.POST("/dns-zones/batch-delete", networkSyncHandler.BatchDeleteDNSZones)
+
+					// DNS记录
+					networkSyncGroup.GET("/dns-zones/:id/records", networkSyncHandler.ListDNSRecords)
+					networkSyncGroup.POST("/dns-zones/:id/records", networkSyncHandler.CreateDNSRecord)
+					networkSyncGroup.DELETE("/dns-zones/:id/records/:record_id", networkSyncHandler.DeleteDNSRecord)
+
+					// 云区域和可用区
+					networkSyncGroup.GET("/regions", networkSyncHandler.ListRegions)
+					networkSyncGroup.GET("/zones", networkSyncHandler.ListZones)
+
+					// VPC（本地数据库查询）
+					networkSyncGroup.GET("/vpcs", networkSyncHandler.ListVPCsSync)
+
+					// 全局VPC
+					networkSyncGroup.GET("/global-vpcs", networkSyncHandler.ListGlobalVPCs)
+
+					// VPC互通
+					networkSyncGroup.GET("/vpc-interconnects", networkSyncHandler.ListVPCInterconnects)
+
+					// 二层网络
+					networkSyncGroup.GET("/l2-networks", networkSyncHandler.ListL2Networks)
+
+					// 路由表
+					networkSyncGroup.GET("/route-tables", networkSyncHandler.ListRouteTables)
+
+					// 负载均衡实例
+					networkSyncGroup.GET("/lb-instances", networkSyncHandler.ListLBInstances)
+
+					// 负载均衡ACL
+					networkSyncGroup.GET("/lb-acls", networkSyncHandler.ListLBACLs)
+
+					// 负载均衡证书
+					networkSyncGroup.GET("/lb-certificates", networkSyncHandler.ListLBCertificates)
+
+					// CDN域名
+					networkSyncGroup.GET("/cdn-domains", networkSyncHandler.ListCDNDomains)
+			}
+
+				// WAF策略路由
+				wafHandler := handler.NewWAFHandler(db, logger)
+				wafGroup := v1.Group("/waf")
+				{
+					wafGroup.GET("", wafHandler.List)
+					wafGroup.GET("/:id", wafHandler.Get)
+					wafGroup.POST("", wafHandler.Create)
+					wafGroup.PUT("/:id", wafHandler.Update)
+					wafGroup.DELETE("/:id", wafHandler.Delete)
+					wafGroup.POST("/batch-delete", wafHandler.BatchDelete)
+					wafGroup.POST("/:id/sync", wafHandler.SyncStatus)
+				}
+
+				// 应用程序服务路由
+				webappHandler := handler.NewWebappHandler(db, logger)
+				webappGroup := v1.Group("/webapp")
+				{
+					webappGroup.GET("", webappHandler.List)
+					webappGroup.GET("/:id", webappHandler.Get)
+					webappGroup.POST("", webappHandler.Create)
+					webappGroup.PUT("/:id", webappHandler.Update)
+					webappGroup.DELETE("/:id", webappHandler.Delete)
+					webappGroup.POST("/batch-delete", webappHandler.BatchDelete)
+					webappGroup.POST("/:id/sync", webappHandler.SyncStatus)
+				}
+
+				// 数据库资源路由
 		databaseHandler := handler.NewDatabaseHandler(db, logger)
 		databaseGroup := v1.Group("/database")
 		{
@@ -368,6 +525,10 @@ func main() {
 			databaseGroup.POST("/cache/:id/action", databaseHandler.CacheAction)
 			databaseGroup.POST("/cache/:id/resize", databaseHandler.ResizeCache)
 			databaseGroup.POST("/cache/:id/backups", databaseHandler.CreateCacheBackup)
+
+			// SKU 规格 API
+			databaseGroup.GET("/rds/skus", databaseHandler.ListRDSSKUs)
+			databaseGroup.GET("/cache/skus", databaseHandler.ListCacheSKUs)
 		}
 
 		// 中间件资源路由
@@ -614,6 +775,18 @@ func main() {
 		}
 		v1.GET("/message-types", subscriptionHandler.ListMessageTypes)
 
+		// 安全告警路由
+		securityAlertHandler := handler.NewSecurityAlertHandler(db, logger)
+		alertsGroup := v1.Group("/alerts")
+		{
+			alertsGroup.GET("", securityAlertHandler.List)
+			alertsGroup.GET("/stats", securityAlertHandler.GetStats)
+			alertsGroup.GET("/:id", securityAlertHandler.Get)
+			alertsGroup.POST("/:id/resolve", securityAlertHandler.Resolve)
+			alertsGroup.POST("/:id/ignore", securityAlertHandler.Ignore)
+			alertsGroup.DELETE("/:id", securityAlertHandler.Delete)
+		}
+
 		// 同步策略路由
 		syncPolicyHandler := handler.NewSyncPolicyHandler(db, logger)
 		syncPolicyGroup := v1.Group("/sync-policies")
@@ -624,6 +797,31 @@ func main() {
 			syncPolicyGroup.PUT("/:id", syncPolicyHandler.Update)
 			syncPolicyGroup.DELETE("/:id", syncPolicyHandler.Delete)
 			syncPolicyGroup.POST("/:id/status", syncPolicyHandler.UpdateStatus)
+		}
+
+		// 云用户组路由
+		cloudAccessGroupHandler := handler.NewCloudAccessGroupHandler(db, logger)
+		cloudAccessGroupGroup := v1.Group("/cloud-user-groups")
+		{
+			cloudAccessGroupGroup.GET("", cloudAccessGroupHandler.List)
+			cloudAccessGroupGroup.GET("/:id", cloudAccessGroupHandler.Get)
+			cloudAccessGroupGroup.POST("", cloudAccessGroupHandler.Create)
+			cloudAccessGroupGroup.PUT("/:id", cloudAccessGroupHandler.Update)
+			cloudAccessGroupGroup.DELETE("/:id", cloudAccessGroupHandler.Delete)
+			cloudAccessGroupGroup.POST("/batch-delete", cloudAccessGroupHandler.BatchDelete)
+		}
+
+		// 代理路由
+		proxySettingHandler := handler.NewProxySettingHandler(db, logger)
+		proxyGroup := v1.Group("/proxies")
+		{
+			proxyGroup.GET("", proxySettingHandler.List)
+			proxyGroup.GET("/:id", proxySettingHandler.Get)
+			proxyGroup.POST("", proxySettingHandler.Create)
+			proxyGroup.PUT("/:id", proxySettingHandler.Update)
+			proxyGroup.DELETE("/:id", proxySettingHandler.Delete)
+			proxyGroup.POST("/batch-delete", proxySettingHandler.BatchDelete)
+			proxyGroup.PUT("/:id/sharing", proxySettingHandler.SetSharing)
 		}
 
 		// 定时任务路由

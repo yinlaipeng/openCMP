@@ -1,50 +1,116 @@
 <template>
-  <div class="regions-page">
-    <el-card class="page-card">
-      <template #header>
-        <div class="card-header">
-          <span class="title">区域列表</span>
-        </div>
-      </template>
+  <div class="regions-container">
+    <div class="page-header">
+      <h2>区域</h2>
+      <div class="toolbar">
+        <el-button link type="primary" @click="handleView">
+          <el-icon><View /></el-icon>
+          查看
+        </el-button>
+      </div>
+    </div>
 
-      <el-table :data="regions" v-loading="loading">
-        <el-table-column label="名称" width="200">
+    <!-- 搜索表单 -->
+    <el-card class="filter-card">
+      <el-form :inline="true" :model="filters" @submit.prevent="fetchData">
+        <el-form-item label="名称">
+          <el-input v-model="filters.name" placeholder="搜索区域名称" clearable style="width: 180px" />
+        </el-form-item>
+        <el-form-item label="启用状态">
+          <el-select v-model="filters.enabled" placeholder="选择状态" clearable style="width: 120px">
+            <el-option label="已启用" value="true" />
+            <el-option label="未启用" value="false" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="平台">
+          <el-select v-model="filters.platform" placeholder="选择平台" clearable style="width: 120px">
+            <el-option label="阿里云" value="aliyun" />
+            <el-option label="腾讯云" value="tencent" />
+            <el-option label="AWS" value="aws" />
+            <el-option label="Azure" value="azure" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="fetchData">查询</el-button>
+          <el-button @click="resetFilters">重置</el-button>
+        </el-form-item>
+      </el-form>
+    </el-card>
+
+    <el-card class="table-card">
+      <el-table
+        :data="regions"
+        v-loading="loading"
+        style="width: 100%"
+        row-key="id"
+      >
+        <!-- Cloudpods 表头顺序: Name → Enabled → Zones → VPC → Server → Platform -->
+        <el-table-column prop="name" label="名称" width="200">
           <template #default="{ row }">
-            <el-link @click="viewDetail(row)">{{ row.name }}</el-link>
+            <el-link type="primary" :underline="false" @click="handleDetails(row)">
+              {{ row.name }}
+            </el-link>
           </template>
         </el-table-column>
-        <el-table-column prop="status" label="启用状态" width="120">
+        <el-table-column prop="enabled" label="启用状态" width="120">
           <template #default="{ row }">
-            <el-tag :type="row.status === 'enabled' ? 'success' : 'info'">
-              {{ row.status === 'enabled' ? '已启用' : '未启用' }}
+            <el-tag :type="row.enabled ? 'success' : 'info'">
+              {{ row.enabled ? '已启用' : '未启用' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="available_zone_count" label="可用区" width="100">
+        <el-table-column prop="zone_count" label="可用区" width="100">
           <template #default="{ row }">
-            <el-link @click="viewZones(row)">{{ row.available_zone_count }}</el-link>
+            <el-link type="primary" @click="viewZones(row)">{{ row.zone_count || 0 }}</el-link>
           </template>
         </el-table-column>
-        <el-table-column prop="vpc_count" label="vpc" width="100" />
-        <el-table-column prop="virtual_machine_count" label="虚拟机" width="100" />
-        <el-table-column prop="platform" label="平台" width="120" />
+        <el-table-column prop="vpc_count" label="VPC" width="100" />
+        <el-table-column prop="server_count" label="服务器" width="100" />
+        <el-table-column prop="provider_type" label="平台" width="120">
+          <template #default="{ row }">
+            <el-tag size="small" :type="getPlatformType(row.provider_type)">
+              {{ getPlatformLabel(row.provider_type) }}
+            </el-tag>
+          </template>
+        </el-table-column>
       </el-table>
+
+      <el-pagination
+        v-model:current-page="pagination.page"
+        v-model:page-size="pagination.pageSize"
+        :page-sizes="[10, 20, 50, 100]"
+        :total="pagination.total"
+        layout="total, sizes, prev, pager, next, jumper"
+        @size-change="handleSizeChange"
+        @current-change="handleCurrentChange"
+        class="pagination"
+      />
     </el-card>
 
-    <!-- Detail Modal -->
-    <el-dialog v-model="detailDialogVisible" title="区域详情" width="800px">
+    <!-- 详情弹窗 -->
+    <el-dialog
+      title="区域详情"
+      v-model="detailDialogVisible"
+      width="700px"
+    >
       <el-tabs v-model="activeTab">
         <el-tab-pane label="详情" name="detail">
-          <el-descriptions :column="2" border>
-            <el-descriptions-item label="区域ID">{{ selectedRegion?.id }}</el-descriptions-item>
-            <el-descriptions-item label="区域名称">{{ selectedRegion?.name }}</el-descriptions-item>
+          <el-descriptions :column="2" border v-if="selectedRegion">
+            <el-descriptions-item label="ID">{{ selectedRegion.id }}</el-descriptions-item>
+            <el-descriptions-item label="名称">{{ selectedRegion.name }}</el-descriptions-item>
             <el-descriptions-item label="启用状态">
-              <el-tag :type="selectedRegion?.status === 'enabled' ? 'success' : 'info'">
-                {{ selectedRegion?.status === 'enabled' ? '已启用' : '未启用' }}
+              <el-tag :type="selectedRegion.enabled ? 'success' : 'info'">
+                {{ selectedRegion.enabled ? '已启用' : '未启用' }}
               </el-tag>
             </el-descriptions-item>
-            <el-descriptions-item label="平台">{{ selectedRegion?.platform }}</el-descriptions-item>
-            <el-descriptions-item label="创建时间">{{ selectedRegion?.created_at }}</el-descriptions-item>
+            <el-descriptions-item label="平台">
+              <el-tag size="small" :type="getPlatformType(selectedRegion.provider_type)">
+                {{ getPlatformLabel(selectedRegion.provider_type) }}
+              </el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="可用区数">{{ selectedRegion.zone_count }}</el-descriptions-item>
+            <el-descriptions-item label="VPC数">{{ selectedRegion.vpc_count }}</el-descriptions-item>
+            <el-descriptions-item label="服务器数">{{ selectedRegion.server_count }}</el-descriptions-item>
           </el-descriptions>
         </el-tab-pane>
         <el-tab-pane label="可用区" name="zones">
@@ -54,44 +120,12 @@
             <el-table-column prop="status" label="状态" width="120" />
           </el-table>
         </el-tab-pane>
-        <el-tab-pane label="vpc" name="vpcs">
+        <el-tab-pane label="VPC" name="vpcs">
           <el-table :data="vpcs" v-loading="vpcsLoading">
             <el-table-column prop="id" label="VPC ID" width="180" />
-            <el-table-column prop="name" label="VPC 名称" width="150" />
+            <el-table-column prop="name" label="VPC名称" width="150" />
             <el-table-column prop="status" label="状态" width="100" />
             <el-table-column prop="cidr" label="CIDR" width="180" />
-          </el-table>
-        </el-tab-pane>
-        <el-tab-pane label="ip子网" name="subnets">
-          <el-table :data="subnets" v-loading="subnetsLoading">
-            <el-table-column prop="id" label="子网ID" width="200" />
-            <el-table-column prop="name" label="子网名称" width="150" />
-            <el-table-column prop="status" label="状态" width="100" />
-            <el-table-column prop="cidr" label="CIDR" width="180" />
-          </el-table>
-        </el-tab-pane>
-        <el-tab-pane label="资源统计" name="stats">
-          <el-row :gutter="20">
-            <el-col :span="6">
-              <el-statistic title="总虚拟机数" :value="selectedRegion?.virtual_machine_count || 0" />
-            </el-col>
-            <el-col :span="6">
-              <el-statistic title="总VPC数" :value="selectedRegion?.vpc_count || 0" />
-            </el-col>
-            <el-col :span="6">
-              <el-statistic title="总子网数" :value="subnets.length" />
-            </el-col>
-            <el-col :span="6">
-              <el-statistic title="总可用区数" :value="selectedRegion?.available_zone_count || 0" />
-            </el-col>
-          </el-row>
-        </el-tab-pane>
-        <el-tab-pane label="操作日志" name="logs">
-          <el-table :data="logs" v-loading="logsLoading">
-            <el-table-column prop="operation" label="操作" width="150" />
-            <el-table-column prop="operator" label="操作员" width="150" />
-            <el-table-column prop="result" label="结果" width="100" />
-            <el-table-column prop="timestamp" label="时间" width="180" />
           </el-table>
         </el-tab-pane>
       </el-tabs>
@@ -103,139 +137,166 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
+import { ElMessage } from 'element-plus'
+import { View } from '@element-plus/icons-vue'
+import { getRegions, Region } from '@/api/networkSync'
 
-const regions = ref<any[]>([])
+// Data
 const loading = ref(false)
+const regions = ref<Region[]>([])
+const selectedRegion = ref<Region | null>(null)
 const detailDialogVisible = ref(false)
-const selectedRegion = ref<any | null>(null)
 const activeTab = ref('detail')
 
-// Detail modal related data
 const zones = ref<any[]>([])
 const zonesLoading = ref(false)
 const vpcs = ref<any[]>([])
 const vpcsLoading = ref(false)
-const subnets = ref<any[]>([])
-const subnetsLoading = ref(false)
-const logs = ref<any[]>([])
-const logsLoading = ref(false)
 
-const loadRegions = async () => {
+const filters = reactive({
+  name: '',
+  enabled: '',
+  platform: ''
+})
+
+const pagination = reactive({
+  page: 1,
+  pageSize: 10,
+  total: 0
+})
+
+// Methods
+const getPlatformLabel = (platform: string) => {
+  const labels: Record<string, string> = {
+    aliyun: '阿里云',
+    alibaba: '阿里云',
+    tencent: '腾讯云',
+    Qcloud: '腾讯云',
+    aws: 'AWS',
+    azure: 'Azure'
+  }
+  return labels[platform] || platform || '未知'
+}
+
+const getPlatformType = (platform: string) => {
+  const types: Record<string, 'primary' | 'warning' | 'success' | 'info'> = {
+    aliyun: 'primary',
+    alibaba: 'primary',
+    tencent: 'warning',
+    Qcloud: 'warning',
+    aws: 'success',
+    azure: 'info'
+  }
+  return types[platform] || 'info'
+}
+
+const resetFilters = () => {
+  filters.name = ''
+  filters.enabled = ''
+  filters.platform = ''
+  pagination.page = 1
+  fetchData()
+}
+
+const fetchData = async () => {
   loading.value = true
   try {
-    // Mock data - API requires valid cloud account credentials
-    regions.value = [
-      {
-        id: 'cn-hangzhou',
-        name: '华东1(杭州)',
-        status: 'enabled',
-        available_zone_count: 3,
-        vpc_count: 5,
-        virtual_machine_count: 15,
-        platform: '阿里云',
-        created_at: '2024-01-01 10:00:00'
-      },
-      {
-        id: 'cn-shanghai',
-        name: '华东2(上海)',
-        status: 'enabled',
-        available_zone_count: 2,
-        vpc_count: 3,
-        virtual_machine_count: 10,
-        platform: '阿里云',
-        created_at: '2024-01-01 10:00:00'
-      },
-      {
-        id: 'cn-beijing',
-        name: '华北2(北京)',
-        status: 'enabled',
-        available_zone_count: 3,
-        vpc_count: 4,
-        virtual_machine_count: 12,
-        platform: '阿里云',
-        created_at: '2024-01-01 10:00:00'
-      }
-    ]
-  } catch (e) {
-    console.error(e)
-    regions.value = []
+    const params = {
+      page: pagination.page,
+      page_size: pagination.pageSize,
+      ...filters
+    }
+    const res = await getRegions(params)
+    regions.value = res.items || []
+    pagination.total = res.total || 0
+  } catch (error) {
+    console.error('Failed to fetch regions:', error)
+    ElMessage.error('获取区域列表失败')
   } finally {
     loading.value = false
   }
 }
 
-const viewDetail = async (row: Region) => {
+const handleView = () => {
+  ElMessage.info('视图切换功能开发中')
+}
+
+const handleDetails = (row: Region) => {
   selectedRegion.value = row
   detailDialogVisible.value = true
   activeTab.value = 'detail'
-  await loadRegionDetails(row.id)
+  loadRegionDetails(row.id)
 }
 
-const viewZones = async (row: Region) => {
+const viewZones = (row: Region) => {
   selectedRegion.value = row
   detailDialogVisible.value = true
   activeTab.value = 'zones'
-  await loadRegionDetails(row.id)
+  loadRegionDetails(row.id)
 }
 
 const loadRegionDetails = async (regionId: string) => {
-  // Mock data - API requires valid cloud account credentials
   zonesLoading.value = true
-  zones.value = [
-    { id: 'zone-a', name: '可用区A', status: 'Available' },
-    { id: 'zone-b', name: '可用区B', status: 'Available' },
-    { id: 'zone-c', name: '可用区C', status: 'Available' }
-  ]
+  zones.value = []
   zonesLoading.value = false
 
-  // Mock data for VPCs
   vpcsLoading.value = true
-  vpcs.value = [
-    { id: 'vpc-1', name: 'VPC 1', status: 'Available', cidr: '10.0.0.0/16' },
-    { id: 'vpc-2', name: 'VPC 2', status: 'Available', cidr: '10.1.0.0/16' }
-  ]
+  vpcs.value = []
   vpcsLoading.value = false
-
-  // Mock data for subnets
-  subnetsLoading.value = true
-  subnets.value = [
-    { id: 'subnet-1', name: 'Subnet 1', status: 'Available', cidr: '10.0.1.0/24' },
-    { id: 'subnet-2', name: 'Subnet 2', status: 'Available', cidr: '10.0.2.0/24' }
-  ]
-  subnetsLoading.value = false
-
-  // Load logs (mock data)
-  logsLoading.value = true
-  logs.value = [
-    { operation: '创建', operator: 'admin', result: '成功', timestamp: '2024-01-01 10:00:00' },
-    { operation: '同步', operator: 'system', result: '成功', timestamp: '2024-01-02 12:00:00' }
-  ]
-  logsLoading.value = false
 }
 
+const handleSizeChange = (val: number) => {
+  pagination.pageSize = val
+  pagination.page = 1
+  fetchData()
+}
+
+const handleCurrentChange = (val: number) => {
+  pagination.page = val
+  fetchData()
+}
+
+// Lifecycle
 onMounted(() => {
-  loadRegions()
+  fetchData()
 })
 </script>
 
 <style scoped>
-.regions-page {
-  height: 100%;
+.regions-container {
+  padding: 20px;
 }
 
-.page-card {
-  height: 100%;
-}
-
-.card-header {
+.page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 20px;
 }
 
-.title {
+.page-header h2 {
+  margin: 0;
   font-size: 18px;
-  font-weight: bold;
+  font-weight: 600;
+}
+
+.toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.filter-card {
+  margin-bottom: 20px;
+}
+
+.table-card {
+  margin-bottom: 20px;
+}
+
+.pagination {
+  margin-top: 20px;
+  justify-content: flex-end;
 }
 </style>

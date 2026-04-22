@@ -53,7 +53,7 @@ export function vmAction(id: string, account_id: number, action: 'start' | 'stop
 
 export function getImages(params?: { account_id?: number; platform?: string }) {
   return request<Image[]>({
-    url: '/compute/images',
+    url: '/images',
     method: 'get',
     params
   })
@@ -236,5 +236,24 @@ export function deleteAutoscalingGroup(id: string) {
   return request({
     url: `/autoscaling-groups/${id}`,
     method: 'delete'
+  })
+}
+
+// 批量虚拟机操作
+export function batchVMAction(data: {
+  vm_ids: string[]
+  account_id: number
+  action: 'start' | 'stop' | 'reboot' | 'delete'
+}) {
+  return request<{
+    total: number
+    success: number
+    failed: number
+    results: Array<{ vm_id: string; status: string; error?: string }>
+    message: string
+  }>({
+    url: '/compute/vms/batch-action',
+    method: 'post',
+    data
   })
 }

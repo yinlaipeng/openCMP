@@ -1,32 +1,29 @@
 <template>
-  <div class="receivers-page">
-    <el-card class="page-card">
-      <template #header>
-        <div class="card-header">
-          <span class="title">接收人管理</span>
-          <!-- 工具栏按钮 -->
-          <div class="toolbar">
-            <el-button @click="loadReceivers" :icon="Refresh" circle title="刷新" />
-            <el-button type="primary" @click="handleCreate">
-              新建
-            </el-button>
-            <el-button :disabled="selectedRows.length === 0" @click="handleBatchDelete">
-              删除
-            </el-button>
-            <el-button @click="showSettings" :icon="Setting" circle title="设置" />
-          </div>
-        </div>
-      </template>
-
-      <!-- 搜索栏 -->
-      <div class="search-bar">
-        <div class="search-box">
-          <el-select v-model="searchField" placeholder="搜索属性" style="width: 120px" class="search-field-select">
+  <div class="receivers-container">
+    <div class="page-header">
+      <h2>接收人管理</h2>
+      <div class="toolbar">
+        <el-button @click="loadReceivers" :icon="Refresh" circle title="刷新" />
+        <el-button type="primary" @click="handleCreate">
+          新建
+        </el-button>
+        <el-button :disabled="selectedRows.length === 0" @click="handleBatchDelete">
+          删除
+        </el-button>
+        <el-button @click="showSettings" :icon="Setting" circle title="设置" />
+      </div>
+    </div>
+    <el-card class="filter-card">
+      <el-form :inline="true" @submit.prevent="loadReceivers">
+        <el-form-item>
+          <el-select v-model="searchField" placeholder="搜索属性" style="width: 120px">
             <el-option label="用户名" value="name" />
             <el-option label="手机号" value="phone" />
             <el-option label="邮箱" value="email" />
             <el-option label="创建时间" value="created_at" />
           </el-select>
+        </el-form-item>
+        <el-form-item>
           <el-input
             v-model="searchKeyword"
             placeholder="默认为用户名搜索"
@@ -38,10 +35,10 @@
               <el-icon class="search-icon" @click="loadReceivers"><Search /></el-icon>
             </template>
           </el-input>
-        </div>
-      </div>
-
-      <!-- 表格 -->
+        </el-form-item>
+      </el-form>
+    </el-card>
+    <el-card>
       <el-table
         :data="receivers"
         v-loading="loading"
@@ -50,15 +47,12 @@
         row-key="id"
         @selection-change="handleSelectionChange"
       >
-        <!-- 选择列 -->
         <el-table-column type="selection" width="50" />
-        <!-- 用户名 -->
         <el-table-column label="用户名" min-width="120" show-overflow-tooltip>
           <template #default="{ row }">
             {{ row.name }}
           </template>
         </el-table-column>
-        <!-- 启用状态 -->
         <el-table-column label="启用状态" width="100">
           <template #default="{ row }">
             <el-tag :type="row.enabled ? 'success' : 'info'">
@@ -66,19 +60,16 @@
             </el-tag>
           </template>
         </el-table-column>
-        <!-- 手机号 -->
         <el-table-column label="手机号" width="140">
           <template #default="{ row }">
             {{ row.phone || '-' }}
           </template>
         </el-table-column>
-        <!-- 邮箱 -->
         <el-table-column label="邮箱" width="200" show-overflow-tooltip>
           <template #default="{ row }">
             {{ row.email || '-' }}
           </template>
         </el-table-column>
-        <!-- 通知渠道 -->
         <el-table-column label="通知渠道" width="150">
           <template #default="{ row }">
             <el-tag v-for="channel in row.notification_channels || []" :key="channel.id" size="small" style="margin-right: 4px;">
@@ -87,19 +78,16 @@
             <span v-if="!(row.notification_channels && row.notification_channels.length)">-</span>
           </template>
         </el-table-column>
-        <!-- 所属域 -->
         <el-table-column label="所属域" width="120">
           <template #default="{ row }">
             {{ row.domain?.name || '-' }}
           </template>
         </el-table-column>
-        <!-- 创建时间 -->
         <el-table-column label="创建时间" width="160">
           <template #default="{ row }">
             {{ formatDate(row.created_at) }}
           </template>
         </el-table-column>
-        <!-- 操作 -->
         <el-table-column label="操作" width="140" fixed="right">
           <template #default="{ row }">
             <el-button size="small" type="primary" link @click="handleEdit(row)">编辑</el-button>
@@ -124,8 +112,6 @@
           </template>
         </el-table-column>
       </el-table>
-
-      <!-- 分页 -->
       <el-pagination
         v-model:current-page="pagination.page"
         v-model:page-size="pagination.pageSize"
@@ -141,19 +127,16 @@
     <!-- 创建/编辑对话框 -->
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="600px" destroy-on-close>
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px" label-position="left">
-        <!-- 域 -->
         <el-form-item label="域">
           <el-select v-model="form.domain_id" placeholder="请选择域" style="width: 300px" clearable>
             <el-option v-for="domain in domains" :key="domain.id" :label="domain.name" :value="domain.id" />
           </el-select>
         </el-form-item>
-        <!-- 用户 -->
         <el-form-item label="用户" prop="user_id">
           <el-select v-model="form.user_id" placeholder="请选择用户" style="width: 300px" @change="handleUserChange">
             <el-option v-for="user in users" :key="user.id" :label="user.name" :value="user.id" />
           </el-select>
         </el-form-item>
-        <!-- 手机号 - 国际号码组件 -->
         <el-form-item label="手机号" prop="phone">
           <div class="mobile-input-group">
             <el-select v-model="form.country_code" style="width: 150px">
@@ -166,11 +149,9 @@
             <el-input v-model="form.phone_number" placeholder="手机号码" style="width: 150px" />
           </div>
         </el-form-item>
-        <!-- 邮箱 -->
         <el-form-item label="邮箱" prop="email">
           <el-input v-model="form.email" placeholder="邮箱地址" style="width: 300px" />
         </el-form-item>
-        <!-- 通知渠道 -->
         <el-form-item>
           <template #label>
             <span>
@@ -263,14 +244,13 @@ const editingId = ref<number | null>(null)
 const formRef = ref<FormInstance>()
 const selectedRows = ref<Receiver[]>([])
 
-// 搜索相关
 const searchField = ref('name')
 const searchKeyword = ref('')
 
 const domains = ref<Domain[]>([])
 const users = ref<User[]>([])
 const channels = ref<NotificationChannel[]>([])
-const selectedChannels = ref<string[]>(['webconsole']) // 默认选中站内信
+const selectedChannels = ref<string[]>(['webconsole'])
 
 const form = reactive({
   name: '',
@@ -321,7 +301,6 @@ const loadDomains = async () => {
   try {
     const res = await getDomains({ limit: 1000 })
     domains.value = res.items || []
-    // 默认选中 Default 域
     const defaultDomain = domains.value.find(d => d.name === 'Default')
     if (defaultDomain && !form.domain_id) {
       form.domain_id = defaultDomain.id
@@ -349,12 +328,10 @@ const loadChannels = async () => {
   }
 }
 
-// 选择变化处理
 const handleSelectionChange = (rows: Receiver[]) => {
   selectedRows.value = rows
 }
 
-// 批量删除
 const handleBatchDelete = async () => {
   if (selectedRows.value.length === 0) {
     ElMessage.warning('请选择要删除的接收人')
@@ -379,7 +356,6 @@ const handleBatchDelete = async () => {
   }
 }
 
-// 设置弹窗
 const showSettings = () => {
   ElMessage.info('设置功能开发中')
 }
@@ -390,12 +366,10 @@ const handleCreate = async () => {
   resetForm()
   dialogVisible.value = true
 
-  // 确保数据已加载
   if (domains.value.length === 0) await loadDomains()
   if (users.value.length === 0) await loadUsers()
   if (channels.value.length === 0) await loadChannels()
 
-  // 默认选中第一个用户
   if (users.value.length > 0) {
     form.user_id = users.value[0].id
     handleUserChange(form.user_id)
@@ -411,7 +385,6 @@ const handleEdit = async (row: Receiver) => {
   form.domain_id = row.domain_id
   form.user_id = row.user_id || null
 
-  // 解析国际号码
   if (row.phone) {
     const match = row.phone.match(/^(\+\d{1,3})\s*(\d+)$/)
     if (match) {
@@ -422,7 +395,6 @@ const handleEdit = async (row: Receiver) => {
     }
   }
 
-  // 加载关联渠道
   try {
     const res = await getReceiverChannels(row.id)
     const channelIds = (res.items || []).map((ch: any) => ch.id)
@@ -497,7 +469,6 @@ const handleSubmit = async () => {
   await formRef.value?.validate()
   submitting.value = true
   try {
-    // 组合国际号码
     const fullPhone = `${form.country_code} ${form.phone_number}`
 
     const data = {
@@ -512,14 +483,12 @@ const handleSubmit = async () => {
       await updateReceiver(editingId.value, data)
       ElMessage.success('更新成功')
 
-      // 更新通知渠道
       const channelIds = selectedChannels.value.filter(c => c !== 'webconsole').map(Number)
       await setReceiverChannels(editingId.value, { channel_ids: channelIds })
     } else {
       const res = await createReceiver(data)
       const newId = res.id
 
-      // 设置通知渠道
       const channelIds = selectedChannels.value.filter(c => c !== 'webconsole').map(Number)
       await setReceiverChannels(newId, { channel_ids: channelIds })
 
@@ -569,24 +538,21 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.receivers-page {
-  height: 100%;
+.receivers-container {
   padding: 20px;
 }
 
-.page-card {
-  height: 100%;
-}
-
-.card-header {
+.page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 16px;
 }
 
-.title {
+.page-header h2 {
+  margin: 0;
   font-size: 18px;
-  font-weight: bold;
+  font-weight: 600;
 }
 
 .toolbar {
@@ -594,40 +560,24 @@ onMounted(async () => {
   gap: 8px;
 }
 
-/* 搜索栏样式 */
-.search-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+.filter-card {
   margin-bottom: 16px;
-  flex-wrap: wrap;
-  gap: 16px;
-}
-
-.search-box {
-  display: flex;
-  align-items: center;
-  gap: 8px;
 }
 
 .search-icon {
   cursor: pointer;
 }
 
-/* 分页样式 */
 .pagination {
   margin-top: 16px;
-  display: flex;
   justify-content: flex-end;
 }
 
-/* 国际号码输入组件 */
 .mobile-input-group {
   display: flex;
   gap: 8px;
 }
 
-/* 弹窗底部按钮布局 */
 .dialog-footer {
   display: flex;
   justify-content: flex-end;

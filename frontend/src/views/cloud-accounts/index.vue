@@ -122,16 +122,6 @@
       </el-button>
     </div>
 
-    <!-- 空状态 -->
-    <EmptyState
-      v-if="!loading && accounts.length === 0"
-      title="暂无云账户"
-      description="当前没有任何云账户，点击下方按钮添加云账户"
-      :icon="Cloudy"
-      createButtonText="添加云账户"
-      @create="showWizard = true"
-    />
-
     <!-- 数据表格 -->
     <el-table
       :data="accounts"
@@ -139,7 +129,6 @@
       style="width: 100%"
       row-key="id"
       @selection-change="handleSelectionChange"
-      v-if="accounts.length > 0 || loading"
     >
       <el-table-column type="selection" width="55" />
       <el-table-column prop="id" label="ID" width="80" />
@@ -620,7 +609,6 @@ import { getDomains } from '@/api/iam'
 import { getLatestSyncLog } from '@/api/sync-log'
 import type { CloudAccount, CreateCloudAccountRequest, Project } from '@/types'
 import type { SyncPolicy } from '@/types/sync-policy'
-import EmptyState from '@/components/common/EmptyState.vue'
 import EditAccountDialog from './components/EditAccountDialog.vue'
 import CloudAccountDetailDialog from './components/CloudAccountDetailDialog.vue'
 import SetSyncAttributionDialog from './components/SetSyncAttributionDialog.vue'

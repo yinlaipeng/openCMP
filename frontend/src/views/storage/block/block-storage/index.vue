@@ -4,12 +4,57 @@
       <template #header>
         <div class="card-header">
           <span class="title">块存储列表</span>
+          <div class="toolbar">
+            <el-button @click="handleView">查看</el-button>
+            <el-dropdown :disabled="!hasSelection" @command="handleBatchCommand">
+              <el-button>
+                批量操作 <el-icon class="el-icon--right"><arrow-down /></el-icon>
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="delete">批量删除</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+            <el-button :disabled="!hasSelection" @click="handleTags">标签</el-button>
+          </div>
         </div>
       </template>
 
-      <el-tabs v-model="activeTab">
+      <!-- Search Filters -->
+      <el-form :inline="true" class="search-form">
+        <el-form-item label="名称">
+          <el-input v-model="searchParams.name" placeholder="请输入名称" clearable @clear="loadBlockStorage" />
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="searchParams.status" placeholder="请选择状态" clearable @clear="loadBlockStorage">
+            <el-option label="运行中" value="active" />
+            <el-option label="离线" value="offline" />
+            <el-option label="创建中" value="creating" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="平台">
+          <el-select v-model="searchParams.platform" placeholder="请选择平台" clearable @clear="loadBlockStorage">
+            <el-option label="阿里云" value="aliyun" />
+            <el-option label="腾讯云" value="tencent" />
+            <el-option label="AWS" value="aws" />
+            <el-option label="Azure" value="azure" />
+            <el-option label="本地IDC" value="idc" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="区域">
+          <el-input v-model="searchParams.region" placeholder="请输入区域" clearable @clear="loadBlockStorage" />
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="loadBlockStorage">查询</el-button>
+          <el-button @click="resetSearch">重置</el-button>
+        </el-form-item>
+      </el-form>
+
+      <el-tabs v-model="activeTab" @tab-change="handleTabChange">
         <el-tab-pane label="宿主机" name="host">
-          <el-table :data="hostStorage" v-loading="loading">
+          <el-table :data="hostStorage" v-loading="loading" @selection-change="handleSelectionChange">
+            <el-table-column type="selection" width="55" />
             <el-table-column label="名称" width="180">
               <template #default="{ row }">
                 <el-link @click="viewDetail(row)">{{ row.name }}</el-link>
@@ -45,9 +90,19 @@
               </template>
             </el-table-column>
           </el-table>
+          <el-pagination
+            v-model:current-page="searchParams.page"
+            v-model:page-size="searchParams.page_size"
+            :total="total"
+            :page-sizes="[10, 20, 50, 100]"
+            layout="total, sizes, prev, pager, next"
+            @size-change="loadBlockStorage"
+            @current-change="loadBlockStorage"
+          />
         </el-tab-pane>
         <el-tab-pane label="物理机" name="physical_host">
-          <el-table :data="physicalHostStorage" v-loading="loading">
+          <el-table :data="physicalHostStorage" v-loading="loading" @selection-change="handleSelectionChange">
+            <el-table-column type="selection" width="55" />
             <el-table-column label="名称" width="180">
               <template #default="{ row }">
                 <el-link @click="viewDetail(row)">{{ row.name }}</el-link>
@@ -83,6 +138,15 @@
               </template>
             </el-table-column>
           </el-table>
+          <el-pagination
+            v-model:current-page="searchParams.page"
+            v-model:page-size="searchParams.page_size"
+            :total="total"
+            :page-sizes="[10, 20, 50, 100]"
+            layout="total, sizes, prev, pager, next"
+            @size-change="loadBlockStorage"
+            @current-change="loadBlockStorage"
+          />
         </el-tab-pane>
       </el-tabs>
     </el-card>
@@ -110,8 +174,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { ArrowDown } from '@element-plus/icons-vue'
 
 interface BlockStorage {
   id: string
@@ -131,8 +196,73 @@ const hostStorage = ref<BlockStorage[]>([])
 const physicalHostStorage = ref<BlockStorage[]>([])
 const loading = ref(false)
 const activeTab = ref('host')
+const total = ref(0)
+const selectedRows = ref<BlockStorage[]>([])
 const detailDialogVisible = ref(false)
 const selectedStorage = ref<BlockStorage | null>(null)
+
+const searchParams = ref({
+  page: 1,
+  page_size: 10,
+  name: '',
+  status: '',
+  platform: '',
+  region: ''
+})
+
+const hasSelection = computed(() => selectedRows.value.length > 0)
+
+const handleSelectionChange = (rows: BlockStorage[]) => {
+  selectedRows.value = rows
+}
+
+const handleTabChange = () => {
+  searchParams.value.page = 1
+  loadBlockStorage()
+}
+
+const resetSearch = () => {
+  searchParams.value = {
+    page: 1,
+    page_size: 10,
+    name: '',
+    status: '',
+    platform: '',
+    region: ''
+  }
+  loadBlockStorage()
+}
+
+const handleView = () => {
+  if (selectedRows.value.length === 1) {
+    viewDetail(selectedRows.value[0])
+  } else {
+    ElMessage.warning('请选择一条记录查看')
+  }
+}
+
+const handleBatchCommand = async (command: string) => {
+  if (!hasSelection.value) return
+  if (command === 'delete') {
+    try {
+      await ElMessageBox.confirm(`确认删除选中的 ${selectedRows.value.length} 个块存储？`, '警告', { type: 'warning' })
+      hostStorage.value = hostStorage.value.filter(s => !selectedRows.value.some(r => r.id === s.id))
+      physicalHostStorage.value = physicalHostStorage.value.filter(s => !selectedRows.value.some(r => r.id === s.id))
+      ElMessage.success('删除成功')
+      loadBlockStorage()
+    } catch (e) {
+      console.error(e)
+    }
+  }
+}
+
+const handleTags = () => {
+  if (!hasSelection.value) {
+    ElMessage.warning('请选择需要设置标签的块存储')
+    return
+  }
+  ElMessage.info('标签功能开发中')
+}
 
 const getStatusType = (status: string) => {
   switch (status.toLowerCase()) {
@@ -281,5 +411,14 @@ onMounted(() => {
 .title {
   font-size: 18px;
   font-weight: bold;
+}
+
+.toolbar {
+  display: flex;
+  gap: 8px;
+}
+
+.search-form {
+  margin-bottom: 16px;
 }
 </style>

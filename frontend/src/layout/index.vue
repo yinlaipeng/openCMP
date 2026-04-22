@@ -291,6 +291,8 @@
           </template>
           <el-menu-item index="/cloud-accounts">云账户管理</el-menu-item>
           <el-menu-item index="/cloud-management/sync-policies">同步策略</el-menu-item>
+          <el-menu-item index="/cloud-management/cloud-user-groups">云用户组</el-menu-item>
+          <el-menu-item index="/cloud-management/proxies">代理</el-menu-item>
           <el-menu-item index="/scheduled-tasks">定时同步任务</el-menu-item>
           <el-menu-item index="/sync-logs">同步日志</el-menu-item>
         </el-sub-menu>

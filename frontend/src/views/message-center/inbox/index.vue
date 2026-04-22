@@ -1,105 +1,112 @@
 <template>
-  <div class="inbox-page">
-    <el-card class="page-card">
-      <template #header>
-        <div class="card-header">
-          <span class="title">站内信</span>
-          <!-- 工具栏按钮 - 参考 Cloudpods -->
-          <div class="toolbar">
-            <el-button @click="handleViewMode">
-              <el-icon><View /></el-icon>
-              查看
-            </el-button>
-            <el-button @click="handleRefresh">
-              <el-icon><Refresh /></el-icon>
-              刷新
-            </el-button>
-            <el-button @click="handleMarkAllRead" :disabled="unreadCount === 0">
-              <el-icon><Check /></el-icon>
-              全部标记已读
-            </el-button>
-          </div>
-        </div>
-      </template>
-
-      <!-- 统计卡片 - 参考 Cloudpods -->
-      <el-row :gutter="16" class="stats-row">
-        <el-col :span="3">
-          <div class="stat-card total">
-            <div class="stat-icon">
-              <el-icon><Message /></el-icon>
-            </div>
-            <div class="stat-content">
-              <div class="stat-value">{{ pagination.total }}</div>
-              <div class="stat-label">总计</div>
-            </div>
-          </div>
-        </el-col>
-        <el-col :span="3">
-          <div class="stat-card unread">
-            <div class="stat-icon">
-              <el-icon><BellFilled /></el-icon>
-            </div>
-            <div class="stat-content">
-              <div class="stat-value">{{ unreadCount }}</div>
-              <div class="stat-label">未读</div>
-            </div>
-          </div>
-        </el-col>
-        <el-col :span="3">
-          <div class="stat-card read">
-            <div class="stat-icon">
-              <el-icon><CircleCheckFilled /></el-icon>
-            </div>
-            <div class="stat-content">
-              <div class="stat-value">{{ readCount }}</div>
-              <div class="stat-label">已读</div>
-            </div>
-          </div>
-        </el-col>
-        <el-col :span="3">
-          <div class="stat-card important">
-            <div class="stat-icon">
-              <el-icon><WarningFilled /></el-icon>
-            </div>
-            <div class="stat-content">
-              <div class="stat-value">{{ importantCount }}</div>
-              <div class="stat-label">重要</div>
-            </div>
-          </div>
-        </el-col>
-      </el-row>
-
-      <!-- 筛选区域 -->
-      <div class="filter-bar">
-        <el-select v-model="filters.status" placeholder="状态" clearable style="width: 120px" @change="loadMessages">
-          <el-option label="全部" value="" />
-          <el-option label="未读" value="unread" />
-          <el-option label="已读" value="read" />
-        </el-select>
-        <el-select v-model="filters.priority" placeholder="级别" clearable style="width: 120px" @change="loadMessages">
-          <el-option label="全部" value="" />
-          <el-option label="重要" value="important" />
-          <el-option label="普通" value="normal" />
-          <el-option label="低" value="low" />
-        </el-select>
-        <el-select v-model="filters.topic_type" placeholder="类型" clearable style="width: 150px" @change="loadMessages">
-          <el-option label="全部" value="" />
-          <el-option label="资源" value="resource" />
-          <el-option label="系统" value="system" />
-          <el-option label="安全" value="security" />
-        </el-select>
-        <el-button type="primary" @click="loadMessages">
-          <el-icon><Search /></el-icon>
-          查询
+  <div class="inbox-container">
+    <div class="page-header">
+      <h2>站内信</h2>
+      <div class="toolbar">
+        <el-button @click="handleViewMode">
+          <el-icon><View /></el-icon>
+          查看
         </el-button>
-        <el-button @click="resetFilters">
-          <el-icon><RefreshRight /></el-icon>
-          重置
+        <el-button @click="handleRefresh">
+          <el-icon><Refresh /></el-icon>
+          刷新
+        </el-button>
+        <el-button @click="handleMarkAllRead" :disabled="unreadCount === 0">
+          <el-icon><Check /></el-icon>
+          全部标记已读
         </el-button>
       </div>
+    </div>
 
-      <!-- 表格 - 中文表头，参考 Cloudpods -->
+    <!-- 统计卡片 -->
+    <el-row :gutter="16" class="stats-row">
+      <el-col :span="3">
+        <div class="stat-card total">
+          <div class="stat-icon">
+            <el-icon><Message /></el-icon>
+          </div>
+          <div class="stat-content">
+            <div class="stat-value">{{ pagination.total }}</div>
+            <div class="stat-label">总计</div>
+          </div>
+        </div>
+      </el-col>
+      <el-col :span="3">
+        <div class="stat-card unread">
+          <div class="stat-icon">
+            <el-icon><BellFilled /></el-icon>
+          </div>
+          <div class="stat-content">
+            <div class="stat-value">{{ unreadCount }}</div>
+            <div class="stat-label">未读</div>
+          </div>
+        </div>
+      </el-col>
+      <el-col :span="3">
+        <div class="stat-card read">
+          <div class="stat-icon">
+            <el-icon><CircleCheckFilled /></el-icon>
+          </div>
+          <div class="stat-content">
+            <div class="stat-value">{{ readCount }}</div>
+            <div class="stat-label">已读</div>
+          </div>
+        </div>
+      </el-col>
+      <el-col :span="3">
+        <div class="stat-card important">
+          <div class="stat-icon">
+            <el-icon><WarningFilled /></el-icon>
+          </div>
+          <div class="stat-content">
+            <div class="stat-value">{{ importantCount }}</div>
+            <div class="stat-label">重要</div>
+          </div>
+        </div>
+      </el-col>
+    </el-row>
+
+    <!-- 筛选区域 -->
+    <el-card class="filter-card">
+      <el-form :inline="true" @submit.prevent="loadMessages">
+        <el-form-item>
+          <el-select v-model="filters.status" placeholder="状态" clearable style="width: 120px" @change="loadMessages">
+            <el-option label="全部" value="" />
+            <el-option label="未读" value="unread" />
+            <el-option label="已读" value="read" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-select v-model="filters.priority" placeholder="级别" clearable style="width: 120px" @change="loadMessages">
+            <el-option label="全部" value="" />
+            <el-option label="重要" value="important" />
+            <el-option label="普通" value="normal" />
+            <el-option label="低" value="low" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-select v-model="filters.topic_type" placeholder="类型" clearable style="width: 150px" @change="loadMessages">
+            <el-option label="全部" value="" />
+            <el-option label="资源" value="resource" />
+            <el-option label="系统" value="system" />
+            <el-option label="安全" value="security" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="loadMessages">
+            <el-icon><Search /></el-icon>
+            查询
+          </el-button>
+          <el-button @click="resetFilters">
+            <el-icon><RefreshRight /></el-icon>
+            重置
+          </el-button>
+        </el-form-item>
+      </el-form>
+    </el-card>
+
+    <!-- 表格 -->
+    <el-card>
       <el-table
         :data="messages"
         v-loading="loading"
@@ -109,7 +116,6 @@
         @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="55" />
-        <!-- 标题 -->
         <el-table-column label="标题" min-width="200" show-overflow-tooltip>
           <template #default="{ row }">
             <el-button type="primary" link @click="handleView(row)">
@@ -117,7 +123,6 @@
             </el-button>
           </template>
         </el-table-column>
-        <!-- 严重级别 -->
         <el-table-column label="严重级别" width="100">
           <template #default="{ row }">
             <el-tag :type="getPriorityTag(row.priority)" effect="plain">
@@ -125,13 +130,11 @@
             </el-tag>
           </template>
         </el-table-column>
-        <!-- 接收人 -->
         <el-table-column label="接收人" width="150">
           <template #default="{ row }">
             <span>{{ getRecipients(row) }}</span>
           </template>
         </el-table-column>
-        <!-- 类型 -->
         <el-table-column label="类型" width="100">
           <template #default="{ row }">
             <el-tag :type="getTopicTypeTag(row.topic_type)" size="small">
@@ -139,19 +142,16 @@
             </el-tag>
           </template>
         </el-table-column>
-        <!-- 接收时间 -->
         <el-table-column label="接收时间" width="180">
           <template #default="{ row }">
             {{ formatTime(row.received_at || row.created_at) }}
           </template>
         </el-table-column>
-        <!-- 内容 -->
         <el-table-column label="内容" min-width="250" show-overflow-tooltip>
           <template #default="{ row }">
             <span>{{ row.content }}</span>
           </template>
         </el-table-column>
-        <!-- 操作 -->
         <el-table-column label="操作" width="100" fixed="right">
           <template #default="{ row }">
             <el-button size="small" type="primary" link @click="handleView(row)">
@@ -160,8 +160,6 @@
           </template>
         </el-table-column>
       </el-table>
-
-      <!-- 分页 -->
       <el-pagination
         v-model:current-page="pagination.page"
         v-model:page-size="pagination.limit"
@@ -174,7 +172,7 @@
       />
     </el-card>
 
-    <!-- 详情弹窗 - 参考 Cloudpods -->
+    <!-- 详情弹窗 -->
     <el-dialog v-model="detailVisible" title="消息详情" width="700px">
       <div v-if="currentMessage" class="message-detail">
         <el-descriptions :column="2" border>
@@ -206,7 +204,6 @@
           <el-descriptions-item label="消息内容" :span="2">
             <div style="white-space: pre-wrap;">{{ currentMessage.content }}</div>
           </el-descriptions-item>
-          <!-- 接收详情 -->
           <el-descriptions-item label="接收详情" :span="2" v-if="currentMessage.receive_details">
             <el-table :data="currentMessage.receive_details" border size="small">
               <el-table-column prop="receiver_name" label="接收人" />
@@ -253,9 +250,9 @@ interface NotificationMessage {
   title: string
   content: string
   contact_type?: string
-  priority: string // important, normal, low
-  status?: string // ok, pending, failed
-  topic_type?: string // resource, system, security
+  priority: string
+  status?: string
+  topic_type?: string
   receive_details?: Array<{ receiver_name: string; status: string }>
   received_at?: string
   read_at?: string
@@ -284,11 +281,9 @@ const filters = reactive({
 
 const messages = ref<NotificationMessage[]>([])
 
-// 计算属性
 const readCount = computed(() => messages.value.filter(m => m.read_at).length)
 const importantCount = computed(() => messages.value.filter(m => m.priority === 'important').length)
 
-// 级别映射 - 参考 Cloudpods
 const getPriorityName = (priority: string) => {
   const map: Record<string, string> = {
     important: '重要',
@@ -309,7 +304,6 @@ const getPriorityTag = (priority: string) => {
   return map[priority] || 'info'
 }
 
-// 类型映射
 const getTopicTypeName = (topicType: string) => {
   const map: Record<string, string> = {
     resource: '资源',
@@ -330,7 +324,6 @@ const getTopicTypeTag = (topicType: string) => {
   return map[topicType] || 'info'
 }
 
-// 获取接收人
 const getRecipients = (msg: NotificationMessage) => {
   if (msg.receive_details && msg.receive_details.length > 0) {
     return msg.receive_details.map(r => r.receiver_name).join(', ')
@@ -351,7 +344,6 @@ const handleViewMode = () => {
   ElMessage.info('视图切换功能')
 }
 
-// 加载消息列表
 const loadMessages = async () => {
   loading.value = true
   try {
@@ -381,7 +373,6 @@ const loadMessages = async () => {
   }
 }
 
-// 加载未读数量
 const loadUnreadCount = async () => {
   try {
     const res = await getUnreadCount()
@@ -393,19 +384,16 @@ const loadUnreadCount = async () => {
 
 const handleView = async (row: NotificationMessage) => {
   try {
-    // 获取详情
     const res = await getMessage(Number(row.id))
     currentMessage.value = res
     detailVisible.value = true
 
-    // 自动标记已读
     if (!row.read_at) {
       await markRead(Number(row.id))
       row.read_at = new Date().toISOString()
       unreadCount.value--
     }
   } catch (e: any) {
-    // 如果获取详情失败，直接显示当前数据
     currentMessage.value = row
     detailVisible.value = true
   }
@@ -473,24 +461,21 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.inbox-page {
-  height: 100%;
+.inbox-container {
   padding: 20px;
 }
 
-.page-card {
-  height: 100%;
-}
-
-.card-header {
+.page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 20px;
 }
 
-.title {
+.page-header h2 {
+  margin: 0;
   font-size: 18px;
-  font-weight: bold;
+  font-weight: 600;
 }
 
 .toolbar {
@@ -498,7 +483,6 @@ onMounted(() => {
   gap: 8px;
 }
 
-/* 统计卡片样式 - 参考 Cloudpods */
 .stats-row {
   margin-bottom: 20px;
 }
@@ -509,31 +493,21 @@ onMounted(() => {
   padding: 12px 16px;
   border-radius: 8px;
   background: #f5f7fa;
-  transition: all 0.3s;
-}
-
-.stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .stat-card.total {
-  background: linear-gradient(135deg, #f5f7fa 0%, #e5e7ea 100%);
   border-left: 4px solid #909399;
 }
 
 .stat-card.unread {
-  background: linear-gradient(135deg, #fffaf0 0%, #ffe8d0 100%);
   border-left: 4px solid #e6a23c;
 }
 
 .stat-card.read {
-  background: linear-gradient(135deg, #f0f9ff 0%, #d0e8ff 100%);
   border-left: 4px solid #409eff;
 }
 
 .stat-card.important {
-  background: linear-gradient(135deg, #fff5f5 0%, #ffe0e0 100%);
   border-left: 4px solid #f56c6c;
 }
 
@@ -573,12 +547,8 @@ onMounted(() => {
   color: #909399;
 }
 
-/* 筛选区域 */
-.filter-bar {
-  display: flex;
-  gap: 10px;
+.filter-card {
   margin-bottom: 20px;
-  flex-wrap: wrap;
 }
 
 .unread-title {

@@ -148,3 +148,52 @@ type CacheFilter struct {
 	Status     string
 	MaxResults int
 }
+
+// RDSInstanceSKU RDS 实例规格 SKU
+type RDSInstanceSKU struct {
+	ID           string `json:"id"`
+	Provider     string `json:"provider"`     // alibaba/tencent/aws
+	Engine       string `json:"engine"`       // MySQL/PostgreSQL/SQLServer
+	EngineVersion string `json:"engine_version"`
+	Category     string `json:"category"`     // ha/basic/enterprise
+	StorageType  string `json:"storage_type"` // local_ssd/cloud_ssd/cloud_essd
+	CPU          int    `json:"cpu"`
+	MemoryMB     int    `json:"memory_mb"`
+	InstanceType string `json:"instance_type"`
+	Price        float64 `json:"price"`
+	RegionID     string `json:"region_id"`
+}
+
+// CacheInstanceSKU Redis 缓存实例规格 SKU
+type CacheInstanceSKU struct {
+	ID           string `json:"id"`
+	Provider     string `json:"provider"`     // alibaba/tencent/aws
+	Engine       string `json:"engine"`       // Redis/Memcached
+	EngineVersion string `json:"engine_version"`
+	NodeType     string `json:"node_type"`    // standalone/cluster/ha
+	PerformanceType string `json:"performance_type"` // standard/performance
+	MemoryMB     int    `json:"memory_mb"`
+	InstanceType string `json:"instance_type"`
+	Price        float64 `json:"price"`
+	RegionID     string `json:"region_id"`
+}
+
+// RDSKUFilter RDS SKU 过滤条件
+type RDSKUFilter struct {
+	Provider      string
+	Engine        string
+	EngineVersion string
+	Category      string
+	StorageType   string
+	RegionID      string
+}
+
+// CacheSKUFilter Redis SKU 过滤条件
+type CacheSKUFilter struct {
+	Provider      string
+	Engine        string
+	EngineVersion string
+	NodeType      string
+	PerformanceType string
+	RegionID      string
+}

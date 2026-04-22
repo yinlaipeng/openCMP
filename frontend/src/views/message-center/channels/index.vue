@@ -1,30 +1,28 @@
 <template>
-  <div class="channels-page">
-    <el-card class="page-card">
-      <template #header>
-        <div class="card-header">
-          <span class="title">通知渠道设置</span>
-          <!-- 工具栏按钮 - 参考 Cloudpods -->
-          <div class="toolbar">
-            <el-button @click="loadData" :icon="Refresh" circle title="刷新" />
-            <el-button type="primary" @click="handleCreate">
-              新 建
-            </el-button>
-            <el-button :disabled="selectedRows.length === 0" @click="handleBatchDelete">
-              删 除
-            </el-button>
-            <el-button @click="showSettings" :icon="Setting" circle title="设置" />
-          </div>
-        </div>
-      </template>
+  <div class="channels-container">
+    <div class="page-header">
+      <h2>通知渠道设置</h2>
+      <div class="toolbar">
+        <el-button @click="loadData" :icon="Refresh" circle title="刷新" />
+        <el-button type="primary" @click="handleCreate">
+          新 建
+        </el-button>
+        <el-button :disabled="selectedRows.length === 0" @click="handleBatchDelete">
+          删 除
+        </el-button>
+        <el-button @click="showSettings" :icon="Setting" circle title="设置" />
+      </div>
+    </div>
 
-      <!-- 搜索栏 - 参考 Cloudpods 设计 -->
-      <div class="search-bar">
-        <div class="search-box">
-          <el-select v-model="searchField" placeholder="搜索属性" style="width: 100px" class="search-field-select">
+    <el-card class="filter-card">
+      <el-form :inline="true" @submit.prevent="loadData">
+        <el-form-item>
+          <el-select v-model="searchField" placeholder="搜索属性" style="width: 100px">
             <el-option label="名称" value="name" />
             <el-option label="创建时间" value="created_at" />
           </el-select>
+        </el-form-item>
+        <el-form-item>
           <el-input
             v-model="searchKeyword"
             placeholder="默认为名称搜索"
@@ -36,9 +34,8 @@
               <el-icon class="search-icon" @click="loadData"><Search /></el-icon>
             </template>
           </el-input>
-          <span class="search-hint">默认为名称搜索，自动匹配ID搜索项</span>
-        </div>
-        <div class="filter-box">
+        </el-form-item>
+        <el-form-item>
           <el-select v-model="filterForm.type" placeholder="类型" clearable style="width: 120px" @change="loadData">
             <el-option label="全部" value="" />
             <el-option label="邮件" value="email" />
@@ -48,10 +45,11 @@
             <el-option label="企业微信" value="workwx" />
             <el-option label="Lark" value="lark" />
           </el-select>
-        </div>
-      </div>
+        </el-form-item>
+      </el-form>
+    </el-card>
 
-      <!-- 表格 - 参考 Cloudpods 表头设计 -->
+    <el-card>
       <el-table
         :data="channels"
         v-loading="loading"
@@ -60,9 +58,7 @@
         row-key="id"
         @selection-change="handleSelectionChange"
       >
-        <!-- 选择列 -->
         <el-table-column type="selection" width="50" />
-        <!-- 名称 -->
         <el-table-column label="名称" min-width="150" show-overflow-tooltip>
           <template #default="{ row }">
             <el-button type="primary" link @click="handleEdit(row)">
@@ -70,19 +66,16 @@
             </el-button>
           </template>
         </el-table-column>
-        <!-- 类型 -->
         <el-table-column label="类型" width="120">
           <template #default="{ row }">
             <el-tag>{{ typeLabel(row.type) }}</el-tag>
           </template>
         </el-table-column>
-        <!-- 所属范围 -->
         <el-table-column label="所属范围" width="120">
           <template #default="{ row }">
             <el-tag type="primary">系统</el-tag>
           </template>
         </el-table-column>
-        <!-- 操作 -->
         <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
             <el-button size="small" type="primary" link @click="handleEdit(row)">编辑</el-button>
@@ -95,8 +88,6 @@
           </template>
         </el-table-column>
       </el-table>
-
-      <!-- 分页 -->
       <el-pagination
         v-model:current-page="pagination.page"
         v-model:page-size="pagination.pageSize"
@@ -553,24 +544,21 @@ onMounted(loadData)
 </script>
 
 <style scoped>
-.channels-page {
-  height: 100%;
+.channels-container {
   padding: 20px;
 }
 
-.page-card {
-  height: 100%;
-}
-
-.card-header {
+.page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 16px;
 }
 
-.title {
+.page-header h2 {
+  margin: 0;
   font-size: 18px;
-  font-weight: bold;
+  font-weight: 600;
 }
 
 .toolbar {
@@ -578,34 +566,12 @@ onMounted(loadData)
   gap: 8px;
 }
 
-/* 搜索栏样式 */
-.search-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+.filter-card {
   margin-bottom: 16px;
-  flex-wrap: wrap;
-  gap: 16px;
-}
-
-.search-box {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.search-hint {
-  color: #999;
-  font-size: 12px;
 }
 
 .search-icon {
   cursor: pointer;
-}
-
-.filter-box {
-  display: flex;
-  gap: 8px;
 }
 
 .pagination {
@@ -614,7 +580,6 @@ onMounted(loadData)
   justify-content: flex-end;
 }
 
-/* 表单帮助文本样式 */
 .form-help {
   margin-top: 4px;
   font-size: 12px;
@@ -627,20 +592,9 @@ onMounted(loadData)
   font-size: 12px;
 }
 
-/* 弹窗底部按钮布局 */
 .dialog-footer {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-}
-
-/* 分隔线样式 */
-.el-divider {
-  margin: 16px 0;
-}
-
-.el-divider__text {
-  font-weight: 500;
-  color: #303133;
 }
 </style>

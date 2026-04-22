@@ -74,7 +74,7 @@ const loadProjectRobots = async () => {
     if (selectedProjectId.value) {
       // 从API获取项目相关的机器人
       const response = await getProjectRobots(selectedProjectId.value)
-      projectRobots.value = response.data.items || []
+      projectRobots.value = response.items || []
     }
   } catch (error) {
     console.error('Failed to load project robots:', error)

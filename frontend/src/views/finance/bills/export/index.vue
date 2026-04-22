@@ -1,12 +1,10 @@
 <template>
-  <div class="finance-page">
-    <el-card>
-      <template #header>
-        <div class="card-header">
-          <span class="title">账单导出中心</span>
-        </div>
-      </template>
+  <div class="bills-export-container">
+    <div class="page-header">
+      <h2>账单导出中心</h2>
+    </div>
 
+    <el-card>
       <el-tabs v-model="activeTab">
         <!-- 导出任务创建 -->
         <el-tab-pane label="创建导出" name="create">
@@ -40,7 +38,7 @@
 
         <!-- 导出历史 -->
         <el-tab-pane label="导出历史" name="history">
-          <el-table :data="exportHistory" v-loading="loadingHistory" style="width: 100%">
+          <el-table :data="exportHistory" v-loading="loadingHistory" style="width: 100%" row-key="task_id">
             <el-table-column prop="task_id" label="任务ID" width="150" />
             <el-table-column prop="cloud_account_name" label="云账号" width="150" />
             <el-table-column prop="billing_cycle" label="账单周期" width="100" />
@@ -181,16 +179,18 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.finance-page {
-  height: 100%;
+.bills-export-container {
+  padding: 20px;
 }
-.card-header {
+.page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 20px;
 }
-.title {
+.page-header h2 {
+  margin: 0;
   font-size: 18px;
-  font-weight: bold;
+  font-weight: 600;
 }
 </style>

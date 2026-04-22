@@ -47,6 +47,8 @@ func Migrate(db *gorm.DB) error {
 		&model.RuleTag{},       // 规则标签模型
 		&model.ScheduledTask{}, // 定时任务模型
 		&model.SyncLog{},       // 同步日志模型
+		&model.CloudAccessGroup{}, // 云访问组模型
+		&model.ProxySetting{},     // 代理设置模型
 
 		// 云账户详情子页面模型
 		&model.CloudSubscription{},
@@ -63,8 +65,16 @@ func Migrate(db *gorm.DB) error {
 		&model.CloudImage{},
 		&model.CloudDisk{},
 		&model.CloudSnapshot{},
+		&model.InstanceSnapshot{},   // 主机快照
+		&model.SnapshotPolicy{},     // 快照策略
 		&model.CloudRDS{},
 		&model.CloudRedis{},
+						&model.KeyPair{}, // SSH密钥
+			&model.CloudNATGateway{}, // NAT网关
+			&model.CloudNATRule{},    // NAT规则
+			&model.CloudIPv6Gateway{}, // IPv6网关
+			&model.CloudDNSZone{}, // DNS Zone
+			&model.CloudDNSRecord{}, // DNS记录
 
 		// 操作日志模型
 		&model.OperationLog{},

@@ -1,17 +1,17 @@
 <template>
-  <div class="subscriptions-page">
-    <el-card class="page-card">
-      <template #header>
-        <div class="card-header">
-          <span class="title">消息订阅</span>
-          <el-button type="primary" @click="handleCreate">
-            <el-icon><Plus /></el-icon>
-            新建订阅
-          </el-button>
-        </div>
-      </template>
+  <div class="subscriptions-container">
+    <div class="page-header">
+      <h2>消息订阅</h2>
+      <div class="toolbar">
+        <el-button type="primary" @click="handleCreate">
+          <el-icon><Plus /></el-icon>
+          新建订阅
+        </el-button>
+      </div>
+    </div>
 
-      <el-form :inline="true" :model="filterForm" class="filter-form">
+    <el-card class="filter-card">
+      <el-form :inline="true" :model="filterForm" @submit.prevent="loadData">
         <el-form-item label="用户 ID">
           <el-input v-model="filterForm.user_id" placeholder="用户 ID" clearable style="width: 120px" @keyup.enter="loadData" />
         </el-form-item>
@@ -20,8 +20,10 @@
           <el-button @click="resetFilter">重置</el-button>
         </el-form-item>
       </el-form>
+    </el-card>
 
-      <el-table :data="subscriptions" v-loading="loading" border stripe>
+    <el-card>
+      <el-table :data="subscriptions" v-loading="loading" border stripe row-key="id">
         <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="user_id" label="用户 ID" width="100" />
         <el-table-column prop="message_type_id" label="消息类型 ID" width="130" />
@@ -197,9 +199,33 @@ onMounted(() => { loadData(); loadMessageTypes() })
 </script>
 
 <style scoped>
-.card-header { display: flex; justify-content: space-between; align-items: center; }
-.title { font-size: 16px; font-weight: bold; }
-.filter-form { margin-bottom: 16px; }
-.pagination { margin-top: 16px; justify-content: flex-end; }
-.channel-tag { margin-right: 4px; }
+.subscriptions-container {
+  padding: 20px;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.page-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.filter-card {
+  margin-bottom: 16px;
+}
+
+.pagination {
+  margin-top: 16px;
+  justify-content: flex-end;
+}
+
+.channel-tag {
+  margin-right: 4px;
+}
 </style>

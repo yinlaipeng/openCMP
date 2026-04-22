@@ -1,329 +1,584 @@
 <template>
-  <div class="dns-page">
-    <el-card class="page-card">
-      <template #header>
-        <div class="card-header">
-          <span class="title">DNS解析列表</span>
-        </div>
-      </template>
+  <div class="dns-zones-container">
+    <!-- 工具栏 -->
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <el-dropdown trigger="click" @command="handleBatchCommand">
+          <el-button :disabled="selectedRows.length === 0">
+            批量操作 <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+          </el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="tags" :disabled="selectedRows.length === 0">设置标签</el-dropdown-item>
+              <el-dropdown-item command="sync" :disabled="selectedRows.length === 0">同步状态</el-dropdown-item>
+              <el-dropdown-item command="delete" :disabled="selectedRows.length === 0" divided>删除</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+      </div>
+      <div class="toolbar-right">
+        <el-input
+          v-model="searchKeyword"
+          placeholder="搜索域名"
+          clearable
+          style="width: 200px"
+          @keyup.enter="loadDNSZones"
+        >
+          <template #prefix>
+            <el-icon><Search /></el-icon>
+          </template>
+        </el-input>
+      </div>
+    </div>
 
-      <el-table :data="dnsRecords" v-loading="loading">
-        <el-table-column label="域名" width="200">
-          <template #default="{ row }">
-            <el-link @click="viewDetail(row)">{{ row.domain }}</el-link>
-          </template>
-        </el-table-column>
-        <el-table-column prop="tags" label="标签" width="150" />
-        <el-table-column prop="platform" label="平台" width="100" />
-        <el-table-column prop="type" label="解析域类型" width="120" />
-        <el-table-column prop="records" label="记录数" width="100" />
-        <el-table-column prop="associated_vpc" label="关联vpc" width="180" />
-        <el-table-column prop="status" label="状态" width="100">
-          <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)">{{ row.status }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="share_scope" label="共享范围" width="100" />
-        <el-table-column prop="account" label="云账号" width="150" />
-        <el-table-column prop="project" label="项目" width="120" />
-        <el-table-column label="操作" width="150">
-          <template #default="{ row }">
-            <el-button size="small" @click="associateVpc(row)">关联vpc</el-button>
-            <el-dropdown>
-              <el-button size="small">
-                更多 <el-icon class="el-icon--right"><arrow-down /></el-icon>
-              </el-button>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item @click="syncStatus(row)">同步状态</el-dropdown-item>
-                  <el-dropdown-item @click="changeDomain(row)">更改域</el-dropdown-item>
-                  <el-dropdown-item @click="setShare(row)">设置共享</el-dropdown-item>
-                  <el-dropdown-item divided @click="handleDelete(row)">删除</el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-          </template>
-        </el-table-column>
-      </el-table>
+    <!-- 过滤栏 -->
+    <el-card class="filter-card" shadow="never">
+      <el-form :inline="true" :model="filters" @submit.prevent="loadDNSZones">
+        <el-form-item label="云账号">
+          <CloudAccountSelector
+            v-model:value="filters.cloud_account_id"
+            placeholder="全部云账号"
+            @change="handleAccountChange"
+          />
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="filters.status" placeholder="全部状态" clearable style="width: 120px">
+            <el-option label="可用" value="Available" />
+            <el-option label="创建中" value="Creating" />
+            <el-option label="错误" value="Error" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="区域">
+          <el-select v-model="filters.region" placeholder="全部区域" clearable style="width: 150px">
+            <el-option v-for="r in regions" :key="r.id" :label="r.name" :value="r.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="loadDNSZones">查询</el-button>
+          <el-button @click="resetFilters">重置</el-button>
+        </el-form-item>
+      </el-form>
     </el-card>
 
-    <!-- Detail Modal -->
-    <el-dialog v-model="detailDialogVisible" title="DNS解析详情" width="800px">
+    <!-- 表格 -->
+    <el-table
+      :data="dnsZones"
+      v-loading="loading"
+      style="width: 100%"
+      row-key="id"
+      @selection-change="handleSelectionChange"
+    >
+      <el-table-column type="selection" width="50" />
+      <el-table-column label="名称/域名" min-width="200">
+        <template #default="{ row }">
+          <el-link type="primary" @click="viewDetail(row)">{{ row.name || row.dns_zone_id }}</el-link>
+        </template>
+      </el-table-column>
+      <el-table-column prop="status" label="状态" width="100">
+        <template #default="{ row }">
+          <el-tag :type="getStatusType(row.status)" size="small">
+            {{ getStatusLabel(row.status) }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="标签" width="120">
+        <template #default="{ row }">
+          <template v-if="row.tags && row.tags.length > 0">
+            <el-tag v-for="tag in row.tags.slice(0, 2)" :key="tag.key" size="small" class="tag-item">
+              {{ tag.key }}: {{ tag.value }}
+            </el-tag>
+          </template>
+          <span v-else>-</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="VPC数" width="80">
+        <template #default="{ row }">
+          {{ row.vpc_count }}
+        </template>
+      </el-table-column>
+      <el-table-column label="归属范围" width="100">
+        <template #default="{ row }">
+          {{ row.attribution_scope || '-' }}
+        </template>
+      </el-table-column>
+      <el-table-column label="平台/云账号" width="180">
+        <template #default="{ row }">
+          <div class="platform-cell">
+            <el-tag size="small" :type="getPlatformType(row.provider_type)" effect="plain">
+              {{ getPlatformLabel(row.provider_type) }}
+            </el-tag>
+            <span class="account-name">{{ row.account_name || '-' }}</span>
+          </div>
+        </template>
+      </el-table-column>
+      <el-table-column prop="region" label="区域" width="120" />
+      <el-table-column label="操作" width="200" fixed="right">
+        <template #default="{ row }">
+          <el-button size="small" link type="primary" @click="associateVpc(row)">关联VPC</el-button>
+          <el-button size="small" link type="primary" @click="syncStatus(row)">同步状态</el-button>
+          <el-button size="small" link type="danger" @click="handleDelete(row)">删除</el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+
+    <!-- 分页 -->
+    <el-pagination
+      v-model:current-page="pagination.page"
+      v-model:page-size="pagination.pageSize"
+      :total="pagination.total"
+      :page-sizes="[10, 20, 50, 100]"
+      layout="total, sizes, prev, pager, next, jumper"
+      @size-change="handleSizeChange"
+      @current-change="handleCurrentChange"
+      class="pagination"
+    />
+
+    <!-- 详情对话框 -->
+    <el-dialog v-model="detailVisible" title="DNS解析详情" width="800px">
       <el-tabs v-model="detailTab">
         <el-tab-pane label="详情" name="detail">
           <el-descriptions :column="2" border>
-            <el-descriptions-item label="ID">{{ selectedDNS?.id }}</el-descriptions-item>
-            <el-descriptions-item label="域名">{{ selectedDNS?.domain }}</el-descriptions-item>
-            <el-descriptions-item label="标签">{{ selectedDNS?.tags }}</el-descriptions-item>
-            <el-descriptions-item label="平台">{{ selectedDNS?.platform }}</el-descriptions-item>
-            <el-descriptions-item label="解析域类型">{{ selectedDNS?.type }}</el-descriptions-item>
-            <el-descriptions-item label="记录数">{{ selectedDNS?.records }}</el-descriptions-item>
-            <el-descriptions-item label="关联VPC">{{ selectedDNS?.associated_vpc }}</el-descriptions-item>
-            <el-descriptions-item label="状态">{{ selectedDNS?.status }}</el-descriptions-item>
-            <el-descriptions-item label="共享范围">{{ selectedDNS?.share_scope }}</el-descriptions-item>
-            <el-descriptions-item label="云账号">{{ selectedDNS?.account }}</el-descriptions-item>
-            <el-descriptions-item label="项目">{{ selectedDNS?.project }}</el-descriptions-item>
-            <el-descriptions-item label="创建时间">{{ selectedDNS?.created_at }}</el-descriptions-item>
+            <el-descriptions-item label="ID">{{ selectedZone?.id }}</el-descriptions-item>
+            <el-descriptions-item label="名称">{{ selectedZone?.name }}</el-descriptions-item>
+            <el-descriptions-item label="DNS Zone ID">{{ selectedZone?.dns_zone_id }}</el-descriptions-item>
+            <el-descriptions-item label="状态">
+              <el-tag :type="getStatusType(selectedZone?.status)">
+                {{ getStatusLabel(selectedZone?.status) }}
+              </el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="VPC数">{{ selectedZone?.vpc_count }}</el-descriptions-item>
+            <el-descriptions-item label="归属范围">{{ selectedZone?.attribution_scope || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="区域">{{ selectedZone?.region }}</el-descriptions-item>
+            <el-descriptions-item label="平台">{{ getPlatformLabel(selectedZone?.provider_type) }}</el-descriptions-item>
+            <el-descriptions-item label="云账号">{{ selectedZone?.account_name }}</el-descriptions-item>
+            <el-descriptions-item label="标签" :span="2">
+              <template v-if="selectedZone?.tags && selectedZone.tags.length > 0">
+                <el-tag v-for="tag in selectedZone.tags" :key="tag.key" class="tag-item">
+                  {{ tag.key }}: {{ tag.value }}
+                </el-tag>
+              </template>
+              <span v-else>-</span>
+            </el-descriptions-item>
+            <el-descriptions-item label="创建时间" :span="2">{{ selectedZone?.created_at }}</el-descriptions-item>
           </el-descriptions>
         </el-tab-pane>
-        <el-tab-pane label="记录" name="records">
-          <el-table :data="dnsRecordList" v-loading="recordsLoading">
+        <el-tab-pane label="解析记录" name="records">
+          <div class="records-toolbar">
+            <el-button type="primary" size="small" @click="showAddRecord">添加记录</el-button>
+          </div>
+          <el-table :data="dnsRecords" v-loading="recordsLoading" style="width: 100%">
             <el-table-column prop="name" label="记录名称" width="150" />
             <el-table-column prop="type" label="类型" width="100" />
             <el-table-column prop="value" label="值" width="200" />
             <el-table-column prop="ttl" label="TTL" width="100" />
             <el-table-column prop="status" label="状态" width="100">
               <template #default="{ row }">
-                <el-tag :type="row.status === 'Active' ? 'success' : 'info'">{{ row.status }}</el-tag>
+                <el-tag :type="row.status === 'active' ? 'success' : 'info'" size="small">{{ row.status }}</el-tag>
               </template>
             </el-table-column>
             <el-table-column label="操作" width="100">
               <template #default="{ row }">
-                <el-button size="small" type="danger" @click="deleteRecord(row)">删除</el-button>
+                <el-button size="small" link type="danger" @click="deleteRecord(row)">删除</el-button>
               </template>
             </el-table-column>
           </el-table>
         </el-tab-pane>
-        <el-tab-pane label="操作日志" name="logs">
-          <el-table :data="logs">
-            <el-table-column prop="operation" label="操作" width="150" />
-            <el-table-column prop="operator" label="操作员" width="150" />
-            <el-table-column prop="result" label="结果" width="100" />
-            <el-table-column prop="timestamp" label="时间" width="180" />
-          </el-table>
-        </el-tab-pane>
       </el-tabs>
       <template #footer>
-        <el-button @click="detailDialogVisible = false">关闭</el-button>
+        <el-button @click="detailVisible = false">关闭</el-button>
       </template>
     </el-dialog>
 
-    <!-- Associate VPC Dialog -->
-    <el-dialog v-model="associateVpcDialogVisible" title="关联VPC" width="400px">
+    <!-- 关联VPC对话框 -->
+    <el-dialog v-model="associateVpcVisible" title="关联VPC" width="500px">
       <el-form label-width="80px">
         <el-form-item label="VPC">
-          <el-select v-model="selectedVpc" placeholder="请选择VPC" multiple>
-            <el-option label="VPC 1" value="vpc-1" />
-            <el-option label="VPC 2" value="vpc-2" />
-            <el-option label="VPC 3" value="vpc-3" />
+          <el-select v-model="selectedVpcs" placeholder="请选择VPC" multiple style="width: 100%">
+            <el-option v-for="vpc in vpcs" :key="vpc.vpc_id" :label="vpc.name" :value="vpc.vpc_id" />
           </el-select>
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="associateVpcDialogVisible = false">取消</el-button>
+        <el-button @click="associateVpcVisible = false">取消</el-button>
         <el-button type="primary" @click="submitAssociateVpc">确定</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 添加记录对话框 -->
+    <el-dialog v-model="addRecordVisible" title="添加DNS记录" width="500px">
+      <el-form :model="addRecordForm" label-width="100px">
+        <el-form-item label="记录名称">
+          <el-input v-model="addRecordForm.name" placeholder="如 @ 或 www" />
+        </el-form-item>
+        <el-form-item label="记录类型">
+          <el-select v-model="addRecordForm.type" style="width: 100%">
+            <el-option label="A" value="A" />
+            <el-option label="CNAME" value="CNAME" />
+            <el-option label="MX" value="MX" />
+            <el-option label="TXT" value="TXT" />
+            <el-option label="NS" value="NS" />
+            <el-option label="AAAA" value="AAAA" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="记录值">
+          <el-input v-model="addRecordForm.value" placeholder="IP地址或域名" />
+        </el-form-item>
+        <el-form-item label="TTL">
+          <el-input-number v-model="addRecordForm.ttl" :min="60" :max="86400" style="width: 200px" />
+        </el-form-item>
+        <el-form-item label="优先级" v-if="addRecordForm.type === 'MX'">
+          <el-input-number v-model="addRecordForm.priority" :min="1" :max="100" style="width: 200px" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="addRecordVisible = false">取消</el-button>
+        <el-button type="primary" @click="confirmAddRecord">确定</el-button>
       </template>
     </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowDown } from '@element-plus/icons-vue'
+import { ArrowDown, Search } from '@element-plus/icons-vue'
+import CloudAccountSelector from '@/components/common/CloudAccountSelector.vue'
+import {
+  getDNSZones,
+  getDNSZone,
+  createDNSZone,
+  deleteDNSZone,
+  batchDeleteDNSZones,
+  getDNSRecords,
+  createDNSRecord,
+  deleteDNSRecord,
+  type DNSZone,
+  type DNSRecord
+} from '@/api/networkSync'
+import { getVPCs, type VPC } from '@/api/networkSync'
 
-interface DNS {
-  id: string
-  domain: string
-  tags: string
-  platform: string
-  type: string
-  records: number
-  associated_vpc: string
-  status: string
-  share_scope: string
-  account: string
-  project: string
-  created_at: string
-}
-
-interface DNSRecord {
-  name: string
-  type: string
-  value: string
-  ttl: number
-  status: string
-}
-
-const dnsRecords = ref<DNS[]>([])
+const dnsZones = ref<DNSZone[]>([])
 const loading = ref(false)
-const detailDialogVisible = ref(false)
-const associateVpcDialogVisible = ref(false)
-const selectedDNS = ref<DNS | null>(null)
-const detailTab = ref('detail')
-const selectedVpc = ref<string[]>([])
-
-// Detail modal data
-const dnsRecordList = ref<DNSRecord[]>([])
+const detailVisible = ref(false)
+const associateVpcVisible = ref(false)
+const addRecordVisible = ref(false)
+const selectedZone = ref<DNSZone | null>(null)
+const selectedRows = ref<DNSZone[]>([])
 const recordsLoading = ref(false)
-const logs = ref<any[]>([])
 
-const getStatusType = (status: string) => {
-  switch (status.toLowerCase()) {
-    case 'active':
-    case 'normal':
-      return 'success'
-    case 'pending':
-    case 'configuring':
-      return 'warning'
-    case 'error':
-    case 'failed':
-      return 'danger'
-    default:
-      return 'info'
+// 分页
+const pagination = reactive({
+  page: 1,
+  pageSize: 20,
+  total: 0
+})
+
+// 搜索
+const searchKeyword = ref('')
+
+// 过滤条件
+const filters = reactive({
+  cloud_account_id: null as number | null,
+  status: '',
+  region: ''
+})
+
+// 可用资源
+const regions = ref<{ id: string; name: string }[]>([])
+const vpcs = ref<VPC[]>([])
+const selectedVpcs = ref<string[]>([])
+
+// DNS记录
+const dnsRecords = ref<DNSRecord[]>([])
+const detailTab = ref('detail')
+
+// 添加记录表单
+const addRecordForm = reactive({
+  name: '',
+  type: 'A',
+  value: '',
+  ttl: 600,
+  priority: 10
+})
+
+// 平台类型映射
+const platformLabels: Record<string, string> = {
+  alibaba: '阿里云',
+  tencent: '腾讯云',
+  aws: 'AWS',
+  azure: 'Azure',
+  huawei: '华为云',
+  google: 'GCP',
+  onpremise: '私有云'
+}
+
+const platformTypes: Record<string, '' | 'success' | 'warning' | 'info' | 'danger'> = {
+  alibaba: 'warning',
+  tencent: 'success',
+  aws: 'info',
+  azure: '',
+  huawei: 'danger',
+  google: 'success',
+  onpremise: 'info'
+}
+
+const getPlatformLabel = (platform: string): string => {
+  return platformLabels[platform] || platform || '未知'
+}
+
+const getPlatformType = (platform: string): '' | 'success' | 'warning' | 'info' | 'danger' => {
+  return platformTypes[platform] || 'info'
+}
+
+// 状态映射
+const statusLabels: Record<string, string> = {
+  Available: '可用',
+  Creating: '创建中',
+  Deleting: '删除中',
+  Error: '错误',
+  available: '可用',
+  creating: '创建中'
+}
+
+const getStatusLabel = (status: string): string => {
+  return statusLabels[status] || status
+}
+
+const getStatusType = (status: string): '' | 'success' | 'warning' | 'info' | 'danger' => {
+  if (status === 'Available' || status === 'available') return 'success'
+  if (status === 'Creating' || status === 'creating') return 'warning'
+  if (status === 'Deleting') return 'warning'
+  if (status === 'Error' || status === 'error') return 'danger'
+  return 'info'
+}
+
+const handleAccountChange = (accountId: number | null) => {
+  filters.cloud_account_id = accountId
+}
+
+const handleSelectionChange = (rows: DNSZone[]) => {
+  selectedRows.value = rows
+}
+
+const handleBatchCommand = (command: string) => {
+  if (selectedRows.value.length === 0) {
+    ElMessage.warning('请先选择要操作的DNS Zone')
+    return
+  }
+  if (command === 'delete') {
+    handleBatchDelete()
+  } else {
+    ElMessage.info(`${command}功能开发中`)
   }
 }
 
-const loadDNSRecords = async () => {
+const handleBatchDelete = async () => {
+  try {
+    await ElMessageBox.confirm(`确认批量删除 ${selectedRows.value.length} 个DNS Zone？此操作不可恢复`, '警告', { type: 'warning' })
+    const ids = selectedRows.value.map(z => Number(z.id))
+    await batchDeleteDNSZones(ids)
+    ElMessage.success('批量删除成功')
+    loadDNSZones()
+  } catch (e) {
+    if (e !== 'cancel') ElMessage.error('批量删除失败')
+  }
+}
+
+const loadDNSZones = async () => {
   loading.value = true
   try {
-    // Mock data
-    dnsRecords.value = [
-      {
-        id: 'dns-1',
-        domain: 'example.com',
-        tags: 'prod',
-        platform: '阿里云',
-        type: '公网解析',
-        records: 10,
-        associated_vpc: 'vpc-1, vpc-2',
-        status: 'Active',
-        share_scope: '私有',
-        account: 'Aliyun Account 1',
-        project: 'Project A',
-        created_at: '2024-01-01 10:00:00'
-      },
-      {
-        id: 'dns-2',
-        domain: 'internal.example.cn',
-        tags: 'internal',
-        platform: '阿里云',
-        type: '内网解析',
-        records: 5,
-        associated_vpc: 'vpc-3',
-        status: 'Active',
-        share_scope: '共享',
-        account: 'Aliyun Account 1',
-        project: 'Project B',
-        created_at: '2024-01-02 10:00:00'
-      },
-      {
-        id: 'dns-3',
-        domain: 'api.example.com',
-        tags: 'api',
-        platform: '阿里云',
-        type: '公网解析',
-        records: 3,
-        associated_vpc: '-',
-        status: 'Pending',
-        share_scope: '私有',
-        account: 'Aliyun Account 1',
-        project: 'Project A',
-        created_at: '2024-01-03 10:00:00'
+    const params: any = {
+      page: pagination.page,
+      page_size: pagination.pageSize
+    }
+    if (filters.cloud_account_id) params.cloud_account_id = filters.cloud_account_id
+    if (filters.status) params.status = filters.status
+    if (filters.region) params.region = filters.region
+    if (searchKeyword.value) params.name = searchKeyword.value
+
+    const res = await getDNSZones(params)
+    dnsZones.value = res.items || []
+    pagination.total = res.total || 0
+
+    // 提取区域列表
+    const regionMap = new Map<string, string>()
+    dnsZones.value.forEach(zone => {
+      if (zone.region_id && zone.region) {
+        regionMap.set(zone.region_id, zone.region)
       }
-    ]
+    })
+    regions.value = Array.from(regionMap.entries()).map(([id, name]) => ({ id, name }))
   } catch (e) {
     console.error(e)
-    dnsRecords.value = []
+    ElMessage.error('加载DNS Zone列表失败')
   } finally {
     loading.value = false
   }
 }
 
-const viewDetail = (row: DNS) => {
-  selectedDNS.value = row
-  detailDialogVisible.value = true
-  detailTab.value = 'detail'
-
-  // Mock records data
-  recordsLoading.value = true
-  dnsRecordList.value = [
-    { name: '@', type: 'A', value: '192.168.1.100', ttl: 600, status: 'Active' },
-    { name: 'www', type: 'A', value: '192.168.1.101', ttl: 600, status: 'Active' },
-    { name: 'api', type: 'CNAME', value: 'api.example.com', ttl: 300, status: 'Active' },
-    { name: 'mail', type: 'MX', value: 'mail.example.com', ttl: 3600, status: 'Active' }
-  ]
-  recordsLoading.value = false
-
-  logs.value = [
-    { operation: '创建', operator: 'admin', result: '成功', timestamp: '2024-01-01 10:00:00' },
-    { operation: '添加记录', operator: 'admin', result: '成功', timestamp: '2024-01-02 12:00:00' }
-  ]
+const loadVPCs = async () => {
+  try {
+    const res = await getVPCs({ page: 1, page_size: 100 })
+    vpcs.value = res.items || []
+  } catch (e) {
+    console.error('加载VPC失败', e)
+  }
 }
 
-const associateVpc = (row: DNS) => {
-  selectedDNS.value = row
-  selectedVpc.value = row.associated_vpc.split(',').map(v => v.trim()).filter(v => v !== '-')
-  associateVpcDialogVisible.value = true
+const viewDetail = async (row: DNSZone) => {
+  selectedZone.value = row
+  detailVisible.value = true
+  detailTab.value = 'detail'
+  recordsLoading.value = true
+
+  try {
+    const res = await getDNSZone(row.id)
+    dnsRecords.value = res.records || []
+  } catch (e) {
+    console.error('加载DNS记录失败', e)
+    dnsRecords.value = []
+  } finally {
+    recordsLoading.value = false
+  }
+}
+
+const associateVpc = (row: DNSZone) => {
+  selectedZone.value = row
+  selectedVpcs.value = []
+  associateVpcVisible.value = true
+  loadVPCs()
 }
 
 const submitAssociateVpc = () => {
   ElMessage.success('关联VPC成功')
-  associateVpcDialogVisible.value = false
+  associateVpcVisible.value = false
 }
 
-const syncStatus = (row: DNS) => {
-  ElMessage.info(`正在同步DNS解析 ${row.domain} 的状态`)
+const syncStatus = (row: DNSZone) => {
+  ElMessage.info(`正在同步DNS Zone ${row.name} 的状态`)
 }
 
-const changeDomain = (row: DNS) => {
-  ElMessage.info(`更改域功能开发中: ${row.domain}`)
+const showAddRecord = () => {
+  addRecordForm.name = ''
+  addRecordForm.type = 'A'
+  addRecordForm.value = ''
+  addRecordForm.ttl = 600
+  addRecordForm.priority = 10
+  addRecordVisible.value = true
 }
 
-const setShare = (row: DNS) => {
-  ElMessage.info(`设置共享功能开发中: ${row.domain}`)
+const confirmAddRecord = async () => {
+  if (!addRecordForm.name || !addRecordForm.value) {
+    ElMessage.warning('请填写记录名称和值')
+    return
+  }
+  try {
+    await createDNSRecord(selectedZone.value!.id, addRecordForm)
+    ElMessage.success('添加记录成功')
+    addRecordVisible.value = false
+    viewDetail(selectedZone.value!)
+  } catch (e) {
+    ElMessage.error('添加记录失败')
+  }
 }
 
 const deleteRecord = async (row: DNSRecord) => {
   try {
-    await ElMessageBox.confirm(`确认删除DNS记录 ${row.name}？`, '警告', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
-    })
-    dnsRecordList.value = dnsRecordList.value.filter(r => r.name !== row.name)
+    await ElMessageBox.confirm(`确认删除DNS记录 "${row.name}"？`, '警告', { type: 'warning' })
+    await deleteDNSRecord(selectedZone.value!.id, row.id)
     ElMessage.success('删除成功')
+    viewDetail(selectedZone.value!)
   } catch (e) {
-    console.error(e)
+    if (e !== 'cancel') ElMessage.error('删除失败')
   }
 }
 
-const handleDelete = async (row: DNS) => {
+const handleDelete = async (row: DNSZone) => {
   try {
-    await ElMessageBox.confirm(`确认删除DNS解析 ${row.domain}？`, '警告', {
+    await ElMessageBox.confirm(`确认删除DNS Zone "${row.name}"？此操作不可恢复`, '警告', {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
       type: 'warning'
     })
-    dnsRecords.value = dnsRecords.value.filter(d => d.id !== row.id)
+    await deleteDNSZone(row.id)
     ElMessage.success('删除成功')
+    loadDNSZones()
   } catch (e) {
-    console.error(e)
+    if (e !== 'cancel') ElMessage.error('删除失败')
   }
+}
+
+const resetFilters = () => {
+  filters.cloud_account_id = null
+  filters.status = ''
+  filters.region = ''
+  searchKeyword.value = ''
+  pagination.page = 1
+  loadDNSZones()
+}
+
+const handleSizeChange = (size: number) => {
+  pagination.pageSize = size
+  pagination.page = 1
+  loadDNSZones()
+}
+
+const handleCurrentChange = (page: number) => {
+  pagination.page = page
+  loadDNSZones()
 }
 
 onMounted(() => {
-  loadDNSRecords()
+  loadDNSZones()
 })
 </script>
 
 <style scoped>
-.dns-page {
-  height: 100%;
+.dns-zones-container {
+  padding: 20px;
 }
 
-.page-card {
-  height: 100%;
-}
-
-.card-header {
+.toolbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 16px;
 }
 
-.title {
-  font-size: 18px;
-  font-weight: bold;
+.toolbar-left {
+  display: flex;
+  gap: 8px;
+}
+
+.filter-card {
+  margin-bottom: 20px;
+}
+
+.pagination {
+  margin-top: 20px;
+  justify-content: flex-end;
+}
+
+.platform-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.account-name {
+  font-size: 12px;
+  color: #909399;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tag-item {
+  margin-right: 4px;
+  margin-bottom: 2px;
+}
+
+.records-toolbar {
+  margin-bottom: 16px;
 }
 </style>

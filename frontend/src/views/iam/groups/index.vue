@@ -1,73 +1,40 @@
 <template>
-  <div class="groups-page">
-    <el-card class="page-card">
-      <template #header>
-        <div class="card-header">
-          <span class="title">用户组</span>
-          <!-- 工具栏 -->
-          <div class="toolbar">
-            <el-button @click="handleRefresh" :loading="loading">
-              <el-icon><Refresh /></el-icon>
-            </el-button>
-            <el-button type="primary" @click="handleCreate">
-              <el-icon><Plus /></el-icon>
-              新建用户组
-            </el-button>
-            <el-button :disabled="selectedGroups.length === 0" @click="handleBatchDelete">
-              <el-icon><Delete /></el-icon>
-              删除
-            </el-button>
-            <div class="toolbar-icons">
-              <el-tooltip content="下载" placement="top">
-                <el-button @click="handleDownload">
-                  <el-icon><Download /></el-icon>
-                </el-button>
-              </el-tooltip>
-              <el-tooltip content="设置" placement="top">
-                <el-button @click="handleSettings">
-                  <el-icon><Setting /></el-icon>
-                </el-button>
-              </el-tooltip>
-            </div>
-          </div>
-        </div>
-      </template>
-
-      <!-- filter-bar 搜索栏 -->
-      <div class="filter-bar">
-        <el-dropdown trigger="click" @command="handleFieldChange">
-          <el-button>
-            {{ currentFieldLabel }} <el-icon class="el-icon--right"><ArrowDown /></el-icon>
-          </el-button>
-          <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item command="name">名称</el-dropdown-item>
-              <el-dropdown-item command="description">描述</el-dropdown-item>
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
-        <el-input
-          v-model="searchKeyword"
-          :placeholder="searchPlaceholder"
-          clearable
-          style="width: 300px"
-          @keyup.enter="loadGroups"
-        >
-          <template #suffix>
-            <el-icon class="search-icon" @click="loadGroups"><Search /></el-icon>
-          </template>
-        </el-input>
-        <el-button type="primary" @click="loadGroups">
-          <el-icon><Search /></el-icon>
-          查询
+  <div class="groups-container">
+    <div class="page-header">
+      <h2>用户组</h2>
+      <div class="toolbar">
+        <el-button type="primary" @click="handleCreate">
+          <el-icon><Plus /></el-icon>
+          新建用户组
         </el-button>
-        <el-button @click="handleResetSearch">
-          <el-icon><Refresh /></el-icon>
-          重置
+        <el-button :disabled="selectedGroups.length === 0" @click="handleBatchDelete">
+          <el-icon><Delete /></el-icon>
+          批量删除
         </el-button>
       </div>
+    </div>
 
-      <!-- 用户组列表 -->
+    <el-card class="filter-card">
+      <el-form :inline="true" @submit.prevent="loadGroups">
+        <el-form-item label="搜索">
+          <el-select v-model="searchField" placeholder="选择字段" style="width: 100px">
+            <el-option label="名称" value="name" />
+            <el-option label="描述" value="description" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-input v-model="searchKeyword" placeholder="输入关键词" clearable style="width: 180px" @keyup.enter="loadGroups">
+            <template #prefix><el-icon><Search /></el-icon></template>
+          </el-input>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="loadGroups">查询</el-button>
+          <el-button @click="resetFilter">重置</el-button>
+        </el-form-item>
+      </el-form>
+    </el-card>
+
+    <el-card>
       <el-table
         :data="groups"
         v-loading="loading"
@@ -109,16 +76,11 @@
           </template>
         </el-table-column>
       </el-table>
-
-      <!-- 分页 -->
       <el-pagination
         v-model:current-page="pagination.page"
         v-model:page-size="pagination.limit"
         :total="pagination.total"
-        :page-sizes="[10, 20, 50, 100]"
-        layout="total, sizes, prev, pager, next, jumper"
-        @size-change="loadGroups"
-        @current-change="loadGroups"
+        layout="total, sizes, prev, pager, next"
         class="pagination"
       />
     </el-card>
@@ -278,7 +240,7 @@ const handleRefresh = () => {
   loadGroups()
 }
 
-const handleResetSearch = () => {
+const resetFilter = () => {
   searchKeyword.value = ''
   searchField.value = 'name'
   pagination.page = 1
@@ -406,62 +368,10 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.groups-page {
-  height: 100%;
-  padding: 20px;
-}
-
-.page-card {
-  height: 100%;
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.title {
-  font-size: 18px;
-  font-weight: bold;
-}
-
-.toolbar {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.toolbar-icons {
-  display: flex;
-  gap: 4px;
-}
-
-.search-bar {
-  display: flex;
-  gap: 8px;
-  padding: 12px 0;
-  align-items: center;
-}
-
-.filter-bar {
-  display: flex;
-  gap: 8px;
-  padding: 12px 0;
-  align-items: center;
-  background: #f5f7fa;
-  padding: 12px 16px;
-  border-radius: 4px;
-  margin-bottom: 16px;
-}
-
-.search-icon {
-  cursor: pointer;
-}
-
-.pagination {
-  margin-top: 20px;
-  display: flex;
-  justify-content: flex-end;
-}
+.groups-container { padding: 20px; }
+.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.page-header h2 { margin: 0; font-size: 18px; font-weight: 600; }
+.filter-card { margin-bottom: 20px; }
+.pagination { margin-top: 20px; text-align: right; }
+.name-link { color: #409eff; cursor: pointer; }
 </style>

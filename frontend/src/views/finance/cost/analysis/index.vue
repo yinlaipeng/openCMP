@@ -1,97 +1,103 @@
 <template>
-  <div class="finance-page">
-    <el-card>
-      <template #header>
-        <div class="card-header">
-          <span class="title">成本分析</span>
-          <el-button type="primary" @click="handleRefresh">刷新数据</el-button>
-        </div>
-      </template>
-
-      <!-- 筛选 -->
-      <div class="filter-bar" style="margin-bottom: 16px;">
-        <el-select v-model="selectedAccountId" placeholder="选择云账号" clearable style="width: 200px;">
-          <el-option v-for="account in cloudAccounts" :key="account.id" :label="account.name" :value="account.id" />
-        </el-select>
-        <el-date-picker
-          v-model="dateRange"
-          type="daterange"
-          range-separator="至"
-          start-placeholder="开始日期"
-          end-placeholder="结束日期"
-          value-format="YYYY-MM-DD"
-          style="width: 240px; margin-left: 8px;"
-        />
+  <div class="cost-analysis-container">
+    <div class="page-header">
+      <h2>成本分析</h2>
+      <div class="toolbar">
+        <el-button type="primary" @click="handleRefresh">刷新数据</el-button>
       </div>
+    </div>
 
-      <!-- 统计卡片 -->
-      <el-row :gutter="16" style="margin-bottom: 16px;">
-        <el-col :span="6">
-          <el-statistic title="总成本" :value="totalCost" suffix="元" />
-        </el-col>
-        <el-col :span="6">
-          <el-statistic title="日均成本" :value="avgDailyCost" suffix="元" />
-        </el-col>
-        <el-col :span="6">
-          <el-statistic title="成本趋势" :value="costTrend">
-            <template #suffix>
-              <span :style="{ color: costTrend >= 0 ? '#F56C6C' : '#67C23A' }">
-                {{ costTrend >= 0 ? '↑' : '↓' }}
-              </span>
-            </template>
-          </el-statistic>
-        </el-col>
-      </el-row>
-
-      <!-- 图表区域 -->
-      <el-row :gutter="16">
-        <el-col :span="16">
-          <el-card shadow="never">
-            <template #header>
-              <span>成本趋势</span>
-            </template>
-            <div v-if="analysisData.length > 0" style="height: 300px;">
-              <!-- 使用简单图表展示 -->
-              <div class="chart-container">
-                <div class="bar-chart">
-                  <div v-for="(item, index) in analysisData" :key="index" class="bar-item">
-                    <div class="bar-label">{{ item.period }}</div>
-                    <div class="bar-value" :style="{ width: getBarWidth(item.total_cost) + '%' }"></div>
-                    <div class="bar-amount">¥{{ item.total_cost?.toFixed(2) || '0' }}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <el-empty v-else description="暂无数据" />
-          </el-card>
-        </el-col>
-        <el-col :span="8">
-          <el-card shadow="never">
-            <template #header>
-              <span>产品分布</span>
-            </template>
-            <div v-if="productDistribution.length > 0" style="height: 300px;">
-              <div class="distribution-list">
-                <div v-for="(item, index) in productDistribution" :key="index" class="distribution-item">
-                  <div class="product-name">{{ item.name }}</div>
-                  <div class="product-bar">
-                    <div class="product-bar-fill" :style="{ width: item.percent + '%' }"></div>
-                  </div>
-                  <div class="product-percent">{{ item.percent.toFixed(1) }}%</div>
-                  <div class="product-amount">¥{{ item.amount.toFixed(2) }}</div>
-                </div>
-              </div>
-            </div>
-            <el-empty v-else description="暂无数据" />
-          </el-card>
-        </el-col>
-      </el-row>
+    <el-card class="filter-card">
+      <el-form :inline="true" :model="filters" @submit.prevent="loadAnalysis">
+        <el-form-item label="云账号">
+          <el-select v-model="filters.cloud_account_id" placeholder="选择云账号" clearable style="width: 200px">
+            <el-option v-for="account in cloudAccounts" :key="account.id" :label="account.name" :value="account.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="时间范围">
+          <el-date-picker
+            v-model="filters.dateRange"
+            type="daterange"
+            range-separator="至"
+            start-placeholder="开始日期"
+            end-placeholder="结束日期"
+            value-format="YYYY-MM-DD"
+            style="width: 240px"
+          />
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="loadAnalysis">查询</el-button>
+          <el-button @click="resetFilters">重置</el-button>
+        </el-form-item>
+      </el-form>
     </el-card>
+
+    <!-- 统计卡片 -->
+    <el-row :gutter="16" style="margin-bottom: 16px;">
+      <el-col :span="6">
+        <el-statistic title="总成本" :value="totalCost" suffix="元" />
+      </el-col>
+      <el-col :span="6">
+        <el-statistic title="日均成本" :value="avgDailyCost" suffix="元" />
+      </el-col>
+      <el-col :span="6">
+        <el-statistic title="成本趋势" :value="costTrend">
+          <template #suffix>
+            <span :style="{ color: costTrend >= 0 ? '#F56C6C' : '#67C23A' }">
+              {{ costTrend >= 0 ? '↑' : '↓' }}
+            </span>
+          </template>
+        </el-statistic>
+      </el-col>
+    </el-row>
+
+    <!-- 图表区域 -->
+    <el-row :gutter="16">
+      <el-col :span="16">
+        <el-card shadow="never">
+          <template #header>
+            <span>成本趋势</span>
+          </template>
+          <div v-if="analysisData.length > 0" style="height: 300px;">
+            <div class="chart-container">
+              <div class="bar-chart">
+                <div v-for="(item, index) in analysisData" :key="index" class="bar-item">
+                  <div class="bar-label">{{ item.period }}</div>
+                  <div class="bar-value" :style="{ width: getBarWidth(item.total_cost) + '%' }"></div>
+                  <div class="bar-amount">¥{{ item.total_cost?.toFixed(2) || '0' }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <el-empty v-else description="暂无数据" />
+        </el-card>
+      </el-col>
+      <el-col :span="8">
+        <el-card shadow="never">
+          <template #header>
+            <span>产品分布</span>
+          </template>
+          <div v-if="productDistribution.length > 0" style="height: 300px;">
+            <div class="distribution-list">
+              <div v-for="(item, index) in productDistribution" :key="index" class="distribution-item">
+                <div class="product-name">{{ item.name }}</div>
+                <div class="product-bar">
+                  <div class="product-bar-fill" :style="{ width: item.percent + '%' }"></div>
+                </div>
+                <div class="product-percent">{{ item.percent.toFixed(1) }}%</div>
+                <div class="product-amount">¥{{ item.amount.toFixed(2) }}</div>
+              </div>
+            </div>
+          </div>
+          <el-empty v-else description="暂无数据" />
+        </el-card>
+      </el-col>
+    </el-row>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getCostAnalysis } from '@/api/finance'
 import { getCloudAccounts } from '@/api/cloud-account'
@@ -100,8 +106,11 @@ import type { CostAnalysisData } from '@/types/finance'
 const analysisData = ref<CostAnalysisData[]>([])
 const loading = ref(false)
 const cloudAccounts = ref<any[]>([])
-const selectedAccountId = ref<number | undefined>()
-const dateRange = ref<string[]>([])
+
+const filters = reactive({
+  cloud_account_id: undefined as number | undefined,
+  dateRange: [] as string[]
+})
 
 const totalCost = computed(() => {
   return analysisData.value.reduce((sum, item) => sum + (item.total_cost || 0), 0)
@@ -152,12 +161,12 @@ const loadAnalysis = async () => {
   loading.value = true
   try {
     const params: any = {}
-    if (selectedAccountId.value) {
-      params.cloud_account_id = selectedAccountId.value
+    if (filters.cloud_account_id) {
+      params.cloud_account_id = filters.cloud_account_id
     }
-    if (dateRange.value && dateRange.value.length === 2) {
-      params.start_date = dateRange.value[0]
-      params.end_date = dateRange.value[1]
+    if (filters.dateRange && filters.dateRange.length === 2) {
+      params.start_date = filters.dateRange[0]
+      params.end_date = filters.dateRange[1]
     }
     analysisData.value = await getCostAnalysis(params)
   } catch (e) {
@@ -176,12 +185,18 @@ const loadCloudAccounts = async () => {
   }
 }
 
+const resetFilters = () => {
+  filters.cloud_account_id = undefined
+  filters.dateRange = []
+  loadAnalysis()
+}
+
 const handleRefresh = () => {
   loadAnalysis()
   ElMessage.success('数据已刷新')
 }
 
-watch([selectedAccountId, dateRange], loadAnalysis)
+watch([filters.cloud_account_id, filters.dateRange], loadAnalysis)
 
 onMounted(() => {
   loadCloudAccounts()
@@ -190,21 +205,22 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.finance-page {
-  height: 100%;
+.cost-analysis-container {
+  padding: 20px;
 }
-.card-header {
+.page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 20px;
 }
-.title {
+.page-header h2 {
+  margin: 0;
   font-size: 18px;
-  font-weight: bold;
+  font-weight: 600;
 }
-.filter-bar {
-  display: flex;
-  align-items: center;
+.filter-card {
+  margin-bottom: 20px;
 }
 
 .chart-container {

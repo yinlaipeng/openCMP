@@ -493,3 +493,69 @@ func (h *DatabaseHandler) CreateCacheBackup(c *gin.Context) {
 
 	c.JSON(http.StatusCreated, backup)
 }
+
+// ListRDSSKUs 列出 RDS SKU 规格
+func (h *DatabaseHandler) ListRDSSKUs(c *gin.Context) {
+	accountIDStr := c.Query("account_id")
+	if accountIDStr == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "account_id is required"})
+		return
+	}
+
+	accountID, err := strconv.ParseUint(accountIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid account_id"})
+		return
+	}
+
+	filter := cloudprovider.RDSKUFilter{
+		Provider:      c.Query("provider"),
+		Engine:        c.Query("engine"),
+		EngineVersion: c.Query("engine_version"),
+		Category:      c.Query("category"),
+		StorageType:   c.Query("storage_type"),
+		RegionID:      c.Query("region_id"),
+	}
+
+	skus, err := h.service.ListRDSSKUs(c.Request.Context(), uint(accountID), filter)
+	if err != nil {
+		h.logger.Error("failed to list rds skus", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, skus)
+}
+
+// ListCacheSKUs 列出 Redis 缓存 SKU 规格
+func (h *DatabaseHandler) ListCacheSKUs(c *gin.Context) {
+	accountIDStr := c.Query("account_id")
+	if accountIDStr == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "account_id is required"})
+		return
+	}
+
+	accountID, err := strconv.ParseUint(accountIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid account_id"})
+		return
+	}
+
+	filter := cloudprovider.CacheSKUFilter{
+		Provider:        c.Query("provider"),
+		Engine:          c.Query("engine"),
+		EngineVersion:   c.Query("engine_version"),
+		NodeType:        c.Query("node_type"),
+		PerformanceType: c.Query("performance_type"),
+		RegionID:        c.Query("region_id"),
+	}
+
+	skus, err := h.service.ListCacheSKUs(c.Request.Context(), uint(accountID), filter)
+	if err != nil {
+		h.logger.Error("failed to list cache skus", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, skus)
+}

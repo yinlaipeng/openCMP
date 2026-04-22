@@ -493,3 +493,162 @@ func (s *DatabaseService) CreateCacheBackup(ctx context.Context, accountID uint,
 
 	return dbProvider.CreateCacheBackup(ctx, instanceID)
 }
+
+// ListRDSSKUs 列出 RDS SKU 规格
+// 参考 Cloudpods API: GET /api/v2/dbinstance_skus
+func (s *DatabaseService) ListRDSSKUs(ctx context.Context, accountID uint, filter cloudprovider.RDSKUFilter) ([]*cloudprovider.RDSInstanceSKU, error) {
+	// 获取云账号信息以确定 provider
+	accountService := NewCloudAccountService(s.db)
+	account, err := accountService.GetCloudAccount(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 基于云账号 provider 返回 SKU 数据
+	// 实际应调用云厂商 API，这里返回基础 SKU 作为参考
+	skus := getMockRDSSKUs(account.ProviderType, filter)
+	return skus, nil
+}
+
+// ListCacheSKUs 列出 Redis 缓存 SKU 规格
+// 参考 Cloudpods API: GET /api/v2/elasticcacheskus
+func (s *DatabaseService) ListCacheSKUs(ctx context.Context, accountID uint, filter cloudprovider.CacheSKUFilter) ([]*cloudprovider.CacheInstanceSKU, error) {
+	// 获取云账号信息以确定 provider
+	accountService := NewCloudAccountService(s.db)
+	account, err := accountService.GetCloudAccount(ctx, accountID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 基于云账号 provider 返回 SKU 数据
+	skus := getMockCacheSKUs(account.ProviderType, filter)
+	return skus, nil
+}
+
+// getMockRDSSKUs 获取模拟 RDS SKU 数据（实际应调用云厂商 API）
+func getMockRDSSKUs(provider string, filter cloudprovider.RDSKUFilter) []*cloudprovider.RDSInstanceSKU {
+	// 基于过滤条件返回 SKU
+	skus := []*cloudprovider.RDSInstanceSKU{
+		{
+			ID:           "rds-sku-1",
+			Provider:     provider,
+			Engine:       "MySQL",
+			EngineVersion: "5.7",
+			Category:     "ha",
+			StorageType:  "cloud_essd",
+			CPU:          2,
+			MemoryMB:     4096,
+			InstanceType: "mysql.n2.medium.1c",
+			Price:        0.5,
+			RegionID:     filter.RegionID,
+		},
+		{
+			ID:           "rds-sku-2",
+			Provider:     provider,
+			Engine:       "MySQL",
+			EngineVersion: "8.0",
+			Category:     "ha",
+			StorageType:  "cloud_essd",
+			CPU:          4,
+			MemoryMB:     8192,
+			InstanceType: "mysql.n4.large.1c",
+			Price:        1.0,
+			RegionID:     filter.RegionID,
+		},
+		{
+			ID:           "rds-sku-3",
+			Provider:     provider,
+			Engine:       "PostgreSQL",
+			EngineVersion: "14",
+			Category:     "ha",
+			StorageType:  "cloud_essd",
+			CPU:          2,
+			MemoryMB:     4096,
+			InstanceType: "pg.n2.medium.1c",
+			Price:        0.6,
+			RegionID:     filter.RegionID,
+		},
+	}
+
+	// 应用过滤条件
+	result := []*cloudprovider.RDSInstanceSKU{}
+	for _, sku := range skus {
+		if filter.Engine != "" && sku.Engine != filter.Engine {
+			continue
+		}
+		if filter.EngineVersion != "" && sku.EngineVersion != filter.EngineVersion {
+			continue
+		}
+		if filter.Category != "" && sku.Category != filter.Category {
+			continue
+		}
+		if filter.StorageType != "" && sku.StorageType != filter.StorageType {
+			continue
+		}
+		result = append(result, sku)
+	}
+
+	return result
+}
+
+// getMockCacheSKUs 获取模拟 Redis SKU 数据（实际应调用云厂商 API）
+func getMockCacheSKUs(provider string, filter cloudprovider.CacheSKUFilter) []*cloudprovider.CacheInstanceSKU {
+	skus := []*cloudprovider.CacheInstanceSKU{
+		{
+			ID:             "cache-sku-1",
+			Provider:       provider,
+			Engine:         "Redis",
+			EngineVersion:  "5.0",
+			NodeType:       "standalone",
+			PerformanceType: "standard",
+			MemoryMB:       1024,
+			InstanceType:   "redis.standard.small.default",
+			Price:          0.1,
+			RegionID:       filter.RegionID,
+		},
+		{
+			ID:             "cache-sku-2",
+			Provider:       provider,
+			Engine:         "Redis",
+			EngineVersion:  "6.0",
+			NodeType:       "ha",
+			PerformanceType: "standard",
+			MemoryMB:       2048,
+			InstanceType:   "redis.standard.medium.default",
+			Price:          0.2,
+			RegionID:       filter.RegionID,
+		},
+		{
+			ID:             "cache-sku-3",
+			Provider:       provider,
+			Engine:         "Redis",
+			EngineVersion:  "7.0",
+			NodeType:       "cluster",
+			PerformanceType: "performance",
+			MemoryMB:       4096,
+			InstanceType:   "redis.performance.large.default",
+			Price:          0.5,
+			RegionID:       filter.RegionID,
+		},
+	}
+
+	// 应用过滤条件
+	result := []*cloudprovider.CacheInstanceSKU{}
+	for _, sku := range skus {
+		if filter.Engine != "" && sku.Engine != filter.Engine {
+			continue
+		}
+		if filter.EngineVersion != "" && sku.EngineVersion != filter.EngineVersion {
+			continue
+		}
+		if filter.NodeType != "" && sku.NodeType != filter.NodeType {
+			continue
+		}
+		if filter.PerformanceType != "" && sku.PerformanceType != filter.PerformanceType {
+			continue
+		}
+		result = append(result, sku)
+	}
+
+	return result
+}

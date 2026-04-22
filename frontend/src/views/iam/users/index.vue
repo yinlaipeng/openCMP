@@ -1,36 +1,18 @@
 <template>
-  <div class="users-page">
-    <el-card class="page-card">
-      <template #header>
-        <div class="card-header">
-          <span class="title">用户</span>
-          <div class="header-icons">
-            <el-button size="small" @click="handleDownload">
-              <el-icon><Download /></el-icon>
-            </el-button>
-            <el-button size="small" @click="handleSettings">
-              <el-icon><Setting /></el-icon>
-            </el-button>
-          </div>
-        </div>
-      </template>
-
-      <!-- 工具栏 -->
+  <div class="users-container">
+    <div class="page-header">
+      <h2>用户</h2>
       <div class="toolbar">
-        <el-button size="small" @click="handleRefresh" :loading="loading">
-          <el-icon><Refresh /></el-icon>
-          刷新
-        </el-button>
-        <el-button size="small" type="primary" @click="handleCreate">
+        <el-button type="primary" @click="handleCreate">
           <el-icon><Plus /></el-icon>
-          新建
+          新建用户
         </el-button>
-        <el-button size="small" @click="handleImportUsers">
+        <el-button @click="handleImportUsers">
           <el-icon><Upload /></el-icon>
           导入用户
         </el-button>
         <el-dropdown trigger="click" @command="handleBatchCommand" :disabled="selectedUsers.length === 0">
-          <el-button size="small">
+          <el-button>
             批量操作 <el-icon class="el-icon--right"><ArrowDown /></el-icon>
           </el-button>
           <template #dropdown>
@@ -44,32 +26,41 @@
             </el-dropdown-menu>
           </template>
         </el-dropdown>
-        <el-button size="small" @click="handleManageTags">
-          <el-icon><PriceTag /></el-icon>
-          标签
-        </el-button>
       </div>
+    </div>
 
-      <!-- 搜索栏 -->
-      <div class="search-bar">
-        <el-input
-          v-model="searchKeyword"
-          placeholder="默认为名称搜索，自动匹配IP或ID搜索项，IP或ID多个搜索用英文竖线(|)隔开"
-          clearable
-          @keyup.enter="handleSearch"
-          class="search-input"
-        >
-          <template #prefix>
-            <el-icon><Search /></el-icon>
-          </template>
-        </el-input>
-        <el-button type="primary" @click="handleSearch">
-          <el-icon><Search /></el-icon>
-          查询
-        </el-button>
-      </div>
+    <el-card class="filter-card">
+      <el-form :inline="true" @submit.prevent="loadUsers">
+        <el-form-item>
+          <el-input
+            v-model="searchKeyword"
+            placeholder="名称/ID搜索，多个用|隔开"
+            clearable
+            style="width: 300px"
+            @keyup.enter="loadUsers"
+          >
+            <template #prefix><el-icon><Search /></el-icon></template>
+          </el-input>
+        </el-form-item>
+        <el-form-item label="所属域">
+          <el-select v-model="filterDomainId" placeholder="全部" clearable style="width: 120px">
+            <el-option v-for="item in allDomains" :key="item.id" :label="item.name" :value="item.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="filterEnabled" placeholder="全部" clearable style="width: 80px">
+            <el-option label="启用" :value="true" />
+            <el-option label="禁用" :value="false" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="loadUsers">查询</el-button>
+          <el-button @click="resetFilter">重置</el-button>
+        </el-form-item>
+      </el-form>
+    </el-card>
 
-      <!-- 用户列表 -->
+    <el-card>
       <el-table
         :data="users"
         v-loading="loading"
@@ -146,16 +137,11 @@
           </template>
         </el-table-column>
       </el-table>
-
-      <!-- 分页 -->
       <el-pagination
         v-model:current-page="pagination.page"
         v-model:page-size="pagination.limit"
         :total="pagination.total"
-        :page-sizes="[10, 20, 50, 100]"
-        layout="total, sizes, prev, pager, next, jumper"
-        @size-change="loadUsers"
-        @current-change="loadUsers"
+        layout="total, sizes, prev, pager, next"
         class="pagination"
       />
     </el-card>
@@ -380,6 +366,8 @@ const currentUser = ref<UserType | null>(null)
 const submitting = ref(false)
 const formRef = ref<FormInstance>()
 const searchKeyword = ref('')
+const filterDomainId = ref<number | undefined>(undefined)
+const filterEnabled = ref<boolean | undefined>(undefined)
 const activeCollapse = ref<string[]>([])
 
 const pagination = reactive({
@@ -439,6 +427,8 @@ const loadUsers = async () => {
     if (searchKeyword.value) {
       params.keyword = searchKeyword.value
     }
+    if (filterDomainId.value) params.domain_id = filterDomainId.value
+    if (filterEnabled.value !== undefined) params.enabled = filterEnabled.value
 
     const res = await getUsers(params)
     users.value = res.items || []
@@ -475,6 +465,14 @@ const loadAllProjectsAndRoles = async (domainId: number) => {
 
 // Handlers
 const handleRefresh = () => loadUsers()
+
+const resetFilter = () => {
+  searchKeyword.value = ''
+  filterDomainId.value = undefined
+  filterEnabled.value = undefined
+  pagination.page = 1
+  loadUsers()
+}
 
 const handleSearch = () => {
   pagination.page = 1
@@ -739,100 +737,13 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.users-page {
-  height: 100%;
-  padding: 20px;
-}
-
-.page-card {
-  height: 100%;
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.title {
-  font-size: 18px;
-  font-weight: bold;
-}
-
-.header-icons {
-  display: flex;
-  gap: 8px;
-}
-
-.toolbar {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
-.search-bar {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
-.search-input {
-  width: 400px;
-  max-width: 100%;
-}
-
-.pagination {
-  margin-top: 20px;
-  display: flex;
-  justify-content: flex-end;
-}
-
-.name-cell {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.user-icon {
-  color: var(--color-muted, #64748B);
-}
-
-.name-link {
-  padding: 0;
-  border: none;
-  background: none;
-}
-
-.status-dot {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.status-dot::before {
-  content: '';
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-}
-
-.status-dot[data-status="enabled"]::before {
-  background: var(--color-success, #22C55E);
-}
-
-.status-dot[data-status="disabled"]::before {
-  background: var(--color-muted, #64748B);
-}
-
-.empty-text {
-  color: var(--color-muted, #64748B);
-}
-
-.batch-confirm-text {
-  margin-bottom: 16px;
-}
-
-.batch-confirm-text strong {
-  color: var(--color-primary, #0F172A);
-}
+.users-container { padding: 20px; }
+.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.page-header h2 { margin: 0; font-size: 18px; font-weight: 600; }
+.filter-card { margin-bottom: 20px; }
+.pagination { margin-top: 20px; text-align: right; }
+.name-cell { display: flex; align-items: center; gap: 8px; }
+.user-icon { color: #64748B; }
+.name-link { color: #409eff; cursor: pointer; }
+.empty-text { color: #999; }
 </style>

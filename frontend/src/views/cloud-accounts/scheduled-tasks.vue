@@ -11,18 +11,8 @@
         </div>
       </template>
 
-      <!-- 空状态 -->
-      <EmptyState
-        v-if="!loading && tasks.length === 0"
-        title="暂无定时任务"
-        description="当前没有任何定时同步任务，点击下方按钮创建任务"
-        :icon="Timer"
-        createButtonText="添加任务"
-        @create="showDialog = true"
-      />
-
       <!-- 数据表格 -->
-      <el-table :data="tasks" v-loading="loading" style="width: 100%" v-if="tasks.length > 0 || loading">
+      <el-table :data="tasks" v-loading="loading" style="width: 100%">
         <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="name" label="名称" width="150" />
         <el-table-column prop="type" label="类型" width="150">
@@ -170,7 +160,6 @@ import { Plus, Timer, ArrowDown, EditPen, CircleCheck, CircleClose, Delete } fro
 import { getScheduledTasks, createScheduledTask, updateScheduledTask, deleteScheduledTask, updateScheduledTaskStatus, executeScheduledTask } from '@/api/scheduled-task'
 import { getCloudAccounts } from '@/api/cloud-account'
 import type { ScheduledTask, CreateScheduledTaskRequest } from '@/types'
-import EmptyState from '@/components/common/EmptyState.vue'
 
 const tasks = ref<ScheduledTask[]>([])
 const cloudAccounts = ref<any[]>([])

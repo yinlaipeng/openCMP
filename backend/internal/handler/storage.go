@@ -531,3 +531,438 @@ func getCloudProvider(account *model.CloudAccount) (cloudprovider.ICloudProvider
 
 	return cloudprovider.GetProvider(account.ProviderType, config)
 }
+
+// ========== InstanceSnapshot Handlers ==========
+
+// ListInstanceSnapshots 列出主机快照
+func (h *StorageHandler) ListInstanceSnapshots(c *gin.Context) {
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	cloudAccountID, _ := strconv.ParseUint(c.Query("cloud_account_id"), 10, 32)
+	status := c.Query("status")
+	name := c.Query("name")
+
+	var snapshots []model.InstanceSnapshot
+	var total int64
+
+	query := h.db.Model(&model.InstanceSnapshot{})
+	if cloudAccountID > 0 {
+		query = query.Where("cloud_account_id = ?", cloudAccountID)
+	}
+	if status != "" {
+		query = query.Where("status = ?", status)
+	}
+	if name != "" {
+		query = query.Where("name LIKE ?", "%"+name+"%")
+	}
+
+	query.Count(&total)
+	offset := (page - 1) * pageSize
+	if err := query.Offset(offset).Limit(pageSize).Order("created_at DESC").Find(&snapshots).Error; err != nil {
+		h.logger.Error("failed to list instance snapshots", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"items":     snapshots,
+		"total":     total,
+		"page":      page,
+		"page_size": pageSize,
+	})
+}
+
+// GetInstanceSnapshot 获取主机快照详情
+func (h *StorageHandler) GetInstanceSnapshot(c *gin.Context) {
+	id := c.Param("id")
+
+	var snapshot model.InstanceSnapshot
+	if err := h.db.First(&snapshot, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "instance snapshot not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, snapshot)
+}
+
+// CreateInstanceSnapshot 创建主机快照
+func (h *StorageHandler) CreateInstanceSnapshot(c *gin.Context) {
+	var req struct {
+		InstanceID      string `json:"instance_id" binding:"required"`
+		Name            string `json:"name" binding:"required"`
+		MemorySnapshot  bool   `json:"memory_snapshot"`
+		Description     string `json:"description"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// TODO: 调用云厂商API创建主机快照
+	snapshot := &model.InstanceSnapshot{
+		CloudAccountID:  0, // 需要从实例获取
+		SnapshotID:      "snap-" + strconv.FormatInt(time.Now().UnixNano(), 10),
+		Name:            req.Name,
+		InstanceID:      req.InstanceID,
+		MemorySnapshot:  req.MemorySnapshot,
+		Status:          "creating",
+		Description:     req.Description,
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
+	}
+
+	if err := h.db.Create(snapshot).Error; err != nil {
+		h.logger.Error("failed to create instance snapshot", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, snapshot)
+}
+
+// DeleteInstanceSnapshot 删除主机快照
+func (h *StorageHandler) DeleteInstanceSnapshot(c *gin.Context) {
+	id := c.Param("id")
+
+	var snapshot model.InstanceSnapshot
+	if err := h.db.First(&snapshot, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "instance snapshot not found"})
+		return
+	}
+
+	// TODO: 调用云厂商API删除主机快照
+	if err := h.db.Delete(&snapshot).Error; err != nil {
+		h.logger.Error("failed to delete instance snapshot", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+}
+
+// BatchDeleteInstanceSnapshots 批量删除主机快照
+func (h *StorageHandler) BatchDeleteInstanceSnapshots(c *gin.Context) {
+	var req struct {
+		IDs []uint `json:"ids" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	result := h.db.Where("id IN ?", req.IDs).Delete(&model.InstanceSnapshot{})
+	c.JSON(http.StatusOK, gin.H{
+		"total":   len(req.IDs),
+		"success": result.RowsAffected,
+		"failed":  len(req.IDs) - int(result.RowsAffected),
+		"message": "batch delete completed",
+	})
+}
+
+// RollbackInstanceSnapshot 回滚主机快照
+func (h *StorageHandler) RollbackInstanceSnapshot(c *gin.Context) {
+	id := c.Param("id")
+
+	var snapshot model.InstanceSnapshot
+	if err := h.db.First(&snapshot, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "instance snapshot not found"})
+		return
+	}
+
+	// TODO: 调用云厂商API回滚主机快照
+	snapshot.Status = "rollbacking"
+	h.db.Save(&snapshot)
+
+	c.JSON(http.StatusOK, gin.H{"message": "rollback task submitted"})
+}
+
+// CreateVMFromSnapshot 使用主机快照创建虚拟机
+func (h *StorageHandler) CreateVMFromSnapshot(c *gin.Context) {
+	id := c.Param("id")
+
+	var req struct {
+		Name   string `json:"name" binding:"required"`
+		ZoneID string `json:"zone_id"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var snapshot model.InstanceSnapshot
+	if err := h.db.First(&snapshot, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "instance snapshot not found"})
+		return
+	}
+
+	// TODO: 调用云厂商API创建虚拟机
+	c.JSON(http.StatusOK, gin.H{
+		"message": "vm creation task submitted",
+		"vm_id":   "vm-" + strconv.FormatInt(time.Now().UnixNano(), 10),
+	})
+}
+
+// ========== SnapshotPolicy Handlers ==========
+
+// ListSnapshotPolicies 列出快照策略
+func (h *StorageHandler) ListSnapshotPolicies(c *gin.Context) {
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	cloudAccountID, _ := strconv.ParseUint(c.Query("cloud_account_id"), 10, 32)
+	status := c.Query("status")
+	name := c.Query("name")
+	resourceType := c.Query("resource_type")
+
+	var policies []model.SnapshotPolicy
+	var total int64
+
+	query := h.db.Model(&model.SnapshotPolicy{})
+	if cloudAccountID > 0 {
+		query = query.Where("cloud_account_id = ?", cloudAccountID)
+	}
+	if status != "" {
+		query = query.Where("status = ?", status)
+	}
+	if name != "" {
+		query = query.Where("name LIKE ?", "%"+name+"%")
+	}
+	if resourceType != "" {
+		query = query.Where("resource_type = ?", resourceType)
+	}
+
+	query.Count(&total)
+	offset := (page - 1) * pageSize
+	if err := query.Offset(offset).Limit(pageSize).Order("created_at DESC").Find(&policies).Error; err != nil {
+		h.logger.Error("failed to list snapshot policies", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"items":     policies,
+		"total":     total,
+		"page":      page,
+		"page_size": pageSize,
+	})
+}
+
+// GetSnapshotPolicy 获取快照策略详情
+func (h *StorageHandler) GetSnapshotPolicy(c *gin.Context) {
+	id := c.Param("id")
+
+	var policy model.SnapshotPolicy
+	if err := h.db.First(&policy, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "snapshot policy not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, policy)
+}
+
+// CreateSnapshotPolicy 创建快照策略
+func (h *StorageHandler) CreateSnapshotPolicy(c *gin.Context) {
+	var req struct {
+		CloudAccountID uint   `json:"cloud_account_id" binding:"required"`
+		Name           string `json:"name" binding:"required"`
+		ResourceType   string `json:"resource_type" binding:"required"`
+		ScheduleType   string `json:"schedule_type" binding:"required"`
+		ExecuteTime    string `json:"execute_time" binding:"required"`
+		WeekDay        string `json:"week_day"`
+		MonthDay       string `json:"month_day"`
+		RetentionDays  int    `json:"retention_days" binding:"required"`
+		RegionID       string `json:"region_id"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	policy := &model.SnapshotPolicy{
+		CloudAccountID: req.CloudAccountID,
+		PolicyID:       "pol-" + strconv.FormatInt(time.Now().UnixNano(), 10),
+		Name:           req.Name,
+		Status:         "active",
+		ResourceType:   req.ResourceType,
+		ScheduleType:   req.ScheduleType,
+		ExecuteTime:    req.ExecuteTime,
+		WeekDay:        req.WeekDay,
+		MonthDay:       req.MonthDay,
+		RetentionDays:  req.RetentionDays,
+		RegionID:       req.RegionID,
+		CreatedAt:      time.Now(),
+		UpdatedAt:      time.Now(),
+	}
+
+	if err := h.db.Create(policy).Error; err != nil {
+		h.logger.Error("failed to create snapshot policy", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, policy)
+}
+
+// UpdateSnapshotPolicy 更新快照策略
+func (h *StorageHandler) UpdateSnapshotPolicy(c *gin.Context) {
+	id := c.Param("id")
+
+	var policy model.SnapshotPolicy
+	if err := h.db.First(&policy, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "snapshot policy not found"})
+		return
+	}
+
+	var req struct {
+		Name          string `json:"name"`
+		ScheduleType  string `json:"schedule_type"`
+		ExecuteTime   string `json:"execute_time"`
+		WeekDay       string `json:"week_day"`
+		MonthDay      string `json:"month_day"`
+		RetentionDays int    `json:"retention_days"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if req.Name != "" {
+		policy.Name = req.Name
+	}
+	if req.ScheduleType != "" {
+		policy.ScheduleType = req.ScheduleType
+	}
+	if req.ExecuteTime != "" {
+		policy.ExecuteTime = req.ExecuteTime
+	}
+	policy.WeekDay = req.WeekDay
+	policy.MonthDay = req.MonthDay
+	if req.RetentionDays > 0 {
+		policy.RetentionDays = req.RetentionDays
+	}
+	policy.UpdatedAt = time.Now()
+
+	h.db.Save(&policy)
+	c.JSON(http.StatusOK, policy)
+}
+
+// DeleteSnapshotPolicy 删除快照策略
+func (h *StorageHandler) DeleteSnapshotPolicy(c *gin.Context) {
+	id := c.Param("id")
+
+	var policy model.SnapshotPolicy
+	if err := h.db.First(&policy, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "snapshot policy not found"})
+		return
+	}
+
+	if err := h.db.Delete(&policy).Error; err != nil {
+		h.logger.Error("failed to delete snapshot policy", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+}
+
+// BatchDeleteSnapshotPolicies 批量删除快照策略
+func (h *StorageHandler) BatchDeleteSnapshotPolicies(c *gin.Context) {
+	var req struct {
+		IDs []uint `json:"ids" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	result := h.db.Where("id IN ?", req.IDs).Delete(&model.SnapshotPolicy{})
+	c.JSON(http.StatusOK, gin.H{
+		"total":   len(req.IDs),
+		"success": result.RowsAffected,
+		"failed":  len(req.IDs) - int(result.RowsAffected),
+		"message": "batch delete completed",
+	})
+}
+
+// ToggleSnapshotPolicy 启用/禁用快照策略
+func (h *StorageHandler) ToggleSnapshotPolicy(c *gin.Context) {
+	id := c.Param("id")
+
+	var req struct {
+		Enabled bool `json:"enabled"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var policy model.SnapshotPolicy
+	if err := h.db.First(&policy, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "snapshot policy not found"})
+		return
+	}
+
+	if req.Enabled {
+		policy.Status = "active"
+	} else {
+		policy.Status = "inactive"
+	}
+	policy.UpdatedAt = time.Now()
+	h.db.Save(&policy)
+
+	c.JSON(http.StatusOK, gin.H{"message": "status updated"})
+}
+
+// AssociateResourcesToPolicy 关联资源到策略
+func (h *StorageHandler) AssociateResourcesToPolicy(c *gin.Context) {
+	id := c.Param("id")
+
+	var req struct {
+		ResourceIDs []string `json:"resource_ids" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var policy model.SnapshotPolicy
+	if err := h.db.First(&policy, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "snapshot policy not found"})
+		return
+	}
+
+	// TODO: 实现关联逻辑
+	policy.AssociatedCount += len(req.ResourceIDs)
+	h.db.Save(&policy)
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":         "resources associated",
+		"associated_count": len(req.ResourceIDs),
+	})
+}
+
+// DisassociateResourceFromPolicy 移除资源关联
+func (h *StorageHandler) DisassociateResourceFromPolicy(c *gin.Context) {
+	id := c.Param("id")
+
+	var req struct {
+		ResourceID string `json:"resource_id" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var policy model.SnapshotPolicy
+	if err := h.db.First(&policy, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "snapshot policy not found"})
+		return
+	}
+
+	// TODO: 实现移除关联逻辑
+	if policy.AssociatedCount > 0 {
+		policy.AssociatedCount--
+	}
+	h.db.Save(&policy)
+
+	c.JSON(http.StatusOK, gin.H{"message": "resource disassociated"})
+}

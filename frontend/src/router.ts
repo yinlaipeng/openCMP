@@ -126,6 +126,18 @@ const routes = [
             name: 'SyncPolicies',
             component: () => import('@/views/cloud-management/sync-policies/index.vue'),
             meta: { title: '同步策略' }
+          },
+          {
+            path: 'cloud-user-groups',
+            name: 'CloudUserGroups',
+            component: () => import('@/views/cloud-management/cloud-user-groups/index.vue'),
+            meta: { title: '云用户组' }
+          },
+          {
+            path: 'proxies',
+            name: 'Proxies',
+            component: () => import('@/views/cloud-management/proxies/index.vue'),
+            meta: { title: '代理' }
           }
         ]
       },

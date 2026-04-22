@@ -1,60 +1,43 @@
 <template>
-  <div class="domains-page">
-    <el-card class="page-card">
-      <template #header>
-        <div class="card-header">
-          <span class="title">域</span>
-          <el-button type="primary" @click="handleCreate">
-            <el-icon><Plus /></el-icon>
-            新建域
-          </el-button>
-        </div>
-      </template>
-
-      <!-- 筛选条件 -->
-      <div class="filter-bar">
-        <el-form :inline="true" :model="filterForm" class="filter-form">
-          <el-form-item label="搜索字段">
-            <el-select v-model="filterForm.searchField" placeholder="选择搜索字段" style="width: 140px">
-              <el-option label="名称" value="name" />
-              <el-option label="描述" value="description" />
-            </el-select>
-          </el-form-item>
-          <el-form-item>
-            <el-input
-              v-model="filterForm.keyword"
-              placeholder="请输入搜索关键词"
-              clearable
-              style="width: 200px"
-              @keyup.enter="loadDomains"
-            >
-              <template #prefix>
-                <el-icon><Search /></el-icon>
-              </template>
-            </el-input>
-          </el-form-item>
-          <el-divider direction="vertical" />
-          <el-form-item label="状态">
-            <el-select v-model="filterForm.enabled" placeholder="全部" clearable style="width: 100px">
-              <el-option label="启用" :value="true" />
-              <el-option label="禁用" :value="false" />
-            </el-select>
-          </el-form-item>
-        </el-form>
-        <div class="filter-actions">
-          <el-button type="primary" @click="loadDomains">
-            <el-icon><Search /></el-icon>
-            查询
-          </el-button>
-          <el-button @click="resetFilter">
-            <el-icon><Refresh /></el-icon>
-            重置
-          </el-button>
-        </div>
+  <div class="domains-container">
+    <div class="page-header">
+      <h2>域</h2>
+      <div class="toolbar">
+        <el-button type="primary" @click="handleCreate">
+          <el-icon><Plus /></el-icon>
+          新建域
+        </el-button>
       </div>
+    </div>
 
-      <!-- 域列表 -->
-      <el-table :data="domains" v-loading="loading" border stripe>
+    <el-card class="filter-card">
+      <el-form :inline="true" :model="filterForm" @submit.prevent="loadDomains">
+        <el-form-item label="搜索">
+          <el-select v-model="filterForm.searchField" placeholder="选择字段" style="width: 120px">
+            <el-option label="名称" value="name" />
+            <el-option label="描述" value="description" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-input v-model="filterForm.keyword" placeholder="输入关键词" clearable style="width: 180px" @keyup.enter="loadDomains">
+            <template #prefix><el-icon><Search /></el-icon></template>
+          </el-input>
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="filterForm.enabled" placeholder="全部" clearable style="width: 80px">
+            <el-option label="启用" :value="true" />
+            <el-option label="禁用" :value="false" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="loadDomains">查询</el-button>
+          <el-button @click="resetFilter">重置</el-button>
+        </el-form-item>
+      </el-form>
+    </el-card>
+
+    <el-card>
+      <el-table :data="domains" v-loading="loading" border stripe row-key="id">
         <el-table-column prop="name" label="名称" min-width="150" show-overflow-tooltip>
           <template #default="{ row }">
             <el-button link @click="handleView(row)" class="name-link">
@@ -125,16 +108,11 @@
           </template>
         </el-table-column>
       </el-table>
-
-      <!-- 分页 -->
       <el-pagination
         v-model:current-page="pagination.page"
         v-model:page-size="pagination.limit"
         :total="pagination.total"
-        :page-sizes="[10, 20, 50, 100]"
-        layout="total, sizes, prev, pager, next, jumper"
-        @size-change="loadDomains"
-        @current-change="loadDomains"
+        layout="total, sizes, prev, pager, next"
         class="pagination"
       />
     </el-card>
@@ -312,7 +290,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
-import { Plus, ArrowDown, Search, Refresh } from '@element-plus/icons-vue'
+import { Plus, ArrowDown, Search } from '@element-plus/icons-vue'
 import { Domain, User, Project, Role, AuthSource, OperationLog } from '@/types/iam'
 import {
   getDomains,
@@ -597,71 +575,10 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.domains-page {
-  height: 100%;
-  padding: 20px;
-}
-
-.page-card {
-  height: 100%;
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.title {
-  font-size: 18px;
-  font-weight: bold;
-}
-
-.filter-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 16px;
-  padding: 16px 20px;
-  background-color: #fff;
-  border-radius: 4px;
-  border: 1px solid #ebeef5;
-}
-
-.filter-form {
-  flex: 1;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-
-.filter-form .el-form-item {
-  margin-bottom: 0;
-  margin-right: 8px;
-}
-
-.filter-form .el-divider--vertical {
-  height: 24px;
-  margin: 0 12px;
-}
-
-.filter-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-left: 16px;
-}
-
-.pagination {
-  margin-top: 20px;
-  display: flex;
-  justify-content: flex-end;
-}
-
-.name-link {
-  color: #409eff;
-  text-decoration: underline;
-  cursor: pointer;
-}
+.domains-container { padding: 20px; }
+.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.page-header h2 { margin: 0; font-size: 18px; font-weight: 600; }
+.filter-card { margin-bottom: 20px; }
+.pagination { margin-top: 20px; text-align: right; }
+.name-link { color: #409eff; cursor: pointer; }
 </style>

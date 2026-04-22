@@ -114,10 +114,10 @@ INSERT INTO domains (id, name, description, enabled, created_at, updated_at)
 VALUES (1, 'Default', '默认域', TRUE, NOW(), NOW())
 ON DUPLICATE KEY UPDATE name=name;
 
--- 超级管理员用户 (密码：admin123)
-INSERT INTO users (name, display_name, email, password, domain_id, enabled, created_at, updated_at) 
-VALUES ('admin', '超级管理员', 'admin@example.com', 'admin123', 1, TRUE, NOW(), NOW())
-ON DUPLICATE KEY UPDATE name=name;
+-- 超级管理员用户 (密码：admin123，bcrypt哈希)
+INSERT INTO users (name, display_name, email, password, domain_id, enabled, created_at, updated_at)
+VALUES ('admin', '超级管理员', 'admin@example.com', '$2a$10$vYeEqLfcznn3CdVEIE8FkORa9QW.YlZ0yKxfNcNY9WJDoraJqAyl.', 1, TRUE, NOW(), NOW())
+ON DUPLICATE KEY UPDATE password='$2a$10$vYeEqLfcznn3CdVEIE8FkORa9QW.YlZ0yKxfNcNY9WJDoraJqAyl.';
 
 -- 系统角色
 INSERT INTO roles (name, display_name, description, domain_id, type, enabled, created_at, updated_at)

@@ -4,10 +4,55 @@
       <template #header>
         <div class="card-header">
           <span class="title">存储桶列表</span>
+          <div class="toolbar">
+            <el-button @click="handleView">查看</el-button>
+            <el-button type="primary" @click="handleCreate">创建</el-button>
+            <el-dropdown :disabled="!hasSelection" @command="handleBatchCommand">
+              <el-button>
+                批量操作 <el-icon class="el-icon--right"><arrow-down /></el-icon>
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="delete">批量删除</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+            <el-button :disabled="!hasSelection" @click="handleTags">标签</el-button>
+          </div>
         </div>
       </template>
 
-      <el-table :data="buckets" v-loading="loading">
+      <!-- Search Filters -->
+      <el-form :inline="true" class="search-form">
+        <el-form-item label="名称">
+          <el-input v-model="searchParams.name" placeholder="请输入名称" clearable @clear="loadBuckets" />
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="searchParams.status" placeholder="请选择状态" clearable @clear="loadBuckets">
+            <el-option label="正常" value="active" />
+            <el-option label="创建中" value="creating" />
+            <el-option label="已删除" value="deleted" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="平台">
+          <el-select v-model="searchParams.platform" placeholder="请选择平台" clearable @clear="loadBuckets">
+            <el-option label="阿里云" value="aliyun" />
+            <el-option label="腾讯云" value="tencent" />
+            <el-option label="AWS" value="aws" />
+            <el-option label="Azure" value="azure" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="区域">
+          <el-input v-model="searchParams.region" placeholder="请输入区域" clearable @clear="loadBuckets" />
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="loadBuckets">查询</el-button>
+          <el-button @click="resetSearch">重置</el-button>
+        </el-form-item>
+      </el-form>
+
+      <el-table :data="buckets" v-loading="loading" @selection-change="handleSelectionChange">
+        <el-table-column type="selection" width="55" />
         <el-table-column label="名称" width="200">
           <template #default="{ row }">
             <el-link @click="viewDetail(row)">{{ row.name }}</el-link>
@@ -31,6 +76,16 @@
           </template>
         </el-table-column>
       </el-table>
+
+      <el-pagination
+        v-model:current-page="searchParams.page"
+        v-model:page-size="searchParams.page_size"
+        :total="total"
+        :page-sizes="[10, 20, 50, 100]"
+        layout="total, sizes, prev, pager, next"
+        @size-change="loadBuckets"
+        @current-change="loadBuckets"
+      />
     </el-card>
 
     <!-- Detail Modal -->
@@ -51,12 +106,36 @@
         <el-button @click="detailDialogVisible = false">关闭</el-button>
       </template>
     </el-dialog>
+
+    <!-- Create Modal -->
+    <el-dialog v-model="createDialogVisible" title="创建存储桶" width="500px">
+      <el-form :model="createForm" label-width="100px">
+        <el-form-item label="名称">
+          <el-input v-model="createForm.name" placeholder="请输入存储桶名称" />
+        </el-form-item>
+        <el-form-item label="读写权限">
+          <el-select v-model="createForm.permission" placeholder="请选择读写权限">
+            <el-option label="私有" value="private" />
+            <el-option label="公共读" value="public-read" />
+            <el-option label="公共读写" value="public-read-write" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="区域">
+          <el-input v-model="createForm.region" placeholder="请输入区域" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="createDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="submitCreate">创建</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { ArrowDown } from '@element-plus/icons-vue'
 
 interface Bucket {
   id: string
@@ -73,8 +152,90 @@ interface Bucket {
 
 const buckets = ref<Bucket[]>([])
 const loading = ref(false)
+const total = ref(0)
+const selectedRows = ref<Bucket[]>([])
 const detailDialogVisible = ref(false)
+const createDialogVisible = ref(false)
 const selectedBucket = ref<Bucket | null>(null)
+
+const searchParams = ref({
+  page: 1,
+  page_size: 10,
+  name: '',
+  status: '',
+  platform: '',
+  region: ''
+})
+
+const createForm = ref({
+  name: '',
+  permission: 'private',
+  region: ''
+})
+
+const hasSelection = computed(() => selectedRows.value.length > 0)
+
+const handleSelectionChange = (rows: Bucket[]) => {
+  selectedRows.value = rows
+}
+
+const resetSearch = () => {
+  searchParams.value = {
+    page: 1,
+    page_size: 10,
+    name: '',
+    status: '',
+    platform: '',
+    region: ''
+  }
+  loadBuckets()
+}
+
+const handleView = () => {
+  if (selectedRows.value.length === 1) {
+    viewDetail(selectedRows.value[0])
+  } else {
+    ElMessage.warning('请选择一条记录查看')
+  }
+}
+
+const handleCreate = () => {
+  createForm.value = { name: '', permission: 'private', region: '' }
+  createDialogVisible.value = true
+}
+
+const submitCreate = async () => {
+  try {
+    ElMessage.success('创建成功')
+    createDialogVisible.value = false
+    loadBuckets()
+  } catch (e) {
+    console.error(e)
+    ElMessage.error('创建失败')
+  }
+}
+
+const handleBatchCommand = async (command: string) => {
+  if (!hasSelection.value) return
+  if (command === 'delete') {
+    try {
+      await ElMessageBox.confirm(`确认删除选中的 ${selectedRows.value.length} 个存储桶？`, '警告', { type: 'warning' })
+      buckets.value = buckets.value.filter(b => !selectedRows.value.some(r => r.id === b.id))
+      ElMessage.success('删除成功')
+      loadBuckets()
+    } catch (e) {
+      console.error(e)
+    }
+  }
+}
+
+const handleTags = () => {
+  if (!hasSelection.value) {
+    ElMessage.warning('请选择需要设置标签的存储桶')
+    return
+  }
+  ElMessage.info('标签功能开发中')
+}
 
 const getStatusType = (status: string) => {
   switch (status.toLowerCase()) {
@@ -188,5 +349,14 @@ onMounted(() => {
 .title {
   font-size: 18px;
   font-weight: bold;
+}
+
+.toolbar {
+  display: flex;
+  gap: 8px;
+}
+
+.search-form {
+  margin-bottom: 16px;
 }
 </style>

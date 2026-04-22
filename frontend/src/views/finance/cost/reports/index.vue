@@ -1,60 +1,79 @@
 <template>
-  <div class="finance-page">
-    <el-card>
-      <template #header>
-        <div class="card-header">
-          <span class="title">成本报告</span>
-          <el-button type="primary" @click="handleGenerate">生成报告</el-button>
-        </div>
-      </template>
+  <div class="reports-container">
+    <div class="page-header">
+      <h2>成本报告</h2>
+      <div class="toolbar">
+        <el-button type="primary" @click="handleGenerate">生成报告</el-button>
+      </div>
+    </div>
 
-      <!-- 数据表格 -->
-      <el-table :data="reports" v-loading="loading" style="width: 100%">
-        <el-table-column prop="report_id" label="报告ID" width="150" />
-        <el-table-column prop="report_type" label="报告类型" width="120">
-          <template #default="{ row }">
-            <el-tag>{{ getReportTypeText(row.report_type) }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="period" label="报告周期" width="200">
-          <template #default="{ row }">
-            {{ row.start_date }} 至 {{ row.end_date }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="total_cost" label="总成本" width="120">
-          <template #default="{ row }">
-            ¥{{ row.total_cost?.toFixed(2) || '0.00' }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="created_at" label="生成时间" width="160">
-          <template #default="{ row }">
-            {{ formatDate(row.created_at) }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="status" label="状态" width="80">
-          <template #default="{ row }">
-            <el-tag :type="row.status === 'completed' ? 'success' : 'warning'">
-              {{ row.status === 'completed' ? '已完成' : '生成中' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="120" fixed="right">
-          <template #default="{ row }">
-            <el-button size="small" @click="handleDownload(row)" :disabled="row.status !== 'completed'">
-              下载
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-
-      <el-pagination
-        v-model:current-page="pagination.currentPage"
-        v-model:page-size="pagination.pageSize"
-        :total="pagination.total"
-        layout="total, sizes, prev, pager, next"
-        style="margin-top: 16px; justify-content: flex-end;"
-      />
+    <el-card class="filter-card">
+      <el-form :inline="true" @submit.prevent="loadReports">
+        <el-form-item label="云账号">
+          <el-select v-model="filterAccountId" placeholder="选择云账号" clearable style="width: 200px">
+            <el-option v-for="account in cloudAccounts" :key="account.id" :label="account.name" :value="account.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="报告类型">
+          <el-select v-model="filterReportType" placeholder="报告类型" clearable style="width: 150px">
+            <el-option label="月度报告" value="monthly" />
+            <el-option label="季度报告" value="quarterly" />
+            <el-option label="年度报告" value="yearly" />
+            <el-option label="自定义报告" value="custom" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="loadReports">查询</el-button>
+          <el-button @click="resetFilters">重置</el-button>
+        </el-form-item>
+      </el-form>
     </el-card>
+
+    <el-table :data="reports" v-loading="loading" style="width: 100%" row-key="id">
+      <el-table-column prop="report_id" label="报告ID" width="150" />
+      <el-table-column prop="report_type" label="报告类型" width="120">
+        <template #default="{ row }">
+          <el-tag>{{ getReportTypeText(row.report_type) }}</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column prop="period" label="报告周期" width="200">
+        <template #default="{ row }">
+          {{ row.start_date }} 至 {{ row.end_date }}
+        </template>
+      </el-table-column>
+      <el-table-column prop="total_cost" label="总成本" width="120">
+        <template #default="{ row }">
+          ¥{{ row.total_cost?.toFixed(2) || '0.00' }}
+        </template>
+      </el-table-column>
+      <el-table-column prop="created_at" label="生成时间" width="160">
+        <template #default="{ row }">
+          {{ formatDate(row.created_at) }}
+        </template>
+      </el-table-column>
+      <el-table-column prop="status" label="状态" width="80">
+        <template #default="{ row }">
+          <el-tag :type="row.status === 'completed' ? 'success' : 'warning'">
+            {{ row.status === 'completed' ? '已完成' : '生成中' }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="操作" width="120" fixed="right">
+        <template #default="{ row }">
+          <el-button size="small" @click="handleDownload(row)" :disabled="row.status !== 'completed'">
+            下载
+          </el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+
+    <el-pagination
+      v-model:current-page="pagination.currentPage"
+      v-model:page-size="pagination.pageSize"
+      :total="pagination.total"
+      layout="total, sizes, prev, pager, next"
+      class="pagination"
+    />
 
     <!-- 生成报告对话框 -->
     <el-dialog v-model="generateDialogVisible" title="生成成本报告" width="500px">
@@ -93,7 +112,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getCostReports, generateCostReport } from '@/api/finance'
 import { getCloudAccounts } from '@/api/cloud-account'
@@ -101,6 +120,9 @@ import { getCloudAccounts } from '@/api/cloud-account'
 const reports = ref<any[]>([])
 const loading = ref(false)
 const cloudAccounts = ref<any[]>([])
+const filterAccountId = ref<number | undefined>()
+const filterReportType = ref<string>('')
+
 const pagination = reactive({
   currentPage: 1,
   pageSize: 20,
@@ -140,6 +162,8 @@ const loadReports = async () => {
   loading.value = true
   try {
     const res = await getCostReports({
+      cloud_account_id: filterAccountId.value,
+      report_type: filterReportType.value,
       page: pagination.currentPage,
       page_size: pagination.pageSize
     })
@@ -159,6 +183,13 @@ const loadCloudAccounts = async () => {
   } catch (e) {
     console.error(e)
   }
+}
+
+const resetFilters = () => {
+  filterAccountId.value = undefined
+  filterReportType.value = ''
+  pagination.currentPage = 1
+  loadReports()
 }
 
 const handleGenerate = () => {
@@ -196,6 +227,8 @@ const handleDownload = (row: any) => {
   ElMessage.info('下载功能开发中...')
 }
 
+watch([filterAccountId, filterReportType, pagination.currentPage, pagination.pageSize], loadReports)
+
 onMounted(() => {
   loadCloudAccounts()
   loadReports()
@@ -203,16 +236,25 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.finance-page {
-  height: 100%;
+.reports-container {
+  padding: 20px;
 }
-.card-header {
+.page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 20px;
 }
-.title {
+.page-header h2 {
+  margin: 0;
   font-size: 18px;
-  font-weight: bold;
+  font-weight: 600;
+}
+.filter-card {
+  margin-bottom: 20px;
+}
+.pagination {
+  margin-top: 20px;
+  text-align: right;
 }
 </style>

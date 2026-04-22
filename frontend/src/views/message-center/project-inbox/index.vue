@@ -69,7 +69,7 @@ const loadProjectMessages = async () => {
     if (selectedProjectId.value) {
       // 从API获取项目相关的消息
       const response = await getProjectMessages(selectedProjectId.value)
-      projectMessages.value = response.data.items || []
+      projectMessages.value = response.items || []
     }
   } catch (error) {
     console.error('Failed to load project messages:', error)

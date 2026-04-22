@@ -2,7 +2,23 @@
   <div class="redis-container">
     <div class="page-header">
       <h2>Redis实例管理</h2>
-      <el-button type="primary" @click="showCreateDialog">新建实例</el-button>
+      <div class="toolbar">
+        <el-button @click="loadCacheInstances" :icon="Refresh" circle />
+        <el-button type="primary" @click="showCreateDialog">新建</el-button>
+        <el-button :disabled="selectedRows.length === 0" @click="handleSyncStatus">同步状态</el-button>
+        <el-dropdown :disabled="selectedRows.length === 0" trigger="click">
+          <el-button :disabled="selectedRows.length === 0">
+            批量操作<el-icon class="el-icon--right"><arrow-down /></el-icon>
+          </el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item @click="handleBatchAction('reboot')">批量重启</el-dropdown-item>
+              <el-dropdown-item divided @click="handleBatchAction('delete')">批量删除</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+        <el-button>标签</el-button>
+      </div>
     </div>
 
     <el-card class="filter-card">
@@ -39,10 +55,40 @@
       v-loading="loading"
       style="width: 100%"
       row-key="id"
+      @selection-change="handleSelectionChange"
     >
+      <el-table-column type="selection" width="55" />
       <el-table-column label="名称" min-width="180">
         <template #default="{ row }">
           <el-link type="primary" @click="viewDetail(row)">{{ row.name }}</el-link>
+        </template>
+      </el-table-column>
+      <el-table-column prop="status" label="状态" width="100">
+        <template #default="{ row }">
+          <el-tag :type="getStatusType(row.status)">{{ row.status }}</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column prop="instance_type" label="实例类型" width="150" />
+      <el-table-column label="类型版本" width="120">
+        <template #default="{ row }">
+          {{ row.engine }} {{ row.engine_version }}
+        </template>
+      </el-table-column>
+      <el-table-column label="密码" width="80">
+        <template #default>
+          <el-tag size="small">已设置</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column prop="endpoint" label="地址" width="200" />
+      <el-table-column prop="port" label="端口" width="80" />
+      <el-table-column prop="security_group" label="安全组" width="150">
+        <template #default="{ row }">
+          {{ row.security_group || '-' }}
+        </template>
+      </el-table-column>
+      <el-table-column label="计费类型" width="100">
+        <template #default="{ row }">
+          {{ row.billing_type || '按量付费' }}
         </template>
       </el-table-column>
       <el-table-column label="平台/云账号" width="150">
@@ -55,23 +101,13 @@
           </div>
         </template>
       </el-table-column>
-      <el-table-column prop="status" label="状态" width="100">
+      <el-table-column prop="project" label="项目" width="120">
         <template #default="{ row }">
-          <el-tag :type="getStatusType(row.status)">{{ row.status }}</el-tag>
+          {{ row.project || '-' }}
         </template>
       </el-table-column>
-      <el-table-column prop="instance_type" label="实例规格" width="120" />
-      <el-table-column prop="engine" label="引擎类型" width="100" />
-      <el-table-column label="版本" width="80">
-        <template #default="{ row }">
-          {{ row.engine }} {{ row.engine_version }}
-        </template>
-      </el-table-column>
-      <el-table-column prop="endpoint" label="连接地址" width="200" />
-      <el-table-column prop="port" label="端口" width="80" />
-      <el-table-column prop="vpc_id" label="VPC" width="150" />
-      <el-table-column prop="zone_id" label="可用区" width="120" />
-      <el-table-column label="操作" width="180" fixed="right">
+      <el-table-column prop="zone_id" label="区域" width="120" />
+      <el-table-column label="操作" width="150" fixed="right">
         <template #default="{ row }">
           <el-dropdown trigger="click">
             <el-button size="small">操作<el-icon class="el-icon--right"><arrow-down /></el-icon></el-button>
@@ -121,35 +157,90 @@
     </el-dialog>
 
     <!-- Create Dialog -->
-    <el-dialog v-model="createDialogVisible" title="创建Redis实例" width="600px">
+    <el-dialog v-model="createDialogVisible" title="创建Redis实例" width="700px">
       <el-form :model="createForm" label-width="120px">
-        <el-form-item label="实例名称" required>
+        <el-form-item label="指定项目">
+          <el-select v-model="createForm.project_id" placeholder="选择项目" clearable>
+            <el-option v-for="p in projects" :key="p.id" :label="p.name" :value="p.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="名称" required>
           <el-input v-model="createForm.name" placeholder="请输入实例名称" />
         </el-form-item>
-        <el-form-item label="引擎类型" required>
-          <el-select v-model="createForm.engine" placeholder="选择引擎类型">
+        <el-form-item label="描述">
+          <el-input v-model="createForm.description" type="textarea" placeholder="请输入描述" />
+        </el-form-item>
+        <el-form-item label="计费类型">
+          <el-radio-group v-model="createForm.billing_type">
+            <el-radio value="Postpaid">按量付费</el-radio>
+            <el-radio value="Prepaid">包年包月</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="过期释放">
+          <el-radio-group v-model="createForm.auto_release">
+            <el-radio value="unlimited">不限</el-radio>
+            <el-radio value="limited">指定时间</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="创建数量">
+          <el-input-number v-model="createForm.quantity" :min="1" :max="10" />
+        </el-form-item>
+        <el-form-item label="区域" required>
+          <el-select v-model="createForm.zone_id" placeholder="选择区域" @change="loadCacheSKUs">
+            <el-option v-for="z in zones" :key="z.id" :label="z.name" :value="z.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="类型" required>
+          <el-select v-model="createForm.engine" placeholder="选择类型" @change="loadCacheSKUs">
             <el-option label="Redis" value="Redis" />
             <el-option label="Memcached" value="Memcached" />
           </el-select>
         </el-form-item>
-        <el-form-item label="引擎版本" required>
-          <el-select v-model="createForm.engine_version" placeholder="选择版本">
+        <el-form-item label="版本" required>
+          <el-select v-model="createForm.engine_version" placeholder="选择版本" @change="loadCacheSKUs">
             <el-option label="Redis 5.0" value="5.0" />
             <el-option label="Redis 6.0" value="6.0" />
             <el-option label="Redis 7.0" value="7.0" />
           </el-select>
         </el-form-item>
+        <el-form-item label="节点类型">
+          <el-select v-model="createForm.node_type" placeholder="选择节点类型" @change="loadCacheSKUs">
+            <el-option label="单节点" value="standalone" />
+            <el-option label="主备" value="ha" />
+            <el-option label="集群" value="cluster" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="性能类型">
+          <el-select v-model="createForm.performance_type" placeholder="选择性能类型" @change="loadCacheSKUs">
+            <el-option label="标准版" value="standard" />
+            <el-option label="性能增强版" value="performance" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="内存大小">
+          <el-select v-model="createForm.memory_mb" placeholder="选择内存">
+            <el-option label="1 GB" :value="1024" />
+            <el-option label="2 GB" :value="2048" />
+            <el-option label="4 GB" :value="4096" />
+            <el-option label="8 GB" :value="8192" />
+            <el-option label="16 GB" :value="16384" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="实例规格" required>
-          <el-input v-model="createForm.instance_type" placeholder="如: redis.standard.small.default" />
+          <el-select v-model="createForm.instance_type" placeholder="选择实例规格">
+            <el-option
+              v-for="sku in cacheSkus"
+              :key="sku.id"
+              :label="`${sku.instance_type} (${sku.memory_mb}MB)`"
+              :value="sku.instance_type"
+            />
+          </el-select>
+          <span v-if="cacheSkus.length > 0" class="sku-count">共 {{ cacheSkus.length }} 个可用规格</span>
         </el-form-item>
         <el-form-item label="VPC" required>
           <el-input v-model="createForm.vpc_id" placeholder="VPC ID" />
         </el-form-item>
         <el-form-item label="子网" required>
           <el-input v-model="createForm.subnet_id" placeholder="子网 ID" />
-        </el-form-item>
-        <el-form-item label="可用区">
-          <el-input v-model="createForm.zone_id" placeholder="可用区 ID" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -185,19 +276,30 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowDown } from '@element-plus/icons-vue'
+import { ArrowDown, Refresh } from '@element-plus/icons-vue'
 import CloudAccountSelector from '@/components/common/CloudAccountSelector.vue'
-import { listCache, createCache, deleteCache, cacheAction, resizeCache, createCacheBackup, type CacheInstance, type CacheConfig } from '@/api/database'
+import { listCache, createCache, deleteCache, cacheAction, resizeCache, createCacheBackup, listCacheSKUs, type CacheInstance, type CacheConfig, type CacheInstanceSKU } from '@/api/database'
 
 interface Redis extends CacheInstance {
   platform?: string
   account_name?: string
+  project?: string
+  billing_type?: string
+  security_group?: string
 }
 
 const cacheInstances = ref<Redis[]>([])
 const loading = ref(false)
 const detailDialogVisible = ref(false)
 const selectedCache = ref<Redis | null>(null)
+const selectedRows = ref<Redis[]>([])
+
+// SKU数据
+const cacheSkus = ref<CacheInstanceSKU[]>([])
+
+// 项目和区域数据
+const projects = ref<any[]>([])
+const zones = ref<any[]>([])
 
 // 分页数据
 const pagination = reactive({
@@ -216,15 +318,24 @@ const filters = reactive({
 // Create dialog
 const createDialogVisible = ref(false)
 const createLoading = ref(false)
-const createForm = ref<CacheConfig>({
+const createForm = ref({
   account_id: 0,
+  project_id: null as number | null,
   name: '',
+  description: '',
+  billing_type: 'Postpaid',
+  auto_release: 'unlimited',
+  quantity: 1,
   engine: 'Redis',
   engine_version: '6.0',
+  node_type: 'standalone',
+  performance_type: 'standard',
+  memory_mb: 1024,
   instance_type: '',
   vpc_id: '',
   subnet_id: '',
-  zone_id: ''
+  zone_id: '',
+  tags: {} as Record<string, string>
 })
 
 // Resize dialog
@@ -290,6 +401,40 @@ const handleAccountChange = (accountId: number | null) => {
   }
 }
 
+const handleSelectionChange = (rows: Redis[]) => {
+  selectedRows.value = rows
+}
+
+const handleSyncStatus = () => {
+  ElMessage.info('同步状态功能开发中')
+}
+
+const handleBatchAction = async (action: string) => {
+  if (selectedRows.value.length === 0) return
+
+  try {
+    await ElMessageBox.confirm(`确认对 ${selectedRows.value.length} 个实例执行 ${action} 操作？`, '确认', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+
+    for (const row of selectedRows.value) {
+      if (action === 'reboot') {
+        await cacheAction(filters.account_id!, row.id, 'reboot')
+      } else if (action === 'delete') {
+        await deleteCache(filters.account_id!, row.id)
+      }
+    }
+    ElMessage.success(`批量 ${action} 执行成功`)
+    loadCacheInstances()
+  } catch (e: any) {
+    if (e !== 'cancel') {
+      ElMessage.error(e.message || '操作失败')
+    }
+  }
+}
+
 const loadCacheInstances = async () => {
   if (!filters.account_id) {
     cacheInstances.value = []
@@ -317,6 +462,30 @@ const loadCacheInstances = async () => {
   }
 }
 
+const loadCacheSKUs = async () => {
+  if (!filters.account_id) return
+
+  try {
+    const res = await listCacheSKUs({
+      account_id: filters.account_id,
+      engine: createForm.value.engine || undefined,
+      engine_version: createForm.value.engine_version || undefined,
+      node_type: createForm.value.node_type || undefined,
+      performance_type: createForm.value.performance_type || undefined,
+      region_id: createForm.value.zone_id || undefined
+    })
+    cacheSkus.value = res || []
+
+    // 根据内存过滤
+    if (createForm.value.memory_mb) {
+      cacheSkus.value = cacheSkus.value.filter(sku => sku.memory_mb === createForm.value.memory_mb)
+    }
+  } catch (e: any) {
+    console.error(e)
+    cacheSkus.value = []
+  }
+}
+
 const viewDetail = (row: Redis) => {
   selectedCache.value = row
   detailDialogVisible.value = true
@@ -332,9 +501,25 @@ const showCreateDialog = () => {
 }
 
 const handleCreate = async () => {
+  if (!createForm.value.name || !createForm.value.instance_type) {
+    ElMessage.warning('请填写必填字段')
+    return
+  }
+
   createLoading.value = true
   try {
-    const instance = await createCache(createForm.value)
+    const config: CacheConfig = {
+      account_id: createForm.value.account_id,
+      name: createForm.value.name,
+      engine: createForm.value.engine,
+      engine_version: createForm.value.engine_version,
+      instance_type: createForm.value.instance_type,
+      vpc_id: createForm.value.vpc_id,
+      subnet_id: createForm.value.subnet_id,
+      zone_id: createForm.value.zone_id,
+      tags: createForm.value.tags
+    }
+    const instance = await createCache(config)
     ElMessage.success(`Redis实例 ${instance.name} 创建成功`)
     createDialogVisible.value = false
     loadCacheInstances()
@@ -439,7 +624,13 @@ const handleCurrentChange = (page: number) => {
 }
 
 onMounted(() => {
-  // Wait for account selector to initialize
+  // 初始化项目和区域数据
+  projects.value = [{ id: 1, name: 'system' }]
+  zones.value = [
+    { id: 'cn-hangzhou', name: '杭州' },
+    { id: 'cn-shanghai', name: '上海' },
+    { id: 'cn-beijing', name: '北京' }
+  ]
 })
 </script>
 
@@ -459,6 +650,11 @@ onMounted(() => {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
+}
+
+.toolbar {
+  display: flex;
+  gap: 8px;
 }
 
 .filter-card {
@@ -482,5 +678,11 @@ onMounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.sku-count {
+  margin-left: 8px;
+  font-size: 12px;
+  color: var(--text-color-secondary);
 }
 </style>

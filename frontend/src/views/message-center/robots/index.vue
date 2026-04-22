@@ -1,37 +1,33 @@
 <template>
-  <div class="robots-page">
-    <el-card class="page-card">
-      <template #header>
-        <div class="card-header">
-          <span class="title">机器人管理</span>
-          <!-- 工具栏按钮 -->
-          <div class="toolbar">
-            <el-button @click="loadRobots" :icon="Refresh" circle title="刷新" />
-            <el-button type="primary" @click="handleCreate">
-              新建
-            </el-button>
-            <el-dropdown trigger="click" :disabled="selectedRows.length === 0">
-              <el-button :disabled="selectedRows.length === 0">
-                批量操作
-                <el-icon class="el-icon--right"><ArrowDown /></el-icon>
-              </el-button>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item @click="handleBatchEnable">批量启用</el-dropdown-item>
-                  <el-dropdown-item @click="handleBatchDisable">批量禁用</el-dropdown-item>
-                  <el-dropdown-item @click="handleBatchDelete" divided>批量删除</el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-            <el-button @click="showSettings" :icon="Setting" circle title="设置" />
-          </div>
-        </div>
-      </template>
+  <div class="robots-container">
+    <div class="page-header">
+      <h2>机器人管理</h2>
+      <div class="toolbar">
+        <el-button @click="loadRobots" :icon="Refresh" circle title="刷新" />
+        <el-button type="primary" @click="handleCreate">
+          新建
+        </el-button>
+        <el-dropdown trigger="click" :disabled="selectedRows.length === 0">
+          <el-button :disabled="selectedRows.length === 0">
+            批量操作
+            <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+          </el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item @click="handleBatchEnable">批量启用</el-dropdown-item>
+              <el-dropdown-item @click="handleBatchDisable">批量禁用</el-dropdown-item>
+              <el-dropdown-item @click="handleBatchDelete" divided>批量删除</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+        <el-button @click="showSettings" :icon="Setting" circle title="设置" />
+      </div>
+    </div>
 
-      <!-- 搜索栏 -->
-      <div class="search-bar">
-        <div class="search-box">
-          <el-select v-model="searchField" placeholder="搜索属性" style="width: 120px" class="search-field-select">
+    <el-card class="filter-card">
+      <el-form :inline="true" @submit.prevent="loadRobots">
+        <el-form-item>
+          <el-select v-model="searchField" placeholder="搜索属性" style="width: 120px">
             <el-option label="名称" value="name" />
             <el-option label="状态" value="status" />
             <el-option label="启用状态" value="enabled" />
@@ -39,6 +35,8 @@
             <el-option label="所属项目" value="project" />
             <el-option label="创建时间" value="created_at" />
           </el-select>
+        </el-form-item>
+        <el-form-item>
           <el-input
             v-model="searchKeyword"
             placeholder="默认为名称搜索"
@@ -50,10 +48,11 @@
               <el-icon class="search-icon" @click="loadRobots"><Search /></el-icon>
             </template>
           </el-input>
-        </div>
-      </div>
+        </el-form-item>
+      </el-form>
+    </el-card>
 
-      <!-- 表格 -->
+    <el-card>
       <el-table
         :data="robots"
         v-loading="loading"
@@ -62,15 +61,12 @@
         row-key="id"
         @selection-change="handleSelectionChange"
       >
-        <!-- 选择列 -->
         <el-table-column type="selection" width="50" />
-        <!-- 名称 -->
         <el-table-column label="名称" min-width="150" show-overflow-tooltip>
           <template #default="{ row }">
             {{ row.name }}
           </template>
         </el-table-column>
-        <!-- 状态 -->
         <el-table-column label="状态" width="100">
           <template #default="{ row }">
             <el-tag :type="row.status === 'ready' ? 'success' : 'warning'">
@@ -78,7 +74,6 @@
             </el-tag>
           </template>
         </el-table-column>
-        <!-- 启用状态 -->
         <el-table-column label="启用状态" width="100">
           <template #default="{ row }">
             <el-tag :type="row.enabled ? 'success' : 'info'">
@@ -86,31 +81,26 @@
             </el-tag>
           </template>
         </el-table-column>
-        <!-- 类型 -->
         <el-table-column label="类型" width="120">
           <template #default="{ row }">
             <el-tag>{{ getTypeName(row.type) }}</el-tag>
           </template>
         </el-table-column>
-        <!-- 所属项目 -->
         <el-table-column label="所属项目" width="120">
           <template #default="{ row }">
             {{ row.project?.name || '-' }}
           </template>
         </el-table-column>
-        <!-- 共享范围 -->
         <el-table-column label="共享范围" width="100">
           <template #default="{ row }">
             {{ row.shared_scope || '私有' }}
           </template>
         </el-table-column>
-        <!-- 创建时间 -->
         <el-table-column label="创建时间" width="160">
           <template #default="{ row }">
             {{ formatDate(row.created_at) }}
           </template>
         </el-table-column>
-        <!-- 操作 -->
         <el-table-column label="操作" width="140" fixed="right">
           <template #default="{ row }">
             <el-button size="small" type="primary" link @click="handleEdit(row)">编辑</el-button>
@@ -139,7 +129,6 @@
         </el-table-column>
       </el-table>
 
-      <!-- 分页 -->
       <el-pagination
         v-model:current-page="pagination.page"
         v-model:page-size="pagination.pageSize"
@@ -155,17 +144,14 @@
     <!-- 创建/编辑对话框 -->
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="600px" destroy-on-close>
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px" label-position="left">
-        <!-- 项目 -->
         <el-form-item label="项目">
           <el-select v-model="form.project_id" placeholder="请选择项目" style="width: 300px" clearable>
             <el-option v-for="project in projects" :key="project.id" :label="project.name" :value="project.id" />
           </el-select>
         </el-form-item>
-        <!-- 名称 -->
         <el-form-item label="名称" prop="name">
           <el-input v-model="form.name" placeholder="2-128字符，包含字母、数字、连字符，以字母开头，不能以连字符结尾" />
         </el-form-item>
-        <!-- 类型 - Radio按钮组 -->
         <el-form-item label="类型" prop="type">
           <el-radio-group v-model="form.type">
             <el-radio-button label="dingtalk">钉钉机器人</el-radio-button>
@@ -186,7 +172,6 @@
             </a>
           </div>
         </el-form-item>
-        <!-- 钉钉/飞书/企业微信类型的密钥 -->
         <el-form-item v-if="form.type !== 'webhook'" label="密钥（如有）">
           <el-input v-model="form.secret" type="password" placeholder="请输入签名密钥" show-password />
         </el-form-item>
@@ -211,11 +196,9 @@
           <el-input v-model="form.secret_key" type="password" placeholder="用于签名验证的密钥" show-password />
         </el-form-item>
 
-        <!-- 描述 -->
         <el-form-item label="描述">
           <el-input v-model="form.description" type="textarea" :rows="2" placeholder="请输入描述" />
         </el-form-item>
-        <!-- 启用 -->
         <el-form-item label="启用">
           <el-switch v-model="form.enabled" />
         </el-form-item>
@@ -282,7 +265,6 @@ const formRef = ref<FormInstance>()
 const selectedRows = ref<Robot[]>([])
 const projects = ref<Project[]>([])
 
-// 搜索相关
 const searchField = ref('name')
 const searchKeyword = ref('')
 
@@ -309,7 +291,6 @@ const rules = {
   ]
 }
 
-// 类型映射常量
 const TYPE_MAP: Record<string, string> = {
   dingtalk: '钉钉',
   feishu: '飞书',
@@ -319,7 +300,6 @@ const TYPE_MAP: Record<string, string> = {
   lark: '飞书'
 }
 
-// 状态映射常量
 const STATUS_MAP: Record<string, string> = {
   ready: '就绪',
   creating: '创建中',
@@ -355,7 +335,6 @@ const loadProjects = async () => {
   try {
     const res = await getProjects({ limit: 1000 })
     projects.value = res.items || []
-    // 默认选中 system 项目
     const systemProject = projects.value.find(p => p.name === 'system')
     if (systemProject && !form.project_id) {
       form.project_id = systemProject.id
@@ -365,12 +344,10 @@ const loadProjects = async () => {
   }
 }
 
-// 选择变化处理
 const handleSelectionChange = (rows: Robot[]) => {
   selectedRows.value = rows
 }
 
-// 批量启用
 const handleBatchEnable = async () => {
   if (selectedRows.value.length === 0) {
     ElMessage.warning('请选择要启用的机器人')
@@ -392,7 +369,6 @@ const handleBatchEnable = async () => {
   }
 }
 
-// 批量禁用
 const handleBatchDisable = async () => {
   if (selectedRows.value.length === 0) {
     ElMessage.warning('请选择要禁用的机器人')
@@ -414,7 +390,6 @@ const handleBatchDisable = async () => {
   }
 }
 
-// 批量删除
 const handleBatchDelete = async () => {
   if (selectedRows.value.length === 0) {
     ElMessage.warning('请选择要删除的机器人')
@@ -437,7 +412,6 @@ const handleBatchDelete = async () => {
   }
 }
 
-// 设置弹窗
 const showSettings = () => {
   ElMessage.info('设置功能开发中')
 }
@@ -531,7 +505,7 @@ const handleSubmit = async () => {
   try {
     await formRef.value?.validate()
   } catch {
-    return // 验证失败，不继续执行
+    return
   }
   submitting.value = true
   try {
@@ -588,24 +562,21 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.robots-page {
-  height: 100%;
+.robots-container {
   padding: 20px;
 }
 
-.page-card {
-  height: 100%;
-}
-
-.card-header {
+.page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 16px;
 }
 
-.title {
+.page-header h2 {
+  margin: 0;
   font-size: 18px;
-  font-weight: bold;
+  font-weight: 600;
 }
 
 .toolbar {
@@ -613,41 +584,26 @@ onMounted(async () => {
   gap: 8px;
 }
 
-/* 搜索栏样式 */
-.search-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+.filter-card {
   margin-bottom: 16px;
-  flex-wrap: wrap;
-  gap: 16px;
-}
-
-.search-box {
-  display: flex;
-  align-items: center;
-  gap: 8px;
 }
 
 .search-icon {
   cursor: pointer;
 }
 
-/* 分页样式 */
 .pagination {
   margin-top: 16px;
   display: flex;
   justify-content: flex-end;
 }
 
-/* 弹窗底部按钮布局 */
 .dialog-footer {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
 }
 
-/* 表单附加信息 */
 .form-extra {
   font-size: 12px;
   color: #909399;

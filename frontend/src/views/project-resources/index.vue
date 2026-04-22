@@ -155,7 +155,7 @@ const loadProjectAlerts = async () => {
     if (projectId.value) {
       // 从API获取项目相关的安全告警
       const response = await getProjectSecurityAlerts(projectId.value)
-      projectAlerts.value = response.data.items || []
+      projectAlerts.value = response.items || []
     }
   } catch (error) {
     console.error('Failed to load project alerts:', error)
@@ -171,7 +171,7 @@ const loadProjectMessages = async () => {
     if (projectId.value) {
       // 从API获取项目相关的消息
       const response = await getProjectMessages(projectId.value)
-      projectMessages.value = response.data.items || []
+      projectMessages.value = response.items || []
     }
   } catch (error) {
     console.error('Failed to load project messages:', error)
@@ -187,7 +187,7 @@ const loadProjectRobots = async () => {
     if (projectId.value) {
       // 从API获取项目相关的机器人
       const response = await getProjectRobots(projectId.value)
-      projectRobots.value = response.data.items || []
+      projectRobots.value = response.items || []
     }
   } catch (error) {
     console.error('Failed to load project robots:', error)

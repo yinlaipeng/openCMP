@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -452,5 +453,59 @@ func (h *ComputeHandler) ListImages(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"items": images,
 		"total": len(images),
+	})
+}
+
+// BatchVMActionRequest 批量虚拟机操作请求
+type BatchVMActionRequest struct {
+	VMIDs     []string `json:"vm_ids" binding:"required"`
+	AccountID uint     `json:"account_id" binding:"required"`
+	Action    string   `json:"action" binding:"required"` // start/stop/reboot/delete
+}
+
+// BatchVMAction 批量虚拟机操作
+func (h *ComputeHandler) BatchVMAction(c *gin.Context) {
+	var req BatchVMActionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if len(req.VMIDs) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "vm_ids is required"})
+		return
+	}
+
+	results := make([]map[string]interface{}, 0, len(req.VMIDs))
+	for _, vmID := range req.VMIDs {
+		err := h.service.VMAction(c.Request.Context(), req.AccountID, vmID, req.Action)
+		if err != nil {
+			results = append(results, map[string]interface{}{
+				"vm_id":  vmID,
+				"status": "failed",
+				"error":  err.Error(),
+			})
+		} else {
+			results = append(results, map[string]interface{}{
+				"vm_id":  vmID,
+				"status": "success",
+			})
+		}
+	}
+
+	successCount := 0
+	for _, r := range results {
+		if r["status"] == "success" {
+			successCount++
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"total":     len(req.VMIDs),
+		"success":   successCount,
+		"failed":    len(req.VMIDs) - successCount,
+		"results":   results,
+		"action":    req.Action,
+		"message":   fmt.Sprintf("批量%s操作完成，成功 %d 个，失败 %d 个", req.Action, successCount, len(req.VMIDs)-successCount),
 	})
 }

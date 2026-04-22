@@ -4,37 +4,158 @@
       <template #header>
         <div class="card-header">
           <span class="title">应用程序服务列表</span>
+          <div class="toolbar">
+          <el-button link @click="handleViewMode">
+          <el-icon><View /></el-icon>
+           查看
+          </el-button>
+          <el-button :disabled="selectedRows.length === 0" @click="handleSyncStatus" :loading="syncing">
+           同步状态
+          </el-button>
+          <el-button :disabled="selectedRows.length === 0" @click="handleBatchDelete">
+           删除
+          </el-button>
+          <el-button :disabled="selectedRows.length === 0" @click="handleSetTags">
+           设置标签
+           </el-button>
+				<el-button @click="handleRefresh">
+					<el-icon><Refresh /></el-icon>
+				</el-button>
+				<el-button @click="handleTags">
+					标签
+				</el-button>
+			</div>
         </div>
       </template>
 
-      <el-table :data="appServices" v-loading="loading">
-        <el-table-column label="名称" width="180">
+      <!-- 搜索表单 -->
+      <el-form :inline="true" :model="queryParams" class="search-form" @submit.prevent="loadData">
+        <el-form-item label="名称">
+          <el-input v-model="queryParams.name" placeholder="搜索名称" clearable style="width: 200px" />
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="queryParams.status" placeholder="选择状态" clearable style="width: 140px">
+            <el-option label="正常" value="normal" />
+            <el-option label="运行中" value="running" />
+            <el-option label="已停止" value="stopped" />
+            <el-option label="错误" value="error" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="技术栈">
+          <el-select v-model="queryParams.stack" placeholder="选择技术栈" clearable style="width: 140px">
+            <el-option label="Tomcat" value="tomcat" />
+            <el-option label="Nginx" value="nginx" />
+            <el-option label="Node.js" value="nodejs" />
+            <el-option label="Java" value="java" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="平台">
+          <el-select v-model="queryParams.platform" placeholder="选择平台" clearable style="width: 140px">
+            <el-option label="阿里云" value="alibaba" />
+            <el-option label="腾讯云" value="tencent" />
+            <el-option label="AWS" value="aws" />
+            <el-option label="Azure" value="azure" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="云账户">
+          <el-select v-model="queryParams.cloud_account_id" placeholder="选择云账户" clearable style="width: 160px">
+            <el-option v-for="account in cloudAccounts" :key="account.id" :label="account.name" :value="account.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="loadData">查询</el-button>
+          <el-button @click="resetQuery">重置</el-button>
+        </el-form-item>
+      </el-form>
+
+      <el-table
+        :data="appServices"
+        v-loading="loading"
+        @selection-change="handleSelectionChange"
+        row-key="id"
+      >
+        <el-table-column type="selection" width="55" />
+        <el-table-column label="名称" min-width="150">
           <template #default="{ row }">
-            <el-link @click="viewDetail(row)">{{ row.name }}</el-link>
+            <el-link type="primary" :underline="false" @click="viewDetail(row)">{{ row.name }}</el-link>
           </template>
         </el-table-column>
-        <el-table-column prop="tags" label="标签" width="150" />
+        <el-table-column prop="tags" label="标签" width="150">
+          <template #default="{ row }">
+            <span v-if="row.tags">{{ formatTags(row.tags) }}</span>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="status" label="状态" width="100">
           <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)">{{ row.status }}</el-tag>
+            <el-tag :type="getStatusType(row.status)">{{ getStatusName(row.status) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="tech_stack" label="技术栈" width="120" />
-        <el-table-column prop="os" label="操作系统" width="120" />
-        <el-table-column prop="endpoint" label="入站点地址" width="180" />
-        <el-table-column prop="domain" label="域" width="150" />
-        <el-table-column prop="plan" label="应用服务计划" width="150" />
-        <el-table-column prop="platform" label="平台" width="100" />
-        <el-table-column prop="account" label="云账号" width="150" />
-        <el-table-column prop="region" label="区域" width="120" />
-        <el-table-column prop="project" label="项目" width="120" />
-        <el-table-column label="操作" width="150">
+        <el-table-column prop="stack" label="技术栈" width="100">
           <template #default="{ row }">
-            <el-button size="small" @click="handleEdit(row)">编辑</el-button>
-            <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
+            <span>{{ row.stack || '-' }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="os_type" label="操作系统" width="100">
+          <template #default="{ row }">
+            <span>{{ row.os_type || '-' }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="ip_addr" label="IP地址" width="120">
+          <template #default="{ row }">
+            <span>{{ row.ip_addr || '-' }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="domain" label="域名" width="150">
+          <template #default="{ row }">
+            <span>{{ row.domain || '-' }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="server_farm" label="服务器组" width="120">
+          <template #default="{ row }">
+            <span>{{ row.server_farm || '-' }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="platform" label="平台" width="100">
+          <template #default="{ row }">
+            <el-tag size="small" :type="getPlatformType(row.platform)" effect="plain">
+              {{ getPlatformLabel(row.platform) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="云账户" width="150">
+          <template #default="{ row }">
+            <span>{{ row.cloud_account?.name || '-' }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="region_id" label="区域" width="120">
+          <template #default="{ row }">
+            <span>{{ row.region_id || '-' }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="project_id" label="项目" width="120">
+          <template #default="{ row }">
+            <span>{{ row.project_id || '-' }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="150" fixed="right">
+          <template #default="{ row }">
+            <el-button size="small" link @click="handleEdit(row)">编辑</el-button>
+            <el-button size="small" link type="danger" @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
+
+      <el-pagination
+        v-model:current-page="queryParams.page"
+        v-model:page-size="queryParams.page_size"
+        :total="total"
+        :page-sizes="[10, 20, 50, 100]"
+        layout="total, sizes, prev, pager, next"
+        @size-change="loadData"
+        @current-change="loadData"
+        style="margin-top: 16px; justify-content: flex-end"
+      />
     </el-card>
 
     <!-- Detail Modal -->
@@ -42,21 +163,62 @@
       <el-descriptions :column="2" border>
         <el-descriptions-item label="ID">{{ selectedAppService?.id }}</el-descriptions-item>
         <el-descriptions-item label="名称">{{ selectedAppService?.name }}</el-descriptions-item>
-        <el-descriptions-item label="标签">{{ selectedAppService?.tags }}</el-descriptions-item>
-        <el-descriptions-item label="状态">{{ selectedAppService?.status }}</el-descriptions-item>
-        <el-descriptions-item label="技术栈">{{ selectedAppService?.tech_stack }}</el-descriptions-item>
-        <el-descriptions-item label="操作系统">{{ selectedAppService?.os }}</el-descriptions-item>
-        <el-descriptions-item label="入站点地址">{{ selectedAppService?.endpoint }}</el-descriptions-item>
-        <el-descriptions-item label="域">{{ selectedAppService?.domain }}</el-descriptions-item>
-        <el-descriptions-item label="应用服务计划">{{ selectedAppService?.plan }}</el-descriptions-item>
-        <el-descriptions-item label="平台">{{ selectedAppService?.platform }}</el-descriptions-item>
-        <el-descriptions-item label="云账号">{{ selectedAppService?.account }}</el-descriptions-item>
-        <el-descriptions-item label="区域">{{ selectedAppService?.region }}</el-descriptions-item>
-        <el-descriptions-item label="项目">{{ selectedAppService?.project }}</el-descriptions-item>
+        <el-descriptions-item label="标签">{{ formatTags(selectedAppService?.tags) || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="状态">
+          <el-tag :type="getStatusType(selectedAppService?.status || '')">
+            {{ getStatusName(selectedAppService?.status || '') }}
+          </el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="技术栈">{{ selectedAppService?.stack || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="操作系统">{{ selectedAppService?.os_type || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="IP地址">{{ selectedAppService?.ip_addr || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="域名">{{ selectedAppService?.domain || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="服务器组">{{ selectedAppService?.server_farm || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="平台">{{ getPlatformLabel(selectedAppService?.platform) }}</el-descriptions-item>
+        <el-descriptions-item label="云账户">{{ selectedAppService?.cloud_account?.name || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="区域">{{ selectedAppService?.region_id || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="项目">{{ selectedAppService?.project_id || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="外部ID">{{ selectedAppService?.external_id || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="描述">{{ selectedAppService?.description || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="同步时间">{{ selectedAppService?.sync_time || '-' }}</el-descriptions-item>
         <el-descriptions-item label="创建时间">{{ selectedAppService?.created_at }}</el-descriptions-item>
       </el-descriptions>
       <template #footer>
         <el-button @click="detailDialogVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- Edit Modal -->
+    <el-dialog v-model="editDialogVisible" title="编辑应用程序服务" width="500px">
+      <el-form :model="editForm" label-width="80px">
+        <el-form-item label="名称">
+          <el-input v-model="editForm.name" />
+        </el-form-item>
+        <el-form-item label="技术栈">
+          <el-input v-model="editForm.stack" />
+        </el-form-item>
+        <el-form-item label="操作系统">
+          <el-input v-model="editForm.os_type" />
+        </el-form-item>
+        <el-form-item label="IP地址">
+          <el-input v-model="editForm.ip_addr" />
+        </el-form-item>
+        <el-form-item label="域名">
+          <el-input v-model="editForm.domain" />
+        </el-form-item>
+        <el-form-item label="服务器组">
+          <el-input v-model="editForm.server_farm" />
+        </el-form-item>
+        <el-form-item label="描述">
+          <el-input v-model="editForm.description" type="textarea" :rows="3" />
+        </el-form-item>
+        <el-form-item label="启用">
+          <el-switch v-model="editForm.enabled" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="editDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="submitEdit" :loading="editLoading">保存</el-button>
       </template>
     </el-dialog>
   </div>
@@ -65,36 +227,60 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Refresh, View } from '@element-plus/icons-vue'
+import {
+  getWebappList,
+  getWebappDetail,
+  updateWebapp,
+  deleteWebapp,
+  batchDeleteWebapp,
+  syncWebappStatus,
+  WebappInstance,
+  WebappListParams,
+  UpdateWebappParams
+} from '@/api/webapp'
+import { getCloudAccounts } from '@/api/cloud-account'
 
-interface AppService {
-  id: string
-  name: string
-  tags: string
-  status: string
-  tech_stack: string
-  os: string
-  endpoint: string
-  domain: string
-  plan: string
-  platform: string
-  account: string
-  region: string
-  project: string
-  created_at: string
-}
-
-const appServices = ref<AppService[]>([])
+const appServices = ref<WebappInstance[]>([])
+const cloudAccounts = ref<{ id: number; name: string }[]>([])
 const loading = ref(false)
+const syncing = ref(false)
+const total = ref(0)
+const selectedRows = ref<WebappInstance[]>([])
 const detailDialogVisible = ref(false)
-const selectedAppService = ref<AppService | null>(null)
+const editDialogVisible = ref(false)
+const editLoading = ref(false)
+const selectedAppService = ref<WebappInstance | null>(null)
+
+const queryParams = ref<WebappListParams>({
+  page: 1,
+  page_size: 20,
+  name: '',
+  status: '',
+  platform: '',
+  cloud_account_id: '',
+  project_id: '',
+  stack: ''
+})
+
+const editForm = ref<UpdateWebappParams>({
+  name: '',
+  stack: '',
+  os_type: '',
+  ip_addr: '',
+  domain: '',
+  server_farm: '',
+  description: '',
+  enabled: true
+})
 
 const getStatusType = (status: string) => {
-  switch (status.toLowerCase()) {
+  switch (status?.toLowerCase()) {
+    case 'normal':
     case 'running':
-    case 'active':
       return 'success'
+    case 'creating':
     case 'pending':
-    case 'deploying':
       return 'warning'
     case 'stopped':
     case 'error':
@@ -104,99 +290,219 @@ const getStatusType = (status: string) => {
   }
 }
 
-const loadAppServices = async () => {
+const getStatusName = (status: string) => {
+  switch (status?.toLowerCase()) {
+    case 'normal':
+      return '正常'
+    case 'running':
+      return '运行中'
+    case 'stopped':
+      return '已停止'
+    case 'creating':
+      return '创建中'
+    case 'error':
+      return '错误'
+    default:
+      return status || '未知'
+  }
+}
+
+const getPlatformType = (platform: string) => {
+  switch (platform?.toLowerCase()) {
+    case 'alibaba':
+    case 'aliyun':
+      return ''
+    case 'tencent':
+      return 'success'
+    case 'aws':
+      return 'warning'
+    case 'azure':
+      return 'info'
+    default:
+      return ''
+  }
+}
+
+const getPlatformLabel = (platform: string) => {
+  switch (platform?.toLowerCase()) {
+    case 'alibaba':
+    case 'aliyun':
+      return '阿里云'
+    case 'tencent':
+      return '腾讯云'
+    case 'aws':
+      return 'AWS'
+    case 'azure':
+      return 'Azure'
+    default:
+      return platform || '-'
+  }
+}
+
+const formatTags = (tags: Record<string, string> | null | undefined) => {
+  if (!tags) return '-'
+  return Object.entries(tags).map(([k, v]) => `${k}:${v}`).join(', ')
+}
+
+const loadData = async () => {
   loading.value = true
   try {
-    // Mock data
-    appServices.value = [
-      {
-        id: 'app-1',
-        name: '应用程序服务 1',
-        tags: 'web',
-        status: 'Running',
-        tech_stack: 'Java',
-        os: 'Linux',
-        endpoint: 'https://app1.example.com',
-        domain: 'Default Domain',
-        plan: '标准版',
-        platform: '阿里云',
-        account: 'Aliyun Account 1',
-        region: 'cn-hangzhou',
-        project: 'Project A',
-        created_at: '2024-01-01 10:00:00'
-      },
-      {
-        id: 'app-2',
-        name: '应用程序服务 2',
-        tags: 'api',
-        status: 'Deploying',
-        tech_stack: 'Python',
-        os: 'Linux',
-        endpoint: 'https://app2.example.com',
-        domain: 'Default Domain',
-        plan: '高级版',
-        platform: '阿里云',
-        account: 'Aliyun Account 1',
-        region: 'cn-shanghai',
-        project: 'Project B',
-        created_at: '2024-01-02 10:00:00'
-      },
-      {
-        id: 'app-3',
-        name: '应用程序服务 3',
-        tags: 'backend',
-        status: 'Stopped',
-        tech_stack: 'Node.js',
-        os: 'Windows',
-        endpoint: 'https://app3.example.com',
-        domain: 'Domain A',
-        plan: '基础版',
-        platform: '阿里云',
-        account: 'Aliyun Account 1',
-        region: 'cn-beijing',
-        project: 'Project A',
-        created_at: '2024-01-03 10:00:00'
-      }
-    ]
-  } catch (e) {
+    const res = await getWebappList(queryParams.value)
+    appServices.value = res.data.items || []
+    total.value = res.data.total || 0
+  } catch (e: any) {
     console.error(e)
+    ElMessage.error(e.message || '加载应用程序服务列表失败')
     appServices.value = []
   } finally {
     loading.value = false
   }
 }
 
-const viewDetail = (row: AppService) => {
+const loadCloudAccounts = async () => {
+  try {
+    const res = await getCloudAccounts()
+    cloudAccounts.value = res.data.items || []
+  } catch (e) {
+    console.error(e)
+  }
+}
+
+const resetQuery = () => {
+  queryParams.value = {
+    page: 1,
+    page_size: 20,
+    name: '',
+    status: '',
+    platform: '',
+    cloud_account_id: '',
+    project_id: '',
+    stack: ''
+  }
+  loadData()
+}
+
+const handleSelectionChange = (rows: WebappInstance[]) => {
+  selectedRows.value = rows
+}
+
+const viewDetail = async (row: WebappInstance) => {
+  try {
+    const res = await getWebappDetail(row.id)
+    selectedAppService.value = res.data
+    detailDialogVisible.value = true
+  } catch (e: any) {
+    ElMessage.error(e.message || '获取详情失败')
+  }
+}
+
+const handleEdit = (row: WebappInstance) => {
+  editForm.value = {
+    name: row.name,
+    stack: row.stack,
+    os_type: row.os_type,
+    ip_addr: row.ip_addr,
+    domain: row.domain,
+    server_farm: row.server_farm,
+    description: row.description,
+    enabled: row.enabled
+  }
   selectedAppService.value = row
-  detailDialogVisible.value = true
+  editDialogVisible.value = true
 }
 
-const handleEdit = (row: AppService) => {
-  ElMessage.info(`编辑应用程序服务: ${row.name}`)
+const submitEdit = async () => {
+  if (!selectedAppService.value) return
+  editLoading.value = true
+  try {
+    await updateWebapp(selectedAppService.value.id, editForm.value)
+    ElMessage.success('更新成功')
+    editDialogVisible.value = false
+    loadData()
+  } catch (e: any) {
+    ElMessage.error(e.message || '更新失败')
+  } finally {
+    editLoading.value = false
+  }
 }
 
-const handleDelete = async (row: AppService) => {
+const handleDelete = async (row: WebappInstance) => {
   try {
     await ElMessageBox.confirm(`确认删除应用程序服务 ${row.name}？`, '警告', {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
       type: 'warning'
     })
-    appServices.value = appServices.value.filter(a => a.id !== row.id)
+    await deleteWebapp(row.id)
     ElMessage.success('删除成功')
-  } catch (e) {
-    console.error(e)
+    loadData()
+  } catch (e: any) {
+    if (e !== 'cancel') {
+      ElMessage.error(e.message || '删除失败')
+    }
   }
 }
 
+const handleBatchDelete = async () => {
+  if (selectedRows.value.length === 0) return
+  try {
+    await ElMessageBox.confirm(`确认删除选中的 ${selectedRows.value.length} 个应用程序服务？`, '警告', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+    await batchDeleteWebapp({ ids: selectedRows.value.map(r => r.id) })
+    ElMessage.success('批量删除成功')
+    loadData()
+  } catch (e: any) {
+    if (e !== 'cancel') {
+      ElMessage.error(e.message || '批量删除失败')
+    }
+  }
+}
+
+const handleSyncStatus = async () => {
+  if (selectedRows.value.length === 0) return
+  syncing.value = true
+  try {
+    for (const row of selectedRows.value) {
+      await syncWebappStatus(row.id)
+    }
+    ElMessage.success('同步状态成功')
+    loadData()
+  } catch (e: any) {
+    ElMessage.error(e.message || '同步状态失败')
+  } finally {
+    syncing.value = false
+  }
+}
+
+const handleSetTags = () => {
+  ElMessage.info('标签设置功能待实现')
+}
+
+const handleRefresh = () => {
+loadData()
+}
+
+const handleViewMode = () => {
+	ElMessage.info('视图切换功能待实现')
+}
+
+const handleTags = () => {
+	ElMessage.info('标签筛选功能待实现')
+}
+
 onMounted(() => {
-  loadAppServices()
+  loadCloudAccounts()
+  loadData()
 })
 </script>
 
 <style scoped>
 .app-services-page {
   height: 100%;
+  padding: 16px;
 }
 
 .page-card {
@@ -212,5 +518,14 @@ onMounted(() => {
 .title {
   font-size: 18px;
   font-weight: bold;
+}
+
+.toolbar {
+  display: flex;
+  gap: 8px;
+}
+
+.search-form {
+  margin-bottom: 16px;
 }
 </style>

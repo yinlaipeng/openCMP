@@ -1,60 +1,53 @@
 <template>
-  <div class="message-types-page">
-    <el-card class="page-card">
-      <template #header>
-        <div class="card-header">
-          <span class="title">消息订阅设置</span>
-          <!-- 工具栏按钮 - 参考 Cloudpods -->
-          <div class="toolbar">
-            <el-button @click="handleBatchEnable" :disabled="selectedRows.length === 0">
-              启 用
-            </el-button>
-            <el-button @click="handleBatchDisable" :disabled="selectedRows.length === 0">
-              禁 用
-            </el-button>
-          </div>
-        </div>
-      </template>
-
-      <!-- 筛选区域 - 参考 Cloudpods 设计 -->
-      <div class="filter-bar">
-        <el-select v-model="filters.searchField" placeholder="搜索字段" style="width: 120px">
-          <el-option label="名称" value="name" />
-          <el-option label="描述" value="description" />
-        </el-select>
-        <el-input
-          v-model="filters.keyword"
-          placeholder="请输入关键词"
-          style="width: 200px"
-          clearable
-          @keyup.enter="loadData"
-        >
-          <template #prefix>
-            <el-icon><Search /></el-icon>
-          </template>
-        </el-input>
-        <el-select v-model="filters.type" placeholder="类型" clearable style="width: 150px" @change="loadData">
-          <el-option label="全部" value="" />
-          <el-option label="安全信息" value="security" />
-          <el-option label="资源" value="resource" />
-          <el-option label="自动化流程" value="automated_process" />
-        </el-select>
-        <el-select v-model="filters.enabled" placeholder="状态" clearable style="width: 120px" @change="loadData">
-          <el-option label="全部" value="" />
-          <el-option label="启用" value="true" />
-          <el-option label="禁用" value="false" />
-        </el-select>
-        <el-button type="primary" @click="loadData">
-          <el-icon><Search /></el-icon>
-          查询
+  <div class="message-types-container">
+    <div class="page-header">
+      <h2>消息订阅设置</h2>
+      <div class="toolbar">
+        <el-button @click="handleBatchEnable" :disabled="selectedRows.length === 0">
+          启 用
         </el-button>
-        <el-button @click="resetFilters">
-          <el-icon><RefreshRight /></el-icon>
-          重置
+        <el-button @click="handleBatchDisable" :disabled="selectedRows.length === 0">
+          禁 用
         </el-button>
       </div>
+    </div>
 
-      <!-- 表格 - 中文表头，参考 Cloudpods -->
+    <el-card class="filter-card">
+      <el-form :inline="true" @submit.prevent="loadData">
+        <el-form-item label="搜索">
+          <el-select v-model="filters.searchField" placeholder="选择字段" style="width: 100px">
+            <el-option label="名称" value="name" />
+            <el-option label="描述" value="description" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-input v-model="filters.keyword" placeholder="输入关键词" clearable style="width: 180px" @keyup.enter="loadData">
+            <template #prefix><el-icon><Search /></el-icon></template>
+          </el-input>
+        </el-form-item>
+        <el-form-item label="类型">
+          <el-select v-model="filters.type" placeholder="全部" clearable style="width: 120px" @change="loadData">
+            <el-option label="全部" value="" />
+            <el-option label="安全信息" value="security" />
+            <el-option label="资源" value="resource" />
+            <el-option label="自动化流程" value="automated_process" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="filters.enabled" placeholder="全部" clearable style="width: 80px" @change="loadData">
+            <el-option label="全部" value="" />
+            <el-option label="启用" value="true" />
+            <el-option label="禁用" value="false" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="loadData">查询</el-button>
+          <el-button @click="resetFilters">重置</el-button>
+        </el-form-item>
+      </el-form>
+    </el-card>
+
+    <el-card>
       <el-table
         :data="messageTypes"
         v-loading="loading"
@@ -116,16 +109,11 @@
           </template>
         </el-table-column>
       </el-table>
-
-      <!-- 分页 -->
       <el-pagination
         v-model:current-page="pagination.page"
         v-model:page-size="pagination.limit"
         :total="pagination.total"
-        :page-sizes="[10, 20, 50, 100]"
-        layout="total, sizes, prev, pager, next, jumper"
-        @size-change="loadData"
-        @current-change="loadData"
+        layout="total, sizes, prev, pager, next"
         class="pagination"
       />
     </el-card>
@@ -751,132 +739,10 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.message-types-page {
-  height: 100%;
-  padding: 20px;
-}
-
-.page-card {
-  height: 100%;
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.title {
-  font-size: 18px;
-  font-weight: bold;
-}
-
-.toolbar {
-  display: flex;
-  gap: 8px;
-}
-
-/* 筛选区域 */
-.filter-bar {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
-}
-
-.pagination {
-  margin-top: 20px;
-  display: flex;
-  justify-content: flex-end;
-}
-
-/* 详情侧边页样式 - 参考 Cloudpods side-page */
-.drawer-header {
-  display: flex;
-  align-items: center;
-}
-
-.drawer-header-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.drawer-header-label {
-  color: #999;
-  font-size: 14px;
-}
-
-.drawer-header-title {
-  margin: 8px 0;
-  font-size: 18px;
-}
-
-.drawer-header-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.detail-tabs {
-  height: 100%;
-}
-
-.detail-content {
-  display: flex;
-  gap: 20px;
-  padding: 16px;
-}
-
-.detail-left {
-  flex: 1;
-  min-width: 300px;
-}
-
-.detail-right {
-  flex: 1;
-  min-width: 300px;
-}
-
-.detail-section {
-  background: #f9f9f9;
-  border-radius: 4px;
-  padding: 16px;
-}
-
-.detail-section-title {
-  display: flex;
-  align-items: center;
-  font-weight: bold;
-  margin-bottom: 12px;
-  color: #333;
-}
-
-.detail-section-title .el-icon {
-  margin-right: 8px;
-}
-
-.detail-items {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.detail-item {
-  display: flex;
-  align-items: flex-start;
-}
-
-.detail-item-title {
-  color: #666;
-  min-width: 100px;
-  flex-shrink: 0;
-}
-
-.detail-item-value {
-  flex: 1;
-  word-break: break-word;
-}
-
-.receiver-tab-content {
-  padding: 16px;
-}
+.message-types-container { padding: 20px; }
+.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.page-header h2 { margin: 0; font-size: 18px; font-weight: 600; }
+.toolbar { display: flex; gap: 8px; }
+.filter-card { margin-bottom: 20px; }
+.pagination { margin-top: 20px; text-align: right; }
 </style>

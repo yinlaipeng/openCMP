@@ -2,19 +2,50 @@
   <div class="host-template-container">
     <div class="page-header">
       <h2>主机模版</h2>
-      <el-button type="primary" @click="handleCreate">新建模版</el-button>
+      <div class="toolbar">
+        <el-button link type="primary" @click="handleView">
+          <el-icon><View /></el-icon>
+          查看
+        </el-button>
+        <el-button type="primary" @click="handleCreate">
+          <el-icon><Plus /></el-icon>
+          新建模版
+        </el-button>
+        <el-button :disabled="selectedTemplates.length === 0" @click="handleBatchDelete">
+          <el-icon><Delete /></el-icon>
+          删除
+        </el-button>
+      </div>
     </div>
 
     <el-card class="filter-card">
       <el-form :inline="true" :model="filters" @submit.prevent="fetchHostTemplates">
         <el-form-item label="项目">
-          <el-select v-model="filters.project_id" placeholder="请选择项目" clearable>
+          <el-select v-model="filters.project_id" placeholder="请选择项目" clearable style="width: 160px">
             <el-option
               v-for="project in projects"
               :key="project.id"
               :label="project.name"
               :value="project.id"
             />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="名称">
+          <el-input v-model="filters.name" placeholder="搜索模版名称" clearable style="width: 180px" />
+        </el-form-item>
+        <el-form-item label="平台">
+          <el-select v-model="filters.platform" placeholder="选择平台" clearable style="width: 120px">
+            <el-option label="阿里云" value="alibaba" />
+            <el-option label="腾讯云" value="tencent" />
+            <el-option label="AWS" value="aws" />
+            <el-option label="Azure" value="azure" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="filters.status" placeholder="选择状态" clearable style="width: 120px">
+            <el-option label="激活" value="Active" />
+            <el-option label="未激活" value="Inactive" />
+            <el-option label="草稿" value="Draft" />
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -29,8 +60,16 @@
       v-loading="loading"
       style="width: 100%"
       row-key="id"
+      @selection-change="handleSelectionChange"
     >
-      <el-table-column prop="name" label="名称" min-width="150" />
+      <el-table-column type="selection" width="55" />
+      <el-table-column label="名称" min-width="150">
+        <template #default="{ row }">
+          <el-link type="primary" :underline="false" @click="handleEdit(row)">
+            {{ row.name }}
+          </el-link>
+        </template>
+      </el-table-column>
 
       <el-table-column prop="status" label="状态" width="100">
         <template #default="{ row }">
@@ -40,11 +79,19 @@
         </template>
       </el-table-column>
 
-      <el-table-column prop="cpu_arch" label="CPU架构" width="120" />
-
-      <el-table-column label="配置" width="200">
+      <el-table-column label="平台" width="100">
         <template #default="{ row }">
-          <div>{{ row.instance_type }} | {{ row.cpu_count }}核 | {{ row.memory_size }}MB | {{ row.disk_size }}GB</div>
+          <el-tag size="small" type="info">{{ getPlatformLabel(row.platform) }}</el-tag>
+        </template>
+      </el-table-column>
+
+      <el-table-column label="配置" width="180">
+        <template #default="{ row }">
+          <div class="config-cell">
+            <span>{{ row.cpu_count }}核</span>
+            <span>{{ row.memory_size }}MB</span>
+            <span>{{ row.disk_size }}GB</span>
+          </div>
         </template>
       </el-table-column>
 
@@ -54,28 +101,23 @@
         </template>
       </el-table-column>
 
-      <el-table-column prop="vpc_id" label="VPC" width="150" />
-
-      <el-table-column prop="billing_method" label="计费方式" width="120" />
-
-      <el-table-column prop="platform" label="平台" width="100" />
-
-      <el-table-column prop="project_id" label="项目" width="120" />
+      <el-table-column prop="billing_method" label="计费方式" width="100" />
 
       <el-table-column prop="region_id" label="区域" width="120" />
 
-      <el-table-column label="操作" width="200" fixed="right">
+      <el-table-column label="操作" width="160" fixed="right">
         <template #default="{ row }">
-          <el-button size="small" @click="handleEdit(row)">编辑</el-button>
-          <el-button size="small" type="danger" @click="handleDelete(row)">删除</el-button>
-          <el-dropdown>
-            <el-button size="small" type="primary">
-              更多 <el-icon><ArrowDown /></el-icon>
+          <el-button size="small" link type="primary" @click="handleEdit(row)">编辑</el-button>
+          <el-dropdown trigger="click" @command="(cmd: string) => handleActionCommand(cmd, row)">
+            <el-button size="small" link>
+              更多<el-icon class="el-icon--right"><ArrowDown /></el-icon>
             </el-button>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item @click="deployFromTemplate(row)">基于此模版部署</el-dropdown-item>
-                <el-dropdown-item @click="duplicateTemplate(row)">复制模版</el-dropdown-item>
+                <el-dropdown-item command="deploy">基于此模版部署</el-dropdown-item>
+                <el-dropdown-item command="duplicate">复制模版</el-dropdown-item>
+                <el-dropdown-item command="details">查看详情</el-dropdown-item>
+                <el-dropdown-item divided command="delete">删除</el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -223,7 +265,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox, FormInstance, FormRules } from 'element-plus'
-import { ArrowDown } from '@element-plus/icons-vue'
+import { ArrowDown, View, Plus, Delete } from '@element-plus/icons-vue'
 import {
   getHostTemplates,
   createHostTemplate,
@@ -239,6 +281,7 @@ const loading = ref(false)
 const submitLoading = ref(false)
 const dialogVisible = ref(false)
 const dialogType = ref<'create' | 'edit'>('create')
+const selectedTemplates = ref<HostTemplate[]>([])
 
 // 分页数据
 const pagination = reactive({
@@ -249,7 +292,10 @@ const pagination = reactive({
 
 // 筛选条件
 const filters = reactive({
-  project_id: ''
+  project_id: '',
+  name: '',
+  platform: '',
+  status: ''
 })
 
 // 表单数据
@@ -321,8 +367,8 @@ const fetchHostTemplates = async () => {
       page_size: pagination.pageSize
     })
 
-    hostTemplates.value = response.data.items || []
-    pagination.total = response.data.pagination?.total || 0
+    hostTemplates.value = response.items || []
+    pagination.total = response.pagination?.total || 0
   } catch (error) {
     console.error('获取主机模版列表失败:', error)
     ElMessage.error('获取主机模版列表失败')
@@ -356,12 +402,81 @@ const getStatusType = (status: string) => {
   }
 }
 
+// 获取平台标签
+const getPlatformLabel = (platform: string) => {
+  const labels: Record<string, string> = {
+    alibaba: '阿里云',
+    tencent: '腾讯云',
+    aws: 'AWS',
+    azure: 'Azure'
+  }
+  return labels[platform] || platform
+}
+
+// 处理选择变化
+const handleSelectionChange = (selection: HostTemplate[]) => {
+  selectedTemplates.value = selection
+}
+
+// 处理查看
+const handleView = () => {
+  ElMessage.info('视图切换功能开发中')
+  }
+
+// 处理批量删除
+const handleBatchDelete = async () => {
+  if (selectedTemplates.value.length === 0) {
+    ElMessage.warning('请先选择要删除的模版')
+    return
+  }
+
+  try {
+    await ElMessageBox.confirm(
+      `确认删除选中的 ${selectedTemplates.value.length} 个模版吗？`,
+      '批量删除',
+      { type: 'warning' }
+    )
+
+    for (const template of selectedTemplates.value) {
+      await deleteHostTemplate(template.id)
+    }
+    ElMessage.success('批量删除成功')
+    selectedTemplates.value = []
+    fetchHostTemplates()
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error('批量删除失败')
+    }
+  }
+  }
+
+// 处理操作命令
+const handleActionCommand = (command: string, row: HostTemplate) => {
+  switch (command) {
+    case 'deploy':
+      deployFromTemplate(row)
+      break
+    case 'duplicate':
+      duplicateTemplate(row)
+      break
+    case 'details':
+      handleEdit(row)
+      break
+    case 'delete':
+      handleDelete(row)
+      break
+  }
+  }
+
 // 重置筛选条件
 const resetFilters = () => {
   filters.project_id = ''
+  filters.name = ''
+  filters.platform = ''
+  filters.status = ''
   pagination.page = 1
   fetchHostTemplates()
-}
+  }
 
 // 处理新建
 const handleCreate = () => {
@@ -504,8 +619,30 @@ onMounted(() => {
   margin-bottom: 20px;
 }
 
+.page-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
 .filter-card {
   margin-bottom: 20px;
+}
+
+.config-cell {
+  display: flex;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.config-cell span {
+  color: var(--text-color-secondary);
 }
 
 .pagination {

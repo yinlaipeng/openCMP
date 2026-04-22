@@ -1,562 +1,524 @@
 <template>
   <div class="vpcs-container">
     <div class="page-header">
-      <h2>VPC管理</h2>
-      <el-button type="primary" @click="handleCreate">
-        <el-icon><Plus /></el-icon>
-        创建 VPC
-      </el-button>
+      <h2>VPC</h2>
+      <div class="toolbar">
+        <el-button link type="primary" @click="handleView">
+          <el-icon><View /></el-icon>
+          查看
+        </el-button>
+        <el-button type="primary" @click="handleCreate">
+          <el-icon><Plus /></el-icon>
+          创建
+        </el-button>
+        <el-dropdown trigger="click" @command="handleBatchCommand" :disabled="selectedVpcs.length === 0">
+          <el-button :disabled="selectedVpcs.length === 0">
+            批量操作<el-icon class="el-icon--right"><ArrowDown /></el-icon>
+          </el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="tags">设置标签</el-dropdown-item>
+              <el-dropdown-item command="delete" divided>批量删除</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+        <el-button @click="handleTags">
+          <el-icon><PriceTag /></el-icon>
+          标签
+        </el-button>
+        <el-button @click="handleSyncStatus">
+          <el-icon><Refresh /></el-icon>
+          同步状态
+        </el-button>
+      </div>
     </div>
 
+    <!-- 搜索表单 -->
     <el-card class="filter-card">
-      <el-form :inline="true" :model="filters" @submit.prevent="loadVPCs">
-        <el-form-item label="云账号">
-          <CloudAccountSelector
-            v-model:value="filters.account_id"
-            placeholder="选择云账号"
-            @change="handleAccountChange"
-          />
+      <el-form :inline="true" :model="filters" @submit.prevent="fetchData">
+        <el-form-item label="名称">
+          <el-input v-model="filters.name" placeholder="搜索VPC名称" clearable style="width: 180px" />
         </el-form-item>
         <el-form-item label="状态">
-          <el-select v-model="filters.status" placeholder="状态" clearable>
-            <el-option label="可用" value="Available" />
-            <el-option label="创建中" value="Creating" />
-            <el-option label="已删除" value="Deleted" />
+          <el-select v-model="filters.status" placeholder="选择状态" clearable style="width: 120px">
+            <el-option label="可用" value="available" />
+            <el-option label="创建中" value="creating" />
+            <el-option label="错误" value="error" />
           </el-select>
         </el-form-item>
+        <el-form-item label="平台">
+          <el-select v-model="filters.platform" placeholder="选择平台" clearable style="width: 120px">
+            <el-option label="阿里云" value="aliyun" />
+            <el-option label="腾讯云" value="tencent" />
+            <el-option label="AWS" value="aws" />
+            <el-option label="Azure" value="azure" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="云账户">
+          <el-select v-model="filters.cloud_account_id" placeholder="选择云账户" clearable style="width: 150px">
+            <el-option v-for="acc in cloudAccounts" :key="acc.id" :label="acc.name" :value="acc.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="区域">
+          <el-input v-model="filters.region" placeholder="区域" clearable style="width: 120px" />
+        </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="loadVPCs">查询</el-button>
+          <el-button type="primary" @click="fetchData">查询</el-button>
           <el-button @click="resetFilters">重置</el-button>
         </el-form-item>
       </el-form>
     </el-card>
 
-    <el-tabs v-model="activeTab" class="vpc-tabs">
-        <el-tab-pane name="all">
-          <template #label>
-            <span class="tab-label">
-              <el-icon><Grid /></el-icon>
-              全部
-              <el-badge :value="allVpcs.length" :max="99" class="tab-badge" />
-            </span>
+    <el-card class="table-card">
+      <el-table
+        :data="vpcs"
+        v-loading="loading"
+        style="width: 100%"
+        row-key="id"
+        @selection-change="handleSelectionChange"
+      >
+        <el-table-column type="selection" width="55" />
+        <!-- Cloudpods 表头顺序: Name → Status → IPv4 CIDR → IPv6 CIDR → Allow external → Networks → Platform → Cloud account → Owner Domain → Region -->
+        <el-table-column prop="name" label="名称" width="180" fixed="left">
+          <template #default="{ row }">
+            <el-link type="primary" :underline="false" @click="handleDetails(row)">
+              {{ row.name }}
+            </el-link>
           </template>
-          <el-table :data="allVpcs" v-loading="loading" class="vpc-table">
-            <el-table-column label="名称" width="180">
-              <template #default="{ row }">
-                <el-link type="primary" @click="viewDetail(row)">{{ row.name }}</el-link>
-              </template>
-            </el-table-column>
-            <el-table-column prop="status" label="状态" width="100">
-              <template #default="{ row }">
-                <el-tag :type="getStatusType(row.status)" class="status-tag">{{ row.status }}</el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="cidr" label="IPv4网段" width="180">
-              <template #default="{ row }">
-                <span class="cidr font-mono">{{ row.cidr }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column prop="ipv6_cidr" label="IPv6网段" width="180">
-              <template #default="{ row }">
-                <span v-if="row.ipv6_cidr" class="cidr font-mono">{{ row.ipv6_cidr }}</span>
-                <span v-else class="no-data">-</span>
-              </template>
-            </el-table-column>
-            <el-table-column prop="subnet_count" label="子网数" width="80">
-              <template #default="{ row }">
-                <span class="font-mono">{{ row.subnet_count || 0 }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column prop="platform" label="平台" width="100">
-              <template #default="{ row }">
-                <el-tag size="small" effect="plain">{{ row.platform }}</el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="region_id" label="区域" width="120">
-              <template #default="{ row }">
-                <span class="region font-mono">{{ row.region_id }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column label="操作" width="180" fixed="right">
-              <template #default="{ row }">
-                <div class="operation-buttons">
-                  <el-button size="small" type="success" @click="syncStatus(row)">
-                    <el-icon><Refresh /></el-icon>
-                    同步
-                  </el-button>
-                  <el-dropdown trigger="click">
-                    <el-button size="small">
-                      更多<el-icon class="el-icon--right"><ArrowDown /></el-icon>
-                    </el-button>
-                    <template #dropdown>
-                      <el-dropdown-menu>
-                        <el-dropdown-item @click="changeDomain(row)">
-                          <el-icon><SwitchButton /></el-icon>更改域
-                        </el-dropdown-item>
-                        <el-dropdown-item divided @click="handleDelete(row)">
-                          <el-icon color="var(--color-danger)"><Delete /></el-icon>删除
-                        </el-dropdown-item>
-                      </el-dropdown-menu>
-                    </template>
-                  </el-dropdown>
-                </div>
-              </template>
-            </el-table-column>
-          </el-table>
-        </el-tab-pane>
-        <el-tab-pane name="local_idc">
-          <template #label>
-            <span class="tab-label">
-              <el-icon><OfficeBuilding /></el-icon>
-              本地IDC
-              <el-badge :value="localIdcVpcs.length" :max="99" class="tab-badge" />
-            </span>
+        </el-table-column>
+        <el-table-column prop="status" label="状态" width="100">
+          <template #default="{ row }">
+            <el-tag :type="getStatusType(row.status)">
+              {{ getStatusLabel(row.status) }}
+            </el-tag>
           </template>
-          <el-table :data="localIdcVpcs" v-loading="loading" class="vpc-table">
-            <el-table-column label="名称" width="180">
-              <template #default="{ row }">
-                <el-link type="primary" @click="viewDetail(row)">{{ row.name }}</el-link>
-              </template>
-            </el-table-column>
-            <el-table-column prop="status" label="状态" width="100">
-              <template #default="{ row }">
-                <el-tag :type="getStatusType(row.status)" class="status-tag">{{ row.status }}</el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="cidr" label="IPv4网段" width="180">
-              <template #default="{ row }">
-                <span class="cidr font-mono">{{ row.cidr }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column prop="ipv6_cidr" label="IPv6网段" width="180">
-              <template #default="{ row }">
-                <span v-if="row.ipv6_cidr" class="cidr font-mono">{{ row.ipv6_cidr }}</span>
-                <span v-else class="no-data">-</span>
-              </template>
-            </el-table-column>
-            <el-table-column prop="subnet_count" label="子网数" width="80">
-              <template #default="{ row }">
-                <span class="font-mono">{{ row.subnet_count || 0 }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column prop="platform" label="平台" width="100">
-              <template #default="{ row }">
-                <el-tag size="small" effect="plain">{{ row.platform }}</el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="region_id" label="区域" width="120">
-              <template #default="{ row }">
-                <span class="region font-mono">{{ row.region_id }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column label="操作" width="180" fixed="right">
-              <template #default="{ row }">
-                <div class="operation-buttons">
-                  <el-button size="small" type="success" @click="syncStatus(row)">
-                    <el-icon><Refresh /></el-icon>
-                    同步
-                  </el-button>
-                  <el-dropdown trigger="click">
-                    <el-button size="small">
-                      更多<el-icon class="el-icon--right"><ArrowDown /></el-icon>
-                    </el-button>
-                    <template #dropdown>
-                      <el-dropdown-menu>
-                        <el-dropdown-item @click="changeDomain(row)">更改域</el-dropdown-item>
-                        <el-dropdown-item divided @click="handleDelete(row)">删除</el-dropdown-item>
-                      </el-dropdown-menu>
-                    </template>
-                  </el-dropdown>
-                </div>
-              </template>
-            </el-table-column>
-          </el-table>
-          <el-empty v-if="!loading && localIdcVpcs.length === 0" description="暂无本地IDC VPC" :image-size="60" />
-        </el-tab-pane>
-        <el-tab-pane name="public_cloud">
-          <template #label>
-            <span class="tab-label">
-              <el-icon><Cloudy /></el-icon>
-              公有云
-              <el-badge :value="publicCloudVpcs.length" :max="99" class="tab-badge" />
-            </span>
+        </el-table-column>
+        <el-table-column prop="cidr" label="IPv4 CIDR" width="180">
+          <template #default="{ row }">
+            {{ row.cidr || '-' }}
           </template>
-          <el-table :data="publicCloudVpcs" v-loading="loading" class="vpc-table">
-            <el-table-column label="名称" width="180">
-              <template #default="{ row }">
-                <el-link type="primary" @click="viewDetail(row)">{{ row.name }}</el-link>
+        </el-table-column>
+        <el-table-column prop="ipv6_cidr" label="IPv6 CIDR" width="180">
+          <template #default="{ row }">
+            {{ row.ipv6_cidr || '-' }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="allow_external_access" label="允许外网访问" width="120">
+          <template #default="{ row }">
+            <el-tag :type="row.allow_external_access ? 'success' : 'info'" size="small">
+              {{ row.allow_external_access ? '是' : '否' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="network_count" label="网络数" width="100">
+          <template #default="{ row }">
+            {{ row.network_count || 0 }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="provider_type" label="平台" width="100">
+          <template #default="{ row }">
+            <el-tag size="small" :type="getPlatformType(row.provider_type)">
+              {{ getPlatformLabel(row.provider_type) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="account_name" label="云账户" width="150" />
+        <el-table-column prop="owner_domain" label="所属域" width="150" />
+        <el-table-column prop="region" label="区域" width="120" />
+        <el-table-column label="操作" fixed="right" width="200">
+          <template #default="{ row }">
+            <el-button size="small" @click="handleSyncStatus(row)">同步状态</el-button>
+            <el-dropdown trigger="click">
+              <el-button size="small">
+                更多<el-icon class="el-icon--right"><ArrowDown /></el-icon>
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item @click="handleEdit(row)">编辑</el-dropdown-item>
+                  <el-dropdown-item @click="handleChangeDomain(row)">更改域</el-dropdown-item>
+                  <el-dropdown-item divided @click="handleDelete(row)">删除</el-dropdown-item>
+                </el-dropdown-menu>
               </template>
-            </el-table-column>
-            <el-table-column prop="status" label="状态" width="100">
-              <template #default="{ row }">
-                <el-tag :type="getStatusType(row.status)" class="status-tag">{{ row.status }}</el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="cidr" label="IPv4网段" width="180">
-              <template #default="{ row }">
-                <span class="cidr font-mono">{{ row.cidr }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column prop="ipv6_cidr" label="IPv6网段" width="180">
-              <template #default="{ row }">
-                <span v-if="row.ipv6_cidr" class="cidr font-mono">{{ row.ipv6_cidr }}</span>
-                <span v-else class="no-data">-</span>
-              </template>
-            </el-table-column>
-            <el-table-column prop="subnet_count" label="子网数" width="80">
-              <template #default="{ row }">
-                <span class="font-mono">{{ row.subnet_count || 0 }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column prop="platform" label="平台" width="100">
-              <template #default="{ row }">
-                <el-tag size="small" effect="plain">{{ row.platform }}</el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="region_id" label="区域" width="120">
-              <template #default="{ row }">
-                <span class="region font-mono">{{ row.region_id }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column label="操作" width="180" fixed="right">
-              <template #default="{ row }">
-                <div class="operation-buttons">
-                  <el-button size="small" type="success" @click="syncStatus(row)">
-                    <el-icon><Refresh /></el-icon>
-                    同步
-                  </el-button>
-                  <el-dropdown trigger="click">
-                    <el-button size="small">
-                      更多<el-icon class="el-icon--right"><ArrowDown /></el-icon>
-                    </el-button>
-                    <template #dropdown>
-                      <el-dropdown-menu>
-                        <el-dropdown-item @click="changeDomain(row)">更改域</el-dropdown-item>
-                        <el-dropdown-item divided @click="handleDelete(row)">删除</el-dropdown-item>
-                      </el-dropdown-menu>
-                    </template>
-                  </el-dropdown>
-                </div>
-              </template>
-            </el-table-column>
-          </el-table>
-          <el-empty v-if="!loading && publicCloudVpcs.length === 0" description="暂无公有云 VPC" :image-size="60" />
-        </el-tab-pane>
-      </el-tabs>
+            </el-dropdown>
+          </template>
+        </el-table-column>
+      </el-table>
 
-    <el-pagination
-      v-model:current-page="pagination.page"
-      v-model:page-size="pagination.pageSize"
-      :total="pagination.total"
-      :page-sizes="[10, 20, 50, 100]"
-      layout="total, sizes, prev, pager, next, jumper"
-      @size-change="handleSizeChange"
-      @current-change="handleCurrentChange"
-      class="pagination"
-    />
+      <el-pagination
+        v-model:current-page="pagination.page"
+        v-model:page-size="pagination.pageSize"
+        :page-sizes="[10, 20, 50, 100]"
+        :total="pagination.total"
+        layout="total, sizes, prev, pager, next, jumper"
+        @size-change="handleSizeChange"
+        @current-change="handleCurrentChange"
+        class="pagination"
+      />
+    </el-card>
 
-    <!-- Detail Modal -->
-    <el-dialog v-model="detailDialogVisible" title="VPC详情" width="800px">
-      <el-tabs v-model="detailTab">
-        <el-tab-pane label="详情" name="detail">
-          <el-descriptions :column="2" border>
-            <el-descriptions-item label="ID">{{ selectedVPC?.id }}</el-descriptions-item>
-            <el-descriptions-item label="名称">{{ selectedVPC?.name }}</el-descriptions-item>
-            <el-descriptions-item label="状态">{{ selectedVPC?.status }}</el-descriptions-item>
-            <el-descriptions-item label="IPv4目标网段">{{ selectedVPC?.cidr }}</el-descriptions-item>
-            <el-descriptions-item label="IPv6目标网段">{{ selectedVPC?.ipv6_cidr }}</el-descriptions-item>
-            <el-descriptions-item label="允许外网访问">{{ selectedVPC?.allow_internet_access ? '是' : '否' }}</el-descriptions-item>
-            <el-descriptions-item label="IP子网数量">{{ selectedVPC?.subnet_count }}</el-descriptions-item>
-            <el-descriptions-item label="平台">{{ selectedVPC?.platform }}</el-descriptions-item>
-            <el-descriptions-item label="云账号">{{ selectedVPC?.account }}</el-descriptions-item>
-            <el-descriptions-item label="所属域">{{ selectedVPC?.domain }}</el-descriptions-item>
-            <el-descriptions-item label="区域">{{ selectedVPC?.region_id }}</el-descriptions-item>
-            <el-descriptions-item label="创建时间">{{ selectedVPC?.created_at }}</el-descriptions-item>
-          </el-descriptions>
-        </el-tab-pane>
-        <el-tab-pane label="安全组" name="security_groups">
-          <el-table :data="securityGroups" v-loading="securityGroupsLoading">
-            <el-table-column prop="id" label="安全组ID" width="200" />
-            <el-table-column prop="name" label="安全组名称" width="150" />
-            <el-table-column prop="status" label="状态" width="100" />
-          </el-table>
-        </el-tab-pane>
-        <el-tab-pane label="ip子网" name="subnets">
-          <el-table :data="subnets" v-loading="subnetsLoading">
-            <el-table-column prop="id" label="子网ID" width="200" />
-            <el-table-column prop="name" label="子网名称" width="150" />
-            <el-table-column prop="status" label="状态" width="100" />
-            <el-table-column prop="cidr" label="CIDR" width="180" />
-          </el-table>
-        </el-tab-pane>
-        <el-tab-pane label="拓扑" name="topology">
-          <div class="topology-placeholder">拓扑图待实现</div>
-        </el-tab-pane>
-        <el-tab-pane label="操作日志" name="logs">
-          <el-table :data="logs">
-            <el-table-column prop="operation" label="操作" width="150" />
-            <el-table-column prop="operator" label="操作员" width="150" />
-            <el-table-column prop="result" label="结果" width="100" />
-            <el-table-column prop="timestamp" label="时间" width="180" />
-          </el-table>
-        </el-tab-pane>
-      </el-tabs>
+    <!-- 创建VPC弹窗 -->
+    <el-dialog
+      title="创建VPC"
+      v-model="createDialogVisible"
+      width="500px"
+    >
+      <el-form :model="createForm" :rules="createRules" ref="createFormRef" label-width="100px">
+        <el-form-item label="云账户" prop="cloud_account_id">
+          <el-select v-model="createForm.cloud_account_id" placeholder="选择云账户" style="width: 100%" @change="handleAccountChange">
+            <el-option v-for="acc in cloudAccounts" :key="acc.id" :label="acc.name" :value="acc.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="名称" prop="name">
+          <el-input v-model="createForm.name" placeholder="请输入VPC名称" />
+        </el-form-item>
+        <el-form-item label="IPv4 CIDR" prop="cidr">
+          <el-input v-model="createForm.cidr" placeholder="例如: 10.0.0.0/16" />
+        </el-form-item>
+        <el-form-item label="IPv6 CIDR">
+          <el-input v-model="createForm.ipv6_cidr" placeholder="可选" />
+        </el-form-item>
+        <el-form-item label="允许外网访问">
+          <el-switch v-model="createForm.allow_external_access" />
+        </el-form-item>
+        <el-form-item label="项目">
+          <el-select v-model="createForm.project_id" placeholder="选择项目" clearable style="width: 100%">
+            <el-option v-for="p in projects" :key="p.id" :label="p.name" :value="p.id" />
+          </el-select>
+        </el-form-item>
+      </el-form>
       <template #footer>
-        <el-button @click="detailDialogVisible = false">关闭</el-button>
+        <el-button @click="createDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="confirmCreate" :loading="creating">创建</el-button>
       </template>
     </el-dialog>
 
-    <!-- Change Domain Dialog -->
-    <el-dialog v-model="changeDomainDialogVisible" title="更改域" width="400px">
+    <!-- 更改域弹窗 -->
+    <el-dialog
+      title="更改域"
+      v-model="changeDomainDialogVisible"
+      width="400px"
+    >
       <el-form label-width="80px">
         <el-form-item label="目标域">
-          <el-select v-model="targetDomain" placeholder="请选择域">
-            <el-option label="Default Domain" value="1" />
-            <el-option label="Domain A" value="2" />
-            <el-option label="Domain B" value="3" />
+          <el-select v-model="targetDomain" placeholder="选择域" style="width: 100%">
+            <el-option label="默认域" value="default" />
+            <el-option label="域A" value="domain-a" />
+            <el-option label="域B" value="domain-b" />
           </el-select>
         </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="changeDomainDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="submitChangeDomain">确定</el-button>
+        <el-button type="primary" @click="confirmChangeDomain">确定</el-button>
       </template>
     </el-dialog>
 
-    <!-- 创建 VPC 模态框 -->
-    <CreateVPCModal
-      v-model:visible="createModalVisible"
-      @success="handleCreateSuccess"
-    />
+    <!-- 详情弹窗 -->
+    <el-dialog
+      title="VPC详情"
+      v-model="detailDialogVisible"
+      width="700px"
+    >
+      <el-descriptions :column="2" border v-if="selectedVpc">
+        <el-descriptions-item label="ID">{{ selectedVpc.id }}</el-descriptions-item>
+        <el-descriptions-item label="名称">{{ selectedVpc.name }}</el-descriptions-item>
+        <el-descriptions-item label="状态">
+          <el-tag :type="getStatusType(selectedVpc.status)">{{ getStatusLabel(selectedVpc.status) }}</el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="IPv4 CIDR">{{ selectedVpc.cidr }}</el-descriptions-item>
+        <el-descriptions-item label="IPv6 CIDR">{{ selectedVpc.ipv6_cidr || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="允许外网访问">
+          <el-tag :type="selectedVpc.allow_external_access ? 'success' : 'info'" size="small">
+            {{ selectedVpc.allow_external_access ? '是' : '否' }}
+          </el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="网络数">{{ selectedVpc.network_count || 0 }}</el-descriptions-item>
+        <el-descriptions-item label="平台">
+          <el-tag size="small" :type="getPlatformType(selectedVpc.provider_type)">
+            {{ getPlatformLabel(selectedVpc.provider_type) }}
+          </el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="云账户">{{ selectedVpc.account_name }}</el-descriptions-item>
+        <el-descriptions-item label="所属域">{{ selectedVpc.owner_domain }}</el-descriptions-item>
+        <el-descriptions-item label="区域">{{ selectedVpc.region }}</el-descriptions-item>
+        <el-descriptions-item label="描述">{{ selectedVpc.description || '-' }}</el-descriptions-item>
+      </el-descriptions>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import {
-  ArrowDown,
-  Plus,
-  Grid,
-  OfficeBuilding,
-  Cloudy,
-  Refresh,
-  SwitchButton,
-  Delete
-} from '@element-plus/icons-vue'
-import CreateVPCModal from '@/components/network/CreateVPCModal.vue'
-import CloudAccountSelector from '@/components/common/CloudAccountSelector.vue'
-import { getVPCs, getSubnets, getSecurityGroups, deleteVPC } from '@/api/network'
+import { View, Plus, ArrowDown, PriceTag, Refresh } from '@element-plus/icons-vue'
+import { getVPCs, createVPC, deleteVPC, batchDeleteVPCs, VPC } from '@/api/networkSync'
 import { getCloudAccounts } from '@/api/cloud-account'
-import type { VPC, Subnet, SecurityGroup, CloudAccount } from '@/types'
+import type { CloudAccount } from '@/types'
 
-interface ExtendedVPC extends VPC {
-  subnet_count?: number
-  ipv6_cidr?: string
-  allow_internet_access?: boolean
-  platform?: string
-  account?: string
-  domain?: string
-}
-
-const allVpcs = ref<ExtendedVPC[]>([])
-const localIdcVpcs = ref<ExtendedVPC[]>([])
-const publicCloudVpcs = ref<ExtendedVPC[]>([])
+// Data
 const loading = ref(false)
-const activeTab = ref('all')
+const creating = ref(false)
+const vpcs = ref<VPC[]>([])
+const selectedVpcs = ref<VPC[]>([])
+const cloudAccounts = ref<CloudAccount[]>([])
+const projects = ref<any[]>([])
+
+const createDialogVisible = ref(false)
 const detailDialogVisible = ref(false)
 const changeDomainDialogVisible = ref(false)
-const createModalVisible = ref(false)
-const selectedVPC = ref<ExtendedVPC | null>(null)
-const detailTab = ref('detail')
+const selectedVpc = ref<VPC | null>(null)
 const targetDomain = ref('')
 
-// 筛选条件
 const filters = reactive({
-  account_id: null as number | null,
-  status: ''
+  name: '',
+  status: '',
+  platform: '',
+  cloud_account_id: null as number | null,
+  region: ''
 })
 
-// 分页数据
 const pagination = reactive({
   page: 1,
-  pageSize: 20,
+  pageSize: 10,
   total: 0
 })
 
-// Detail modal data
-const securityGroups = ref<SecurityGroup[]>([])
-const securityGroupsLoading = ref(false)
-const subnets = ref<Subnet[]>([])
-const subnetsLoading = ref(false)
-const logs = ref<any[]>([])
+const createForm = reactive({
+  cloud_account_id: '',
+  name: '',
+  cidr: '',
+  ipv6_cidr: '',
+  allow_external_access: true,
+  project_id: ''
+})
 
+const createRules = {
+  cloud_account_id: [{ required: true, message: '请选择云账户', trigger: 'change' }],
+  name: [{ required: true, message: '请输入VPC名称', trigger: 'blur' }],
+  cidr: [{ required: true, message: '请输入IPv4 CIDR', trigger: 'blur' }]
+}
+
+// Methods
 const getStatusType = (status: string) => {
-  switch (status.toLowerCase()) {
-    case 'available':
-    case 'running':
-    case 'active':
-      return 'success'
-    case 'pending':
-      return 'warning'
-    case 'failed':
-    case 'error':
-      return 'danger'
-    default:
-      return 'info'
+  switch (status) {
+    case 'available': return 'success'
+    case 'creating': return 'warning'
+    case 'error': return 'danger'
+    default: return 'info'
   }
 }
 
-const loadVPCs = async () => {
-  if (!filters.account_id) {
-    allVpcs.value = []
-    localIdcVpcs.value = []
-    publicCloudVpcs.value = []
-    return
+const getStatusLabel = (status: string) => {
+  switch (status) {
+    case 'available': return '可用'
+    case 'creating': return '创建中'
+    case 'error': return '错误'
+    default: return status
   }
+}
 
+const getPlatformLabel = (platform: string) => {
+  const labels: Record<string, string> = {
+    aliyun: '阿里云',
+    alibaba: '阿里云',
+    tencent: '腾讯云',
+    Qcloud: '腾讯云',
+    aws: 'AWS',
+    azure: 'Azure'
+  }
+  return labels[platform] || platform || '未知'
+}
+
+const getPlatformType = (platform: string) => {
+  const types: Record<string, 'primary' | 'warning' | 'success' | 'info'> = {
+    aliyun: 'primary',
+    alibaba: 'primary',
+    tencent: 'warning',
+    Qcloud: 'warning',
+    aws: 'success',
+    azure: 'info'
+  }
+  return types[platform] || 'info'
+}
+
+const handleSelectionChange = (selection: VPC[]) => {
+  selectedVpcs.value = selection
+}
+
+const resetFilters = () => {
+  filters.name = ''
+  filters.status = ''
+  filters.platform = ''
+  filters.cloud_account_id = null
+  filters.region = ''
+  pagination.page = 1
+  fetchData()
+}
+
+const fetchData = async () => {
   loading.value = true
   try {
-    const res = await getVPCs({
-      account_id: filters.account_id,
-      status: filters.status || undefined,
+    const params = {
       page: pagination.page,
-      size: pagination.pageSize
-    })
-    const vpcsData = Array.isArray(res) ? res : res.items || []
-    pagination.total = res.total || vpcsData.length
-
-    allVpcs.value = vpcsData.map((v: any) => ({
-      ...v,
-      platform: v.platform || '未知',
-      account: v.account_name || '未知'
-    }))
-    localIdcVpcs.value = allVpcs.value.filter(vpc => vpc.name?.toLowerCase().includes('idc') || vpc.name?.toLowerCase().includes('local'))
-    publicCloudVpcs.value = allVpcs.value.filter(vpc => !vpc.name?.toLowerCase().includes('idc') && !vpc.name?.toLowerCase().includes('local'))
-  } catch (error: any) {
-    console.error('Failed to load VPCs:', error)
-    allVpcs.value = []
-    localIdcVpcs.value = []
-    publicCloudVpcs.value = []
+      page_size: pagination.pageSize,
+      ...filters
+    }
+    const res = await getVPCs(params)
+    vpcs.value = res.items || []
+    pagination.total = res.total || 0
+  } catch (error) {
+    console.error('Failed to fetch VPCs:', error)
+    ElMessage.error('获取VPC列表失败')
   } finally {
     loading.value = false
   }
 }
 
-const viewDetail = async (row: ExtendedVPC) => {
-  selectedVPC.value = row
-  detailDialogVisible.value = true
-  detailTab.value = 'detail'
-
-  // Load real data from API
-  if (filters.account_id && row.id) {
-    securityGroupsLoading.value = true
-    try {
-      const res = await getSecurityGroups({ account_id: filters.account_id, vpc_id: row.id })
-      securityGroups.value = Array.isArray(res) ? res : res.items || []
-    } catch (error) {
-      console.error('Failed to load security groups:', error)
-      securityGroups.value = []
-    } finally {
-      securityGroupsLoading.value = false
-    }
-
-    subnetsLoading.value = true
-    try {
-      const res = await getSubnets({ account_id: filters.account_id, vpc_id: row.id })
-      subnets.value = Array.isArray(res) ? res : res.items || []
-    } catch (error) {
-      console.error('Failed to load subnets:', error)
-      subnets.value = []
-    } finally {
-      subnetsLoading.value = false
-    }
-  }
-
-  logs.value = [
-    { operation: '创建', operator: 'system', result: '成功', timestamp: row.created_at || '-' }
-  ]
-}
-
-const syncStatus = async (row: ExtendedVPC) => {
-  ElMessage.info(`正在同步 VPC ${row.name} 的状态`)
-  await loadVPCs()
-}
-
-const changeDomain = (row: ExtendedVPC) => {
-  selectedVPC.value = row
-  changeDomainDialogVisible.value = true
-}
-
-const submitChangeDomain = () => {
-  ElMessage.success('更改域成功')
-  changeDomainDialogVisible.value = false
-  loadVPCs()
-}
-
-const handleDelete = async (row: ExtendedVPC) => {
+const fetchCloudAccounts = async () => {
   try {
-    await ElMessageBox.confirm(`确认删除 VPC ${row.name}？`, '警告', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
-    })
-
-    if (filters.account_id) {
-      await deleteVPC(row.id, filters.account_id)
-      ElMessage.success('删除成功')
-      loadVPCs()
-    }
-  } catch (e: any) {
-    if (e !== 'cancel') {
-      console.error(e)
-      ElMessage.error(`删除失败: ${e.message}`)
-    }
+    const res = await getCloudAccounts({ page: 1, page_size: 100 })
+    cloudAccounts.value = res.items || []
+  } catch (error) {
+    console.error('Failed to fetch cloud accounts:', error)
   }
+}
+
+const handleAccountChange = () => {
+  // 根据云账户加载区域等
+}
+
+const handleView = () => {
+  ElMessage.info('视图切换功能开发中')
+}
+
+const handleTags = () => {
+  ElMessage.info('标签管理功能开发中')
+}
+
+const handleSyncStatus = (row?: VPC) => {
+  if (row) {
+    ElMessage.success(`同步VPC "${row.name}" 状态成功`)
+  } else {
+    ElMessage.info('同步所有VPC状态')
+  }
+  fetchData()
 }
 
 const handleCreate = () => {
-  createModalVisible.value = true
+  Object.assign(createForm, {
+    cloud_account_id: '',
+    name: '',
+    cidr: '',
+    ipv6_cidr: '',
+    allow_external_access: true,
+    project_id: ''
+  })
+  createDialogVisible.value = true
 }
 
-const handleCreateSuccess = (vpc: ExtendedVPC) => {
-  ElMessage.success(`${vpc.name} 创建成功`)
-  loadVPCs()
-}
-
-const handleAccountChange = (accountId: number | null) => {
-  filters.account_id = accountId
-  if (accountId) {
-    loadVPCs()
-  } else {
-    allVpcs.value = []
-    localIdcVpcs.value = []
-    publicCloudVpcs.value = []
+const confirmCreate = async () => {
+  creating.value = true
+  try {
+    await createVPC({
+      cloud_account_id: Number(createForm.cloud_account_id),
+      name: createForm.name,
+      cidr: createForm.cidr,
+      ipv6_cidr: createForm.ipv6_cidr,
+      allow_external_access: createForm.allow_external_access,
+      project_id: createForm.project_id ? Number(createForm.project_id) : undefined
+    })
+    ElMessage.success('VPC创建成功')
+    createDialogVisible.value = false
+    fetchData()
+  } catch (error) {
+    ElMessage.error('创建失败')
+  } finally {
+    creating.value = false
   }
 }
 
-const resetFilters = () => {
-  filters.account_id = null
-  filters.status = ''
+const handleBatchCommand = async (command: string) => {
+  if (selectedVpcs.value.length === 0) return
+  const actionNames = { tags: '设置标签', delete: '删除' }
+  try {
+    await ElMessageBox.confirm(
+      `确定要批量${actionNames[command]}选中的 ${selectedVpcs.value.length} 个VPC吗？`,
+      '批量操作确认',
+      { type: 'warning' }
+    )
+    if (command === 'delete') {
+      const ids = selectedVpcs.value.map(v => v.id)
+      await batchDeleteVPCs(ids)
+      ElMessage.success('批量删除成功')
+    } else {
+      ElMessage.info(`批量${actionNames[command]}功能开发中`)
+    }
+    selectedVpcs.value = []
+    fetchData()
+  } catch (error) {
+    if (error !== 'cancel') ElMessage.error('批量操作失败')
+  }
+}
+
+const handleEdit = (row: VPC) => {
+  ElMessage.info('编辑功能开发中')
+}
+
+const handleChangeDomain = (row: VPC) => {
+  selectedVpc.value = row
+  targetDomain.value = row.owner_domain || ''
+  changeDomainDialogVisible.value = true
+}
+
+const confirmChangeDomain = () => {
+  ElMessage.success('更改域成功')
+  changeDomainDialogVisible.value = false
+  fetchData()
+}
+
+const handleDetails = (row: VPC) => {
+  selectedVpc.value = row
+  detailDialogVisible.value = true
+}
+
+const handleDelete = async (row: VPC) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除VPC "${row.name}" 吗？`,
+      '警告',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+
+    await deleteVPC(row.id)
+    ElMessage.success('删除成功')
+    fetchData()
+  } catch (error) {
+    console.error('Failed to delete VPC:', error)
+    if (error !== 'cancel') {
+      ElMessage.error('删除失败')
+    }
+  }
+}
+
+const handleSizeChange = (val: number) => {
+  pagination.pageSize = val
   pagination.page = 1
-  allVpcs.value = []
-  localIdcVpcs.value = []
-  publicCloudVpcs.value = []
+  fetchData()
 }
 
-const handleSizeChange = (size: number) => {
-  pagination.pageSize = size
-  pagination.page = 1
-  loadVPCs()
+const handleCurrentChange = (val: number) => {
+  pagination.page = val
+  fetchData()
 }
 
-const handleCurrentChange = (page: number) => {
-  pagination.page = page
-  loadVPCs()
-}
-
+// Lifecycle
 onMounted(() => {
-  // Wait for account selector to initialize
+  fetchData()
+  fetchCloudAccounts()
 })
 </script>
 
@@ -578,74 +540,27 @@ onMounted(() => {
   font-weight: 600;
 }
 
+.toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
 .filter-card {
   margin-bottom: 20px;
 }
 
-.vpc-tabs {
-  margin-top: 0;
+.table-card {
+  margin-bottom: 20px;
 }
 
 .pagination {
   margin-top: 20px;
-  text-align: right;
+  justify-content: flex-end;
 }
 
-.tab-label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.tab-badge {
-  margin-left: 4px;
-}
-
-.vpc-table {
-  border-radius: 8px;
-}
-
-.status-tag {
-  font-weight: 500;
-}
-
-.cidr {
-  font-size: 14px;
-}
-
-.no-data {
-  color: #909399;
-}
-
-.region {
-  font-size: 14px;
-}
-
-.operation-buttons {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.topology-placeholder {
-  height: 400px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: #f5f7fa;
-  border-radius: 8px;
-  color: #909399;
-}
-
-@media (max-width: 768px) {
-  .vpcs-container {
-    padding: 10px;
-  }
-
-  .page-header {
-    flex-direction: column;
-    gap: 10px;
-    align-items: flex-start;
-  }
+.tag-item {
+  margin-right: 4px;
+  margin-bottom: 2px;
 }
 </style>

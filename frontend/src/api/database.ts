@@ -181,3 +181,94 @@ export function createCacheBackup(accountId: number, instanceId: string) {
     params: { account_id: accountId }
   })
 }
+
+// SKU Types
+export interface RDSInstanceSKU {
+  id: string
+  provider: string
+  engine: string
+  engine_version: string
+  category: string
+  storage_type: string
+  cpu: number
+  memory_mb: number
+  instance_type: string
+  price: number
+  region_id: string
+}
+
+export interface CacheInstanceSKU {
+  id: string
+  provider: string
+  engine: string
+  engine_version: string
+  node_type: string
+  performance_type: string
+  memory_mb: number
+  instance_type: string
+  price: number
+  region_id: string
+}
+
+export interface RDSKUFilter {
+  account_id: number
+  provider?: string
+  engine?: string
+  engine_version?: string
+  category?: string
+  storage_type?: string
+  region_id?: string
+}
+
+export interface CacheSKUFilter {
+  account_id: number
+  provider?: string
+  engine?: string
+  engine_version?: string
+  node_type?: string
+  performance_type?: string
+  region_id?: string
+}
+
+// SKU API
+export function listRDSSKUs(filter: RDSKUFilter) {
+  return request.get<RDSInstanceSKU[]>('/database/rds/skus', { params: filter })
+}
+
+export function listCacheSKUs(filter: CacheSKUFilter) {
+  return request.get<CacheInstanceSKU[]>('/database/cache/skus', { params: filter })
+}
+
+// MongoDB Types
+export interface MongoDBInstance {
+  id: string
+  name: string
+  status: string
+  tags: Record<string, string>
+  configuration: string
+  address: string
+  network_address: string
+  engine_version: string
+  platform: string
+  account_name: string
+  project: string
+  region: string
+  created_at: string
+}
+
+export interface MongoDBFilter {
+  account_id?: number
+  name?: string
+  status?: string
+}
+
+// MongoDB API
+export function listMongoDB(filter: MongoDBFilter) {
+  return request.get<MongoDBInstance[]>('/database/mongodb', { params: filter })
+}
+
+export function deleteMongoDB(accountId: number, instanceId: string) {
+  return request.delete(`/database/mongodb/${instanceId}`, {
+    params: { account_id: accountId }
+  })
+}

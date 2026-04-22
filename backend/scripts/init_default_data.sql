@@ -16,7 +16,7 @@ VALUES (2, 'system', 'System role for automated processes', 1, NOW(), NOW());
 
 -- Insert admin user with ID 1
 INSERT IGNORE INTO users (id, name, display_name, password, email, phone, domain_id, enabled, created_at, updated_at)
-VALUES (1, 'admin', 'Administrator', '$2a$10$8K1TKxmOH6Q/QOA.fZt2yelEShHJXQCBzLr38lczfTnpkDqJF9vOu', 'admin@example.com', '', 1, true, NOW(), NOW()); -- password: admin123
+VALUES (1, 'admin', 'Administrator', '$2a$10$vYeEqLfcznn3CdVEIE8FkORa9QW.YlZ0yKxfNcNY9WJDoraJqAyl.', 'admin@example.com', '', 1, true, NOW(), NOW()); -- password: admin123
 
 -- Insert built-in authentication source
 INSERT IGNORE INTO auth_sources (id, name, type, config, domain_id, enabled, created_at, updated_at)
