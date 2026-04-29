@@ -1,0 +1,43 @@
+{
+  "page_name": "cloudaccount",
+  "page_path": "/cloudaccount",
+  "url": "https://127.0.0.1/cloudaccount",
+  "title": "Cloudpods-Accounts",
+  "elements": {
+    "cards": 0,
+    "tables": 46,
+    "buttons": [
+      "View",
+      "Create",
+      "Batch Action",
+      "Sync Account",
+      "More",
+      "Sync Account",
+      "More"
+    ],
+    "search_forms": 1,
+    "inputs": 3,
+    "selects": 6,
+    "pagination": 0,
+    "tabs": 18,
+    "tab_labels": [],
+    "dialogs": 0,
+    "tags": [],
+    "table_headers": [
+      "Name",
+      "Status",
+      "Enable Status",
+      "Health Status",
+      "Balance",
+      "Platform",
+      "Account",
+      "Last Sync Cost",
+      "Last Sync",
+      "Owner Domain",
+      "Resource attribution mode",
+      "Operations"
+    ],
+    "action_buttons": [],
+    "form_labels": []
+  }
+}

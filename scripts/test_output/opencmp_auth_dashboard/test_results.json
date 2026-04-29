@@ -1,0 +1,34 @@
+{
+  "login_page": {
+    "status": "success",
+    "input_count": 2,
+    "button_count": 1,
+    "title": "openCMP - 多云管理平台"
+  },
+  "chooser_page": {
+    "status": "success",
+    "title": "openCMP - 多云管理平台"
+  },
+  "dashboard_page": {
+    "status": "error",
+    "url": "http://localhost:3000/login"
+  },
+  "auth_api": {
+    "/auth/login": 200,
+    "/auth/permissions": 401,
+    "/auth/user": 401
+  },
+  "summary": {
+    "success_count": 2,
+    "total_count": 4,
+    "api_errors": [
+      "http://localhost:3000/api/v1/auth/permissions: 401",
+      "http://localhost:3000/api/v1/auth/user: 401"
+    ],
+    "console_errors": [
+      "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+      "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    ],
+    "pass_rate": "2/4"
+  }
+}

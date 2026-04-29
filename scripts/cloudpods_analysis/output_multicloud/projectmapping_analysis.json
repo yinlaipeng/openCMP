@@ -1,0 +1,37 @@
+{
+  "page_name": "projectmapping",
+  "page_path": "/projectmapping",
+  "url": "https://127.0.0.1/projectmapping",
+  "title": "Cloudpods-Sync Policy",
+  "elements": {
+    "cards": 0,
+    "tables": 32,
+    "buttons": [
+      "View",
+      "Create",
+      "Batch Action",
+      "Management Rules",
+      "More"
+    ],
+    "search_forms": 1,
+    "inputs": 3,
+    "selects": 6,
+    "pagination": 0,
+    "tabs": 0,
+    "tab_labels": [],
+    "dialogs": 0,
+    "tags": [],
+    "table_headers": [
+      "Name",
+      "Status",
+      "Enable Status",
+      "Rules",
+      "Application Scope",
+      "Shared Scope",
+      "Owner Domain",
+      "Operations"
+    ],
+    "action_buttons": [],
+    "form_labels": []
+  }
+}

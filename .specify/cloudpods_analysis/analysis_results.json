@@ -1,0 +1,448 @@
+{
+  "login_result": {
+    "success": true,
+    "timestamp": "2026-04-21 21:46:49"
+  },
+  "pages": [
+    {
+      "page_name": "waf_policy",
+      "page_url": "https://127.0.0.1/waf",
+      "timestamp": "2026-04-21 21:46:49",
+      "current_url": "https://127.0.0.1/waf",
+      "page_title": "Cloudpods-WAF Strategy",
+      "structure": {
+        "sidebar_menu": [
+          "Regions",
+          "Zones",
+          "VPC Network",
+          "VPC Peer Connect",
+          "Global VPC",
+          "VPC",
+          "Routing Table",
+          "L2 Network",
+          "IP Subnets",
+          "EIP",
+          "NAT Gateway",
+          "DNS",
+          "IPv6 Gateway",
+          "WAF Strategy",
+          "Webapp",
+          "Proxy Endpoint",
+          "Proxy Agent",
+          "LB Instances",
+          "Access Control",
+          "Certificates"
+        ],
+        "page_header": "WAF Strategy"
+      },
+      "toolbar": [
+        {
+          "text": "",
+          "type": "flex-shrink-0 ant-btn",
+          "disabled": false,
+          "primary": false
+        },
+        {
+          "text": "Set Tags",
+          "type": "ant-btn ant-btn-default ml-2",
+          "disabled": true,
+          "primary": false
+        },
+        {
+          "text": "Delete",
+          "type": "ant-btn ant-btn-default ml-2",
+          "disabled": true,
+          "primary": false
+        },
+        {
+          "text": "Tags",
+          "type": "flex-shrink-0 ant-btn",
+          "disabled": false,
+          "primary": false
+        },
+        {
+          "text": "",
+          "type": "ant-btn",
+          "disabled": false,
+          "primary": false
+        },
+        {
+          "text": "",
+          "type": "ml-2 ant-btn",
+          "disabled": false,
+          "primary": false
+        }
+      ],
+      "search": {
+        "input_placeholder": "",
+        "filter_count": 0
+      },
+      "table": {
+        "headers": [
+          "Name",
+          "Tags",
+          "Status",
+          "Type",
+          "Platform",
+          "Cloud account",
+          "Owner Domain",
+          "Region",
+          "Operations"
+        ],
+        "row_count": 0,
+        "has_pagination": true,
+        "pagination_info": "Total 0 record"
+      },
+      "api_calls": [],
+      "modals": {}
+    },
+    {
+      "page_name": "webapp_service",
+      "page_url": "https://127.0.0.1/webapp",
+      "timestamp": "2026-04-21 21:46:53",
+      "current_url": "https://127.0.0.1/webapp",
+      "page_title": "Cloudpods-Webapp",
+      "structure": {
+        "sidebar_menu": [
+          "Regions",
+          "Zones",
+          "VPC Network",
+          "VPC Peer Connect",
+          "Global VPC",
+          "VPC",
+          "Routing Table",
+          "L2 Network",
+          "IP Subnets",
+          "EIP",
+          "NAT Gateway",
+          "DNS",
+          "IPv6 Gateway",
+          "WAF Strategy",
+          "Webapp",
+          "Proxy Endpoint",
+          "Proxy Agent",
+          "LB Instances",
+          "Access Control",
+          "Certificates"
+        ],
+        "page_header": "Webapp"
+      },
+      "toolbar": [
+        {
+          "text": "",
+          "type": "flex-shrink-0 ant-btn",
+          "disabled": false,
+          "primary": false
+        },
+        {
+          "text": "Sync Status",
+          "type": "ant-btn ant-btn-default ml-2",
+          "disabled": true,
+          "primary": false
+        },
+        {
+          "text": "Set Tags",
+          "type": "ant-btn ant-btn-default ml-2",
+          "disabled": true,
+          "primary": false
+        },
+        {
+          "text": "Tags",
+          "type": "flex-shrink-0 ant-btn",
+          "disabled": false,
+          "primary": false
+        },
+        {
+          "text": "",
+          "type": "ant-btn",
+          "disabled": false,
+          "primary": false
+        },
+        {
+          "text": "",
+          "type": "ml-2 ant-btn",
+          "disabled": false,
+          "primary": false
+        }
+      ],
+      "search": {
+        "input_placeholder": "",
+        "filter_count": 0
+      },
+      "table": {
+        "headers": [
+          "Name",
+          "Tags",
+          "Status",
+          "Stack",
+          "OS Type",
+          "Ip Addr",
+          "Domain",
+          "Server Farm",
+          "Platform",
+          "Cloud account",
+          "Region",
+          "Project",
+          "Operations"
+        ],
+        "row_count": 0,
+        "has_pagination": true,
+        "pagination_info": "Total 0 record"
+      },
+      "api_calls": [],
+      "modals": {}
+    }
+  ],
+  "captured_api_calls": [
+    {
+      "url": "https://127.0.0.1/api/v1/auth/regions",
+      "method": "GET",
+      "resource_type": "xhr"
+    },
+    {
+      "url": "https://127.0.0.1/api/v1/auth/login",
+      "method": "POST",
+      "resource_type": "xhr"
+    },
+    {
+      "url": "https://127.0.0.1/api/v1/auth/user",
+      "method": "GET",
+      "resource_type": "xhr"
+    },
+    {
+      "url": "https://127.0.0.1/api/v2/capabilities?scope=system",
+      "method": "GET",
+      "resource_type": "xhr"
+    },
+    {
+      "url": "https://127.0.0.1/api/v1/auth/permissions",
+      "method": "POST",
+      "resource_type": "xhr"
+    },
+    {
+      "url": "https://127.0.0.1/api/v1/auth/scoped_resources",
+      "method": "GET",
+      "resource_type": "xhr"
+    },
+    {
+      "url": "https://127.0.0.1/api/v1/rpc/parameters/global-settings",
+      "method": "GET",
+      "resource_type": "xhr"
+    },
+    {
+      "url": "https://127.0.0.1/api/v1/parameters/profile",
+      "method": "GET",
+      "resource_type": "xhr"
+    },
+    {
+      "url": "https://127.0.0.1/api/v1/auth/stats?scope=system",
+      "method": "GET",
+      "resource_type": "xhr"
+    },
+    {
+      "url": "https://127.0.0.1/api/v1/auth/scopedpolicybindings?scope=system&effective=true&category=sub_hidden_menus&category=document_configured_callback_address&category=server_hidden_columns&category=disk_hidden_columns&category=snapshot_hidden_columns&category=eip_hidden_columns&category=network_hidden_columns&category=oss_hidden_columns&category=rds_hidden_columns&category=redis_hidden_columns&category=slb_hidden_columns&category=mongodb_hidden_columns&category=vpc_hidden_columns&category=navbar_hidden_items&category=dashboard_hidden_actions&category=fee_hidden_items&category=vminstance_hidden_menus&category=vminstance_configured_callback_address",
+      "method": "GET",
+      "resource_type": "xhr"
+    },
+    {
+      "url": "https://127.0.0.1/api/v1/service_settings",
+      "method": "GET",
+      "resource_type": "xhr"
+    },
+    {
+      "url": "https://127.0.0.1/api/v1/services?type=common",
+      "method": "GET",
+      "resource_type": "xhr"
+    },
+    {
+      "url": "https://127.0.0.1/api/v1/monitorresourcealerts?show_fail_reason=true&details=true&alertinng=true&send_state=ok&level=fatal&limit=1&scope=system",
+      "method": "GET",
+      "resource_type": "xhr"
+    },
+    {
+      "url": "https://127.0.0.1/api/v1/auth/regions",
+      "method": "GET",
+      "resource_type": "xhr"
+    },
+    {
+      "url": "https://127.0.0.1/api/v1/monitorresourcealerts?scope=system&limit=20&alerting=true",
+      "method": "GET",
+      "resource_type": "xhr"
+    },
+    {
+      "url": "https://127.0.0.1/api/v1/parameters/dashboard_system",
+      "method": "GET",
+      "resource_type": "xhr"
+    },
+    {
+      "url": "https://127.0.0.1/api/v1/parameters/dashboard-system-default",
+      "method": "GET",
+      "resource_type": "xhr"
+    },
+    {
+      "url": "https://127.0.0.1/api/v1/unifiedmonitors/query",
+      "method": "POST",
+      "resource_type": "xhr"
+    },
+    {
+      "url": "https://127.0.0.1/api/v1/unifiedmonitors/query",
+      "method": "POST",
+      "resource_type": "xhr"
+    },
+    {
+      "url": "https://127.0.0.1/api/v1/unifiedmonitors/query",
+      "method": "POST",
+      "resource_type": "xhr"
+    },
+    {
+      "url": "https://127.0.0.1/api/v1/unifiedmonitors/query",
+      "method": "POST",
+      "resource_type": "xhr"
+    },
+    {
+      "url": "https://127.0.0.1/api/v2/rpc/usages/general-usage?scope=system&refresh=true",
+      "method": "GET",
+      "resource_type": "xhr"
+    },
+    {
+      "url": "https://127.0.0.1/api/v2/rpc/usages/general-usage?scope=system&refresh=true",
+      "method": "GET",
+      "resource_type": "xhr"
+    },
+    {
+      "url": "https://127.0.0.1/api/v1/auth/user",
+      "method": "GET",
+      "resource_type": "xhr"
+    },
+    {
+      "url": "https://127.0.0.1/api/v2/capabilities?scope=system",
+      "method": "GET",
+      "resource_type": "xhr"
+    },
+    {
+      "url": "https://127.0.0.1/api/v1/auth/permissions",
+      "method": "POST",
+      "resource_type": "xhr"
+    },
+    {
+      "url": "https://127.0.0.1/api/v1/auth/scoped_resources",
+      "method": "GET",
+      "resource_type": "xhr"
+    },
+    {
+      "url": "https://127.0.0.1/api/v1/rpc/parameters/global-settings",
+      "method": "GET",
+      "resource_type": "xhr"
+    },
+    {
+      "url": "https://127.0.0.1/api/v1/parameters/profile",
+      "method": "GET",
+      "resource_type": "xhr"
+    },
+    {
+      "url": "https://127.0.0.1/api/v1/auth/stats?scope=system",
+      "method": "GET",
+      "resource_type": "xhr"
+    },
+    {
+      "url": "https://127.0.0.1/api/v1/auth/scopedpolicybindings?scope=system&effective=true&category=sub_hidden_menus&category=document_configured_callback_address&category=server_hidden_columns&category=disk_hidden_columns&category=snapshot_hidden_columns&category=eip_hidden_columns&category=network_hidden_columns&category=oss_hidden_columns&category=rds_hidden_columns&category=redis_hidden_columns&category=slb_hidden_columns&category=mongodb_hidden_columns&category=vpc_hidden_columns&category=navbar_hidden_items&category=dashboard_hidden_actions&category=fee_hidden_items&category=vminstance_hidden_menus&category=vminstance_configured_callback_address",
+      "method": "GET",
+      "resource_type": "xhr"
+    },
+    {
+      "url": "https://127.0.0.1/api/v1/service_settings",
+      "method": "GET",
+      "resource_type": "xhr"
+    },
+    {
+      "url": "https://127.0.0.1/api/v1/services?type=common",
+      "method": "GET",
+      "resource_type": "xhr"
+    },
+    {
+      "url": "https://127.0.0.1/api/v1/monitorresourcealerts?show_fail_reason=true&details=true&alertinng=true&send_state=ok&level=fatal&limit=1&scope=system",
+      "method": "GET",
+      "resource_type": "xhr"
+    },
+    {
+      "url": "https://127.0.0.1/api/v1/auth/regions",
+      "method": "GET",
+      "resource_type": "xhr"
+    },
+    {
+      "url": "https://127.0.0.1/api/v1/monitorresourcealerts?scope=system&limit=20&alerting=true",
+      "method": "GET",
+      "resource_type": "xhr"
+    },
+    {
+      "url": "https://127.0.0.1/api/v1/parameters/LIST_WafInstancesList",
+      "method": "GET",
+      "resource_type": "xhr"
+    },
+    {
+      "url": "https://127.0.0.1/api/v2/waf_instances?scope=system&show_fail_reason=true&details=true&summary_stats=true&limit=20",
+      "method": "GET",
+      "resource_type": "xhr"
+    },
+    {
+      "url": "https://127.0.0.1/api/v1/auth/user",
+      "method": "GET",
+      "resource_type": "xhr"
+    },
+    {
+      "url": "https://127.0.0.1/api/v2/capabilities?scope=system",
+      "method": "GET",
+      "resource_type": "xhr"
+    },
+    {
+      "url": "https://127.0.0.1/api/v1/auth/permissions",
+      "method": "POST",
+      "resource_type": "xhr"
+    },
+    {
+      "url": "https://127.0.0.1/api/v1/auth/scoped_resources",
+      "method": "GET",
+      "resource_type": "xhr"
+    },
+    {
+      "url": "https://127.0.0.1/api/v1/rpc/parameters/global-settings",
+      "method": "GET",
+      "resource_type": "xhr"
+    },
+    {
+      "url": "https://127.0.0.1/api/v1/parameters/profile",
+      "method": "GET",
+      "resource_type": "xhr"
+    },
+    {
+      "url": "https://127.0.0.1/api/v1/auth/stats?scope=system",
+      "method": "GET",
+      "resource_type": "xhr"
+    },
+    {
+      "url": "https://127.0.0.1/api/v1/auth/scopedpolicybindings?scope=system&effective=true&category=sub_hidden_menus&category=document_configured_callback_address&category=server_hidden_columns&category=disk_hidden_columns&category=snapshot_hidden_columns&category=eip_hidden_columns&category=network_hidden_columns&category=oss_hidden_columns&category=rds_hidden_columns&category=redis_hidden_columns&category=slb_hidden_columns&category=mongodb_hidden_columns&category=vpc_hidden_columns&category=navbar_hidden_items&category=dashboard_hidden_actions&category=fee_hidden_items&category=vminstance_hidden_menus&category=vminstance_configured_callback_address",
+      "method": "GET",
+      "resource_type": "xhr"
+    },
+    {
+      "url": "https://127.0.0.1/api/v1/service_settings",
+      "method": "GET",
+      "resource_type": "xhr"
+    },
+    {
+      "url": "https://127.0.0.1/api/v1/services?type=common",
+      "method": "GET",
+      "resource_type": "xhr"
+    },
+    {
+      "url": "https://127.0.0.1/api/v1/monitorresourcealerts?show_fail_reason=true&details=true&alertinng=true&send_state=ok&level=fatal&limit=1&scope=system",
+      "method": "GET",
+      "resource_type": "xhr"
+    },
+    {
+      "url": "https://127.0.0.1/api/v1/auth/regions",
+      "method": "GET",
+      "resource_type": "xhr"
+    }
+  ]
+}

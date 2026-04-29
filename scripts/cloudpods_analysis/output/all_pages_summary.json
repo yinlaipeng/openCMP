@@ -1,0 +1,161 @@
+{
+  "lb_instances": {
+    "page_name": "lb_instances",
+    "page_path": "/lb",
+    "url": "https://127.0.0.1/lb",
+    "title": "Cloudpods-LB Instances",
+    "elements": {
+      "cards": 0,
+      "tables": 23,
+      "buttons": [
+        "View",
+        "Create",
+        "Sync Status",
+        "Batch operations",
+        "Tags"
+      ],
+      "search_forms": 1,
+      "inputs": 3,
+      "selects": 6,
+      "pagination": 0,
+      "tabs": 18,
+      "dialogs": 0,
+      "tags": [
+        "Tags"
+      ],
+      "table_headers": [
+        "Name",
+        "Status",
+        "Service Address",
+        "Specifications",
+        "VPC",
+        "Security group",
+        "Charging Method",
+        "Platform",
+        "Project",
+        "Region",
+        "Operations"
+      ],
+      "action_buttons": []
+    }
+  },
+  "lb_acls": {
+    "page_name": "lb_acls",
+    "page_path": "/lbacl",
+    "url": "https://127.0.0.1/lbacl",
+    "title": "Cloudpods-Access Control",
+    "elements": {
+      "cards": 0,
+      "tables": 24,
+      "buttons": [
+        "View",
+        "Create",
+        "Delete"
+      ],
+      "search_forms": 1,
+      "inputs": 3,
+      "selects": 6,
+      "pagination": 0,
+      "tabs": 0,
+      "dialogs": 0,
+      "tags": [],
+      "table_headers": [
+        "Name",
+        "Source Address | Remarks",
+        "Listeners",
+        "Status",
+        "Platform",
+        "Cloud account",
+        "Created At",
+        "Updated At",
+        "Shared Scope",
+        "Region",
+        "Project",
+        "Operations"
+      ],
+      "action_buttons": []
+    }
+  },
+  "lb_certificates": {
+    "page_name": "lb_certificates",
+    "page_path": "/lbcert",
+    "url": "https://127.0.0.1/lbcert",
+    "title": "Cloudpods-Certificates",
+    "elements": {
+      "cards": 0,
+      "tables": 34,
+      "buttons": [
+        "View",
+        "Create",
+        "Batch Action",
+        "Tags",
+        "Change Project",
+        "Setup Sharing"
+      ],
+      "search_forms": 1,
+      "inputs": 3,
+      "selects": 6,
+      "pagination": 0,
+      "tabs": 0,
+      "dialogs": 0,
+      "tags": [
+        "Tags"
+      ],
+      "table_headers": [
+        "Name",
+        "Tags",
+        "Status",
+        "Domain Name",
+        "Expiration",
+        "Subject Alternative Names",
+        "Listeners",
+        "Shared Scope",
+        "Project",
+        "Platform",
+        "Cloud account",
+        "Region",
+        "Operations"
+      ],
+      "action_buttons": []
+    }
+  },
+  "cdn_domains": {
+    "page_name": "cdn_domains",
+    "page_path": "/cdn",
+    "url": "https://127.0.0.1/cdn",
+    "title": "Cloudpods-CDN Domain",
+    "elements": {
+      "cards": 0,
+      "tables": 23,
+      "buttons": [
+        "View",
+        "Create",
+        "Sync Status",
+        "Batch operations",
+        "Tags"
+      ],
+      "search_forms": 1,
+      "inputs": 3,
+      "selects": 6,
+      "pagination": 0,
+      "tabs": 0,
+      "dialogs": 0,
+      "tags": [
+        "Tags"
+      ],
+      "table_headers": [
+        "Name",
+        "Status",
+        "Tags",
+        "Area",
+        "CNAME",
+        "Service Type",
+        "Platform",
+        "Cloud account",
+        "Project",
+        "Operations"
+      ],
+      "action_buttons": []
+    }
+  }
+}

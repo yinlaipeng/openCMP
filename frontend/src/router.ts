@@ -9,10 +9,22 @@ const routes = [
     meta: { title: '登录' }
   },
   {
+    path: '/auth/login/chooser',
+    name: 'LoginChooser',
+    component: () => import('@/views/login/chooser.vue'),
+    meta: { title: '选择账号' }
+  },
+  {
     path: '/',
     component: Layout,
-    redirect: '/cloud-accounts',
+    redirect: '/dashboard',
     children: [
+      {
+        path: '/dashboard',
+        name: 'Dashboard',
+        component: () => import('@/views/dashboard/index.vue'),
+        meta: { title: '控制面板', icon: 'HomeFilled' }
+      },
       {
         path: '/cloud-accounts',
         name: 'CloudAccounts',

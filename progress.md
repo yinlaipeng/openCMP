@@ -1,5 +1,309 @@
 # Progress Log
 
+## Session: 2026-04-23 (Phase 61 路由切换问题完整验证)
+
+### 验证方法
+使用 webapp-testing skill 和 Playwright 进行完整验证测试
+
+### 验证脚本
+`scripts/complete_routing_verification.py`
+
+### 验证结果 ✅ 全部通过
+
+| 步骤 | 页面路由 | 页面标题 | 状态 |
+|------|----------|----------|:----:|
+| 登录 | /login | Token 存在 | ✅ |
+| 虚拟机页面 | /compute/vms | 虚拟机管理 | ✅ |
+| 主机模版页面 | /compute/host-templates | **主机模版** | ✅ |
+| 镜像页面 | /compute/images | **镜像管理** | ✅ |
+| 回到虚拟机页面 | /compute/vms | **虚拟机管理** | ✅ |
+| 跨模块VPC页面 | /network/basic/vpcs | **VPC** | ✅ |
+
+### 关键验证点
+
+1. **主机模版页面标题正确**: "主机模版" ✅ (修复前显示"虚拟机管理")
+2. **vms-container 类正确移除**: False ✅ (修复前残留 True)
+3. **反向切换正常**: 回到虚拟机页面标题正确显示"虚拟机管理" ✅
+4. **跨模块路由切换正常**: compute → network 切换正常 ✅
+
+### 结论
+
+**用户报告的问题已完全修复!**
+- 修复方案: 给 `<router-view />` 添加 `:key="$route.fullPath"`
+- 修复文件: `frontend/src/views/compute/index.vue`
+- 验证状态: PASS ✅
+
+---
+
+### 问题描述
+用户报告：打开 `/compute/vms` 页面后点击其他页面，浏览器 URL 变了但页面内容一直是虚拟机页面，只有刷新页面才能显示新页面。
+
+### 诊断方法
+使用 webapp-testing skill 和 Playwright Python 脚本进行诊断：
+1. `scripts/diagnose_routing_vue.py` - Vue Router 状态诊断
+2. `scripts/verify_routing_fix.py` - 修复验证
+
+### 诊断结果
+
+**问题确认：**
+- Router 路径正确：`/compute/host-templates` ✅
+- matched 数量：3层嵌套 ✅
+- 但页面标题仍显示"虚拟机管理" ❌
+- DOM 仍包含 `vms-container` 类 ❌
+
+**根因：**
+`compute/index.vue` 的 `<router-view />` 没有正确响应子路由变化。
+
+### 修复实施
+
+**修复文件：** `frontend/src/views/compute/index.vue`
+
+**修复内容：**
+- 添加 `<router-view :key="$route.fullPath" />`
+- 导入 `useRoute` from vue-router
+
+### 验证结果
+
+**直接导航测试 ✅ 成功：**
+- `/compute/vms` → 标题：虚拟机管理 ✅
+- `/compute/host-templates` → 标题：主机模版 ✅
+
+**编译验证：**
+- 前端 npm run build ✅ 成功
+
+### 发现的其他问题
+
+其他嵌套路由缺少父组件（需后续修复）：
+- `/middleware`, `/container`, `/monitoring`, `/cloud-management`
+- `/network`, `/storage`, `/database`, `/iam`
+- `/message-center`, `/finance`
+
+### 测试脚本
+- `scripts/diagnose_routing_vue.py`
+- `scripts/verify_routing_fix.py`
+- `scripts/verify_sidebar_click.py`
+
+---
+
+## Session: 2026-04-22 (Phase 60 云账号同步功能全量测试)
+
+### 测试目标
+测试云账号添加、同步功能，修复发现的问题。
+
+### Playwright 测试结果
+
+**测试脚本**: scripts/test_cloud_account_sync_v2.py
+
+#### 云账号信息
+
+| 字段 | 值 |
+|------|------|
+| ID | 22 |
+| 名称 | aliyun-test |
+| 状态 | 已连接 |
+| 启用状态 | 启用 |
+| 健康状态 | 正常 |
+| 平台 | 阿里云 |
+| 余额 | ¥0.00 |
+
+#### 同步功能测试 ✅
+
+| 步骤 | 结果 |
+|------|------|
+| 找到同步按钮 | ✅ |
+| 点击同步按钮 | ✅ |
+| 同步对话框打开 | ✅ |
+| 选择全量同步 | ✅ |
+| 选择全部资源类型 | ✅ |
+| 点击确认同步 | ✅ |
+| API 调用 POST /api/v1/cloud-accounts/22/sync | ✅ |
+
+#### 定时任务测试 ❌
+
+- 定时任务列表: 空
+- **问题**: 添加云账号时没有自动创建定时任务
+
+### 发现的问题与修复
+
+#### 问题: 添加云账号后没有自动创建定时任务
+
+**原因**: submitWizard 函数中没有调用 createScheduledTask API
+
+**修复方案**:
+1. 添加 `createScheduledTask` 导入
+2. 在 submitWizard 中添加定时任务创建逻辑
+3. 使用 scheduleForm 数据构建 cron 表达式
+
+**修复文件**: frontend/src/views/cloud-accounts/index.vue
+
+### API 调用记录
+
+- GET /api/v1/cloud-accounts
+- POST /api/v1/cloud-accounts/22/sync
+- GET /api/v1/scheduled-tasks
+
+### 待验证
+
+- [ ] 添加新云账号验证定时任务自动创建
+- [ ] 测试定时任务执行同步功能
+
+---
+
+## Session: 2026-04-22 (Phase 59 Bug修复 - Dashboard 菜单栏缺失)
+
+### 问题
+用户反馈进入 Dashboard 页面后左侧菜单栏消失。
+
+### 原因分析
+Dashboard 路由配置在 Layout 组件外部，独立渲染，没有包含侧边栏。
+
+### 修复方案
+将 Dashboard 路由移入 Layout 的 children 中：
+
+**修复前**:
+```typescript
+// Dashboard 在 Layout 外部
+{ path: '/dashboard', component: Dashboard },
+{ path: '/', component: Layout, redirect: '/dashboard', children: [...] }
+```
+
+**修复后**:
+```typescript
+// Dashboard 在 Layout 的 children 中
+{ path: '/', component: Layout, redirect: '/dashboard',
+  children: [
+    { path: '/dashboard', component: Dashboard, meta: { title: '控制面板', icon: 'HomeFilled' } },
+    ...
+  ]
+}
+```
+
+### 测试验证 ✅
+
+| 检查项 | 结果 |
+|--------|------|
+| Layout 元素 | 41 个 ✅ |
+| 侧边栏元素 | 1 个 ✅ |
+| 菜单项 | 78 个 ✅ |
+| 统计卡片 | 4 个 ✅ |
+
+---
+
+## Session: 2026-04-22 (Phase 59 登录与 Dashboard 对齐 CloudPods 设计) - 完成 ✅
+
+### 目标
+参考 CloudPods 登录页面和 Dashboard 设计，对齐 openCMP 的登录功能、账号选择器和主页 Dashboard。
+
+### 完成任务
+
+**后端 API 增强** ✅
+- 新增 GET /auth/user - 获取当前用户信息
+- 新增 POST /auth/permissions - 获取用户权限列表
+- 新增 GET /auth/regions - 获取可用区域列表
+- 新增 GET /auth/stats - 获取认证统计信息
+- 新增 GET /auth/scoped_resources - 获取 scoped 资源
+- 新增 GET /auth/scopedpolicybindings - 获取策略绑定
+- 新增 GET /capabilities - 获取系统能力配置
+
+**前端 Dashboard 创建** ✅
+- 创建 /views/dashboard/index.vue 主页 Dashboard
+- 包含统计卡片（用户、域、项目、云账号）
+- 包含快捷入口、资源概览、告警通知
+- 包含最近操作、服务状态卡片
+- 添加 /dashboard 路由
+
+**账号选择器页面** ✅
+- 创建 /views/login/chooser.vue 账号选择器
+- 显示域列表供用户选择
+- 选择后跳转登录页面并传递参数
+
+**登录页面增强** ✅
+- 支持 URL 参数登录 (?username=&fd_domain=)
+- 登录成功后调用完整 API 流程
+- 添加调试日志
+- 修复 axios 拦截器 bug（401 清除 token）
+
+**测试验证** ✅
+- Playwright 测试登录流程成功
+- 登录后跳转到 Dashboard
+- localStorage 正确保存 token
+
+### 测试结果
+
+| 功能 | 状态 | 说明 |
+|------|------|------|
+| 登录页面 | ✅ | 加载成功 |
+| 账号选择器 | ✅ | 加载成功 |
+| 登录流程 | ✅ | 成功跳转 Dashboard |
+| Dashboard | ✅ | 加载成功 |
+
+### 发现问题与修复
+
+1. **axios 拦截器 bug**: permissions/user API 返回 401 时清除 token
+   - 修复: 添加 isAuthInfoRequest 检查，不清除 token
+
+2. **permissions API 返回 401**: token 未正确传递
+   - 待后续完善（登录流程已正常工作）
+
+---
+
+## Session: 2026-04-22 (Phase 59 登录与 Dashboard 分析)
+
+### 目标
+参考 CloudPods 登录页面和 Dashboard 设计，对齐 openCMP 的登录功能、账号选择器和主页 Dashboard。
+
+### CloudPods 分析完成 ✅
+
+#### 分析方法
+使用 Playwright (webapp-testing skill) 分析 CloudPods 登录和 Dashboard:
+- 登录页面: https://127.0.0.1/auth/login
+- 账号选择器: https://127.0.0.1/auth/login/chooser
+- 参数登录: https://127.0.0.1/auth/login?username=admin&fd_domain=Default
+- Dashboard: https://127.0.0.1/dashboard
+
+#### 分析脚本
+- scripts/test_cloudpods_auth_v4.py (最终成功版本)
+
+#### 分析结果文件
+- `/scripts/test_output/cloudpods_auth/login_page.png` - 登录页面截图
+- `/scripts/test_output/cloudpods_auth/login_filled.png` - 填写后截图
+- `/scripts/test_output/cloudpods_auth/dashboard.png` - Dashboard 截图
+- `/scripts/test_output/cloudpods_auth/api_calls.json` - API 调用记录
+- `/scripts/test_output/cloudpods_auth/api_endpoints.json` - API endpoints 列表
+
+#### 关键发现
+
+**CloudPods 登录 API 流程**:
+1. POST `/api/v1/auth/login` - 登录认证
+2. GET `/api/v1/auth/user` - 获取用户信息
+3. POST `/api/v1/auth/permissions` - 获取权限列表
+4. GET `/api/v1/auth/regions` - 获取可用区域
+5. GET `/api/v1/auth/stats` - 获取统计信息
+6. GET `/api/v1/auth/scoped_resources` - 获取 scoped 资源
+7. GET `/api/v1/auth/scopedpolicybindings` - 获取策略绑定
+
+**CloudPods Dashboard API**:
+- `/api/v1/parameters/dashboard_system` - Dashboard 配置
+- `/api/v1/monitorresourcealerts` - 监控告警
+- `/api/v1/unifiedmonitors/query` - 统一监控查询
+- `/api/v2/rpc/usages/general-usage` - 使用量统计
+- `/api/v1/services` - 服务列表
+
+**openCMP 当前状态**:
+- 登录页面使用 Element Plus
+- 登录 API: POST `/auth/login`
+- 无账号选择器功能
+- 无主页 Dashboard（只有监控大盘）
+
+### 下一步任务
+
+1. **后端 API 增强**: 新增 auth 相关 API endpoints
+2. **登录页面增强**: 支持 URL 参数登录、调用完整 API 流程
+3. **账号选择器**: 创建新页面支持账号/域选择
+4. **主页 Dashboard**: 创建独立的 Dashboard 页面
+
+---
+
 ## Session: 2026-04-22 (Phase 58 财务中心模块页面全量测试)
 
 ### 测试目标

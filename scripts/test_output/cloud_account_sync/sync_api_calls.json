@@ -1,0 +1,34 @@
+[
+  {
+    "url": "http://localhost:3000/api/v1/cloud-accounts",
+    "method": "GET"
+  },
+  {
+    "url": "http://localhost:3000/src/api/cloud-account.ts",
+    "method": "GET"
+  },
+  {
+    "url": "http://localhost:3000/api/v1/cloud-accounts?page=1&page_size=20",
+    "method": "GET"
+  },
+  {
+    "url": "http://localhost:3000/api/v1/cloud-accounts/resource-types",
+    "method": "GET"
+  },
+  {
+    "url": "http://localhost:3000/api/v1/cloud-accounts/22/sync",
+    "method": "POST"
+  },
+  {
+    "url": "http://localhost:3000/api/v1/cloud-accounts?page=1&page_size=20",
+    "method": "GET"
+  },
+  {
+    "url": "http://localhost:3000/src/api/cloud-account.ts",
+    "method": "GET"
+  },
+  {
+    "url": "http://localhost:3000/api/v1/cloud-accounts?page_size=100",
+    "method": "GET"
+  }
+]

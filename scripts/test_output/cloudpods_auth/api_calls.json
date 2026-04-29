@@ -1,0 +1,222 @@
+[
+  {
+    "url": "https://127.0.0.1/api/v1/auth/regions",
+    "method": "GET",
+    "type": "xhr"
+  },
+  {
+    "url": "https://127.0.0.1/api/v1/auth/login",
+    "method": "POST",
+    "type": "xhr"
+  },
+  {
+    "url": "https://127.0.0.1/api/v1/auth/user",
+    "method": "GET",
+    "type": "xhr"
+  },
+  {
+    "url": "https://127.0.0.1/api/v2/capabilities?scope=system",
+    "method": "GET",
+    "type": "xhr"
+  },
+  {
+    "url": "https://127.0.0.1/api/v1/auth/permissions",
+    "method": "POST",
+    "type": "xhr"
+  },
+  {
+    "url": "https://127.0.0.1/api/v1/auth/scoped_resources",
+    "method": "GET",
+    "type": "xhr"
+  },
+  {
+    "url": "https://127.0.0.1/api/v1/rpc/parameters/global-settings",
+    "method": "GET",
+    "type": "xhr"
+  },
+  {
+    "url": "https://127.0.0.1/api/v1/parameters/profile",
+    "method": "GET",
+    "type": "xhr"
+  },
+  {
+    "url": "https://127.0.0.1/api/v1/auth/stats?scope=system",
+    "method": "GET",
+    "type": "xhr"
+  },
+  {
+    "url": "https://127.0.0.1/api/v1/auth/scopedpolicybindings?scope=system&effective=true&category=sub_hidden_menus&category=document_configured_callback_address&category=server_hidden_columns&category=disk_hidden_columns&category=snapshot_hidden_columns&category=eip_hidden_columns&category=network_hidden_columns&category=oss_hidden_columns&category=rds_hidden_columns&category=redis_hidden_columns&category=slb_hidden_columns&category=mongodb_hidden_columns&category=vpc_hidden_columns&category=navbar_hidden_items&category=dashboard_hidden_actions&category=fee_hidden_items&category=vminstance_hidden_menus&category=vminstance_configured_callback_address",
+    "method": "GET",
+    "type": "xhr"
+  },
+  {
+    "url": "https://127.0.0.1/api/v1/service_settings",
+    "method": "GET",
+    "type": "xhr"
+  },
+  {
+    "url": "https://127.0.0.1/api/v1/services?type=common",
+    "method": "GET",
+    "type": "xhr"
+  },
+  {
+    "url": "https://127.0.0.1/api/v1/monitorresourcealerts?show_fail_reason=true&details=true&alertinng=true&send_state=ok&level=fatal&limit=1&scope=system",
+    "method": "GET",
+    "type": "xhr"
+  },
+  {
+    "url": "https://127.0.0.1/api/v1/auth/regions",
+    "method": "GET",
+    "type": "xhr"
+  },
+  {
+    "url": "https://127.0.0.1/api/v1/monitorresourcealerts?scope=system&limit=20&alerting=true",
+    "method": "GET",
+    "type": "xhr"
+  },
+  {
+    "url": "https://127.0.0.1/api/v1/parameters/dashboard_system",
+    "method": "GET",
+    "type": "xhr"
+  },
+  {
+    "url": "https://127.0.0.1/api/v1/parameters/dashboard-system-default",
+    "method": "GET",
+    "type": "xhr"
+  },
+  {
+    "url": "https://127.0.0.1/api/v1/unifiedmonitors/query",
+    "method": "POST",
+    "type": "xhr"
+  },
+  {
+    "url": "https://127.0.0.1/api/v1/unifiedmonitors/query",
+    "method": "POST",
+    "type": "xhr"
+  },
+  {
+    "url": "https://127.0.0.1/api/v1/unifiedmonitors/query",
+    "method": "POST",
+    "type": "xhr"
+  },
+  {
+    "url": "https://127.0.0.1/api/v1/unifiedmonitors/query",
+    "method": "POST",
+    "type": "xhr"
+  },
+  {
+    "url": "https://127.0.0.1/api/v2/rpc/usages/general-usage?scope=system&refresh=true",
+    "method": "GET",
+    "type": "xhr"
+  },
+  {
+    "url": "https://127.0.0.1/api/v2/rpc/usages/general-usage?scope=system&refresh=true",
+    "method": "GET",
+    "type": "xhr"
+  },
+  {
+    "url": "https://127.0.0.1/api/v1/auth/user",
+    "method": "GET",
+    "type": "xhr"
+  },
+  {
+    "url": "https://127.0.0.1/api/v2/capabilities?scope=system",
+    "method": "GET",
+    "type": "xhr"
+  },
+  {
+    "url": "https://127.0.0.1/api/v1/auth/permissions",
+    "method": "POST",
+    "type": "xhr"
+  },
+  {
+    "url": "https://127.0.0.1/api/v1/auth/scoped_resources",
+    "method": "GET",
+    "type": "xhr"
+  },
+  {
+    "url": "https://127.0.0.1/api/v1/rpc/parameters/global-settings",
+    "method": "GET",
+    "type": "xhr"
+  },
+  {
+    "url": "https://127.0.0.1/api/v1/parameters/profile",
+    "method": "GET",
+    "type": "xhr"
+  },
+  {
+    "url": "https://127.0.0.1/api/v1/auth/stats?scope=system",
+    "method": "GET",
+    "type": "xhr"
+  },
+  {
+    "url": "https://127.0.0.1/api/v1/auth/scopedpolicybindings?scope=system&effective=true&category=sub_hidden_menus&category=document_configured_callback_address&category=server_hidden_columns&category=disk_hidden_columns&category=snapshot_hidden_columns&category=eip_hidden_columns&category=network_hidden_columns&category=oss_hidden_columns&category=rds_hidden_columns&category=redis_hidden_columns&category=slb_hidden_columns&category=mongodb_hidden_columns&category=vpc_hidden_columns&category=navbar_hidden_items&category=dashboard_hidden_actions&category=fee_hidden_items&category=vminstance_hidden_menus&category=vminstance_configured_callback_address",
+    "method": "GET",
+    "type": "xhr"
+  },
+  {
+    "url": "https://127.0.0.1/api/v1/service_settings",
+    "method": "GET",
+    "type": "xhr"
+  },
+  {
+    "url": "https://127.0.0.1/api/v1/services?type=common",
+    "method": "GET",
+    "type": "xhr"
+  },
+  {
+    "url": "https://127.0.0.1/api/v1/monitorresourcealerts?show_fail_reason=true&details=true&alertinng=true&send_state=ok&level=fatal&limit=1&scope=system",
+    "method": "GET",
+    "type": "xhr"
+  },
+  {
+    "url": "https://127.0.0.1/api/v1/parameters/dashboard_system",
+    "method": "GET",
+    "type": "xhr"
+  },
+  {
+    "url": "https://127.0.0.1/api/v1/auth/regions",
+    "method": "GET",
+    "type": "xhr"
+  },
+  {
+    "url": "https://127.0.0.1/api/v1/monitorresourcealerts?scope=system&limit=20&alerting=true",
+    "method": "GET",
+    "type": "xhr"
+  },
+  {
+    "url": "https://127.0.0.1/api/v1/parameters/dashboard-system-default",
+    "method": "GET",
+    "type": "xhr"
+  },
+  {
+    "url": "https://127.0.0.1/api/v1/unifiedmonitors/query",
+    "method": "POST",
+    "type": "xhr"
+  },
+  {
+    "url": "https://127.0.0.1/api/v1/unifiedmonitors/query",
+    "method": "POST",
+    "type": "xhr"
+  },
+  {
+    "url": "https://127.0.0.1/api/v1/unifiedmonitors/query",
+    "method": "POST",
+    "type": "xhr"
+  },
+  {
+    "url": "https://127.0.0.1/api/v1/unifiedmonitors/query",
+    "method": "POST",
+    "type": "xhr"
+  },
+  {
+    "url": "https://127.0.0.1/api/v2/rpc/usages/general-usage?scope=system&refresh=true",
+    "method": "GET",
+    "type": "xhr"
+  },
+  {
+    "url": "https://127.0.0.1/api/v2/rpc/usages/general-usage?scope=system&refresh=true",
+    "method": "GET",
+    "type": "xhr"
+  }
+]

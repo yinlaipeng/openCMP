@@ -1,0 +1,27 @@
+{
+  "inputs": [
+    {
+      "type": "text",
+      "placeholder": "请输入用户名",
+      "class": "ant-input"
+    },
+    {
+      "type": "password",
+      "placeholder": "请输入密码",
+      "class": "ant-input"
+    }
+  ],
+  "buttons": [
+    {
+      "text": "登 录",
+      "type": "submit",
+      "class": "ant-btn ant-btn-primary ant-btn-block"
+    }
+  ],
+  "forms": [],
+  "titles": [
+    "新一代产品化融合云"
+  ],
+  "menu_items": [],
+  "cards": []
+}

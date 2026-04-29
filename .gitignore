@@ -9,3 +9,7 @@ completion_log/
 # Keep scripts and constitution tracked
 # .specify/memory/constitution.md - track this
 # scripts/ralph-loop*.sh - track these
+backend/main
+backend/main
+backend/server
+backend/

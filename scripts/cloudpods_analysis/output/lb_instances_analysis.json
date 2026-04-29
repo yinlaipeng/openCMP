@@ -1,0 +1,40 @@
+{
+  "page_name": "lb_instances",
+  "page_path": "/lb",
+  "url": "https://127.0.0.1/lb",
+  "title": "Cloudpods-LB Instances",
+  "elements": {
+    "cards": 0,
+    "tables": 23,
+    "buttons": [
+      "View",
+      "Create",
+      "Sync Status",
+      "Batch operations",
+      "Tags"
+    ],
+    "search_forms": 1,
+    "inputs": 3,
+    "selects": 6,
+    "pagination": 0,
+    "tabs": 18,
+    "dialogs": 0,
+    "tags": [
+      "Tags"
+    ],
+    "table_headers": [
+      "Name",
+      "Status",
+      "Service Address",
+      "Specifications",
+      "VPC",
+      "Security group",
+      "Charging Method",
+      "Platform",
+      "Project",
+      "Region",
+      "Operations"
+    ],
+    "action_buttons": []
+  }
+}

@@ -1,0 +1,154 @@
+{
+  "cloudaccount": {
+    "page_name": "cloudaccount",
+    "page_path": "/cloudaccount",
+    "url": "https://127.0.0.1/cloudaccount",
+    "title": "Cloudpods-Accounts",
+    "elements": {
+      "cards": 0,
+      "tables": 46,
+      "buttons": [
+        "View",
+        "Create",
+        "Batch Action",
+        "Sync Account",
+        "More",
+        "Sync Account",
+        "More"
+      ],
+      "search_forms": 1,
+      "inputs": 3,
+      "selects": 6,
+      "pagination": 0,
+      "tabs": 18,
+      "tab_labels": [],
+      "dialogs": 0,
+      "tags": [],
+      "table_headers": [
+        "Name",
+        "Status",
+        "Enable Status",
+        "Health Status",
+        "Balance",
+        "Platform",
+        "Account",
+        "Last Sync Cost",
+        "Last Sync",
+        "Owner Domain",
+        "Resource attribution mode",
+        "Operations"
+      ],
+      "action_buttons": [],
+      "form_labels": []
+    }
+  },
+  "cloudgroup": {
+    "page_name": "cloudgroup",
+    "page_path": "/cloudgroup",
+    "url": "https://127.0.0.1/cloudgroup",
+    "title": "Cloudpods-Groups",
+    "elements": {
+      "cards": 0,
+      "tables": 23,
+      "buttons": [
+        "View",
+        "Create",
+        "Delete"
+      ],
+      "search_forms": 1,
+      "inputs": 3,
+      "selects": 6,
+      "pagination": 0,
+      "tabs": 0,
+      "tab_labels": [],
+      "dialogs": 0,
+      "tags": [],
+      "table_headers": [
+        "Name",
+        "Status",
+        "Permissions",
+        "Platform",
+        "Cloud Accounts",
+        "Shared Scope",
+        "Owner Domain",
+        "Operations"
+      ],
+      "action_buttons": [],
+      "form_labels": []
+    }
+  },
+  "proxysetting": {
+    "page_name": "proxysetting",
+    "page_path": "/proxysetting",
+    "url": "https://127.0.0.1/proxysetting",
+    "title": "Cloudpods-Proxy",
+    "elements": {
+      "cards": 0,
+      "tables": 22,
+      "buttons": [
+        "View",
+        "Create",
+        "Setup Sharing",
+        "Delete",
+        "Modify Properties",
+        "Setup Sharing",
+        "Delete"
+      ],
+      "search_forms": 1,
+      "inputs": 3,
+      "selects": 6,
+      "pagination": 0,
+      "tabs": 0,
+      "tab_labels": [],
+      "dialogs": 0,
+      "tags": [],
+      "table_headers": [
+        "Name",
+        "https proxy",
+        "http proxy",
+        "No proxy",
+        "Owner Domain",
+        "Operations"
+      ],
+      "action_buttons": [],
+      "form_labels": []
+    }
+  },
+  "projectmapping": {
+    "page_name": "projectmapping",
+    "page_path": "/projectmapping",
+    "url": "https://127.0.0.1/projectmapping",
+    "title": "Cloudpods-Sync Policy",
+    "elements": {
+      "cards": 0,
+      "tables": 32,
+      "buttons": [
+        "View",
+        "Create",
+        "Batch Action",
+        "Management Rules",
+        "More"
+      ],
+      "search_forms": 1,
+      "inputs": 3,
+      "selects": 6,
+      "pagination": 0,
+      "tabs": 0,
+      "tab_labels": [],
+      "dialogs": 0,
+      "tags": [],
+      "table_headers": [
+        "Name",
+        "Status",
+        "Enable Status",
+        "Rules",
+        "Application Scope",
+        "Shared Scope",
+        "Owner Domain",
+        "Operations"
+      ],
+      "action_buttons": [],
+      "form_labels": []
+    }
+  }
+}

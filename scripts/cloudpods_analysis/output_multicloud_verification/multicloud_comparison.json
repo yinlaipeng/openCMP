@@ -1,0 +1,132 @@
+{
+  "cloudpods_cloudaccount": {
+    "name": "cloudaccount",
+    "url": "https://127.0.0.1/cloudaccount",
+    "toolbar_buttons": [
+      "View",
+      "Create",
+      "Batch Action",
+      "Sync Account",
+      "More",
+      "Sync Account",
+      "More",
+      "Sync Account",
+      "More"
+    ],
+    "table_headers": [
+      "Name",
+      "Status",
+      "Enable Status",
+      "Health Status",
+      "Balance",
+      "Platform",
+      "Account",
+      "Last Sync Cost",
+      "Last Sync",
+      "Owner Domain",
+      "Resource attribution mode",
+      "Operations"
+    ],
+    "table_exists": false
+  },
+  "cloudpods_cloudgroup": {
+    "name": "cloudgroup",
+    "url": "https://127.0.0.1/cloudgroup",
+    "toolbar_buttons": [
+      "View",
+      "Create",
+      "Delete"
+    ],
+    "table_headers": [
+      "Name",
+      "Status",
+      "Permissions",
+      "Platform",
+      "Cloud Accounts",
+      "Shared Scope",
+      "Owner Domain",
+      "Operations"
+    ],
+    "table_exists": false
+  },
+  "cloudpods_proxysetting": {
+    "name": "proxysetting",
+    "url": "https://127.0.0.1/proxysetting",
+    "toolbar_buttons": [
+      "View",
+      "Create",
+      "Setup Sharing",
+      "Delete",
+      "Modify Properties",
+      "Setup Sharing",
+      "Delete"
+    ],
+    "table_headers": [
+      "Name",
+      "https proxy",
+      "http proxy",
+      "No proxy",
+      "Owner Domain",
+      "Operations"
+    ],
+    "table_exists": false
+  },
+  "cloudpods_projectmapping": {
+    "name": "projectmapping",
+    "url": "https://127.0.0.1/projectmapping",
+    "toolbar_buttons": [
+      "View",
+      "Create",
+      "Batch Action",
+      "Management Rules",
+      "More"
+    ],
+    "table_headers": [
+      "Name",
+      "Status",
+      "Enable Status",
+      "Rules",
+      "Application Scope",
+      "Shared Scope",
+      "Owner Domain",
+      "Operations"
+    ],
+    "table_exists": false
+  },
+  "opencmp_cloudaccount": {
+    "name": "cloudaccount",
+    "url": "http://localhost:3003/cloud-accounts",
+    "toolbar_buttons": [
+      "登录"
+    ],
+    "table_headers": [],
+    "table_exists": false
+  },
+  "opencmp_cloudgroup": {
+    "name": "cloudgroup",
+    "url": "http://localhost:3003/cloud-management/cloud-user-groups",
+    "toolbar_buttons": [
+      "登录"
+    ],
+    "table_headers": [],
+    "table_exists": false
+  },
+  "opencmp_proxysetting": {
+    "name": "proxysetting",
+    "url": "http://localhost:3003/cloud-management/proxies",
+    "toolbar_buttons": [
+      "登录"
+    ],
+    "table_headers": [],
+    "table_exists": false
+  },
+  "opencmp_projectmapping": {
+    "name": "projectmapping",
+    "url": "http://localhost:3003/cloud-management/sync-policies",
+    "toolbar_buttons": [
+      "登录"
+    ],
+    "table_headers": [],
+    "table_exists": false
+  }
+}

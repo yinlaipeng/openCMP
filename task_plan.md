@@ -4,7 +4,124 @@
 实现 openCMP 多云管理平台的完整功能落地，前端页面与后端 API 真实对接，云厂商适配器调用真实 SDK，实现从云账号添加 → 资源同步 → 资源管理的完整业务流程。
 
 ## Current Phase
-Phase 58 - 财务中心模块页面全量测试
+Phase 61 - 前端路由切换问题诊断与修复 🔵 in_progress
+
+### Phase 61: 前端路由切换问题诊断与修复 ✅ complete
+- **目标**: 诊断并修复路由切换问题（URL变化但页面内容不变，需刷新才能显示新页面）
+- **Status:** complete ✅
+- **问题描述**: 打开 /compute/vms 页面后点击其他页面，浏览器 URL 变了但页面内容一直是虚拟机页面
+- **测试时间**: 2026-04-23
+- **验证结果**: 全部通过 ✅
+
+#### 完整验证结果
+
+**测试脚本**: `scripts/complete_routing_verification.py`
+
+| 步骤 | 页面路由 | 页面标题 | 状态 |
+|------|----------|----------|:----:|
+| 登录 | /login | Token 存在 | ✅ |
+| 虚拟机页面 | /compute/vms | 虚拟机管理 | ✅ |
+| 主机模版页面 | /compute/host-templates | **主机模版** | ✅ |
+| 镜像页面 | /compute/images | **镜像管理** | ✅ |
+| 回到虚拟机页面 | /compute/vms | **虚拟机管理** | ✅ |
+| 跨模块VPC页面 | /network/basic/vpcs | **VPC** | ✅ |
+
+#### 关键验证点
+
+1. **主机模版页面标题正确**: "主机模版" ✅ (修复前显示"虚拟机管理")
+2. **vms-container 类正确移除**: ✅ (修复前残留)
+3. **反向切换正常**: ✅
+4. **跨模块路由切换正常**: ✅
+
+#### 修复内容
+
+**修复文件:** `frontend/src/views/compute/index.vue`
+
+```vue
+<router-view :key="$route.fullPath" />
+```
+
+**修复原理:** Vue Router 嵌套路由切换时，父组件不重新创建。添加 :key 强制子组件重新渲染。
+
+---
+
+### Phase 60 - 云账号同步功能全量测试与修复
+- **目标**: 测试云账号添加、同步功能，修复发现的问题
+- **Status:** in_progress 🔵
+- **测试时间**: 2026-04-22
+
+#### 测试发现的问题
+
+| 问题 | 描述 | 严重性 |
+|------|------|--------|
+| 定时任务未创建 | 添加云账号后没有自动创建定时任务 | 高 |
+| 同步 API 调用成功 | POST /api/v1/cloud-accounts/:id/sync 正常 | ✅ 正常 |
+| 云账号显示正常 | aliyun-test, 已连接, 启用, 健康, 阿里云 | ✅ 正常 |
+| 401 错误 | 部分 API 返回 401 (权限问题) | 中 |
+
+#### 任务清单
+
+**阶段1: 修复定时任务创建** ⚠️ 待完成
+- [ ] 在 submitWizard 中添加 createScheduledTask 调用
+- [ ] 使用 scheduleForm 数据创建定时任务
+- [ ] 测试添加云账号后自动创建定时任务
+
+**阶段2: 测试验证** ⚠️ 待完成
+- [ ] 添加新云账号验证定时任务自动创建
+- [ ] 测试定时任务执行同步功能
+- [ ] 检查同步日志是否正确记录
+
+---
+
+### Phase 59: 登录与 Dashboard 对齐 CloudPods 设计 ✅ complete
+- **目标**: 参考 CloudPods 登录页面和 Dashboard 设计，对齐 openCMP 的登录功能、账号选择器和主页 Dashboard
+- **Status:** complete ✅
+- **完成时间**: 2026-04-22
+
+#### 完成任务清单
+
+**阶段1: 后端 API 增强** ✅
+- [x] 新增 GET /auth/user 获取当前用户信息
+- [x] 新增 POST /auth/permissions 获取用户权限列表
+- [x] 新增 GET /auth/regions 获取可用区域列表
+- [x] 新增 GET /auth/stats 获取认证统计信息
+- [x] 新增 GET /auth/scoped_resources 获取 scoped 资源
+- [x] 新增 GET /auth/scopedpolicybindings 获取策略绑定
+- [x] 新增 GET /capabilities 获取系统能力配置
+
+**阶段2: 前端 Dashboard 创建** ✅
+- [x] 创建 /views/dashboard/index.vue 主页 Dashboard
+- [x] 添加统计卡片（用户、域、项目、云账号）
+- [x] 添加快捷入口、资源概览、告警通知
+- [x] 添加最近操作、服务状态卡片
+- [x] 添加 /dashboard 路由
+
+**阶段3: 账号选择器页面** ✅
+- [x] 创建 /views/login/chooser.vue 账号选择器
+- [x] 显示域列表供用户选择
+- [x] 选择后跳转登录页面并传递参数
+
+**阶段4: 登录页面增强** ✅
+- [x] 支持 URL 参数登录 (?username=&fd_domain=)
+- [x] 登录成功后调用完整 API 流程
+- [x] 添加调试日志
+- [x] 修复 axios 拦截器 bug（401 清除 token）
+
+**阶段5: 测试验证** ✅
+- [x] Playwright 测试登录流程
+- [x] Playwright 测试 Dashboard 页面
+- [x] 验证 localStorage 正确保存 token
+
+#### 测试结果
+
+| 功能 | 状态 | 说明 |
+|------|------|------|
+| 登录页面 | ✅ | 加载成功 |
+| 账号选择器 | ✅ | 加载成功 |
+| 登录流程 | ✅ | 成功跳转 Dashboard |
+| Dashboard | ✅ | 加载成功 |
+
+---
 
 ### Phase 58: 财务中心模块页面全量测试 ✅ complete
 - **目标**: 使用 Playwright 测试 openCMP 财务中心模块8个页面，验证功能完整性

@@ -1,0 +1,43 @@
+{
+  "page_name": "lb_certificates",
+  "page_path": "/lbcert",
+  "url": "https://127.0.0.1/lbcert",
+  "title": "Cloudpods-Certificates",
+  "elements": {
+    "cards": 0,
+    "tables": 34,
+    "buttons": [
+      "View",
+      "Create",
+      "Batch Action",
+      "Tags",
+      "Change Project",
+      "Setup Sharing"
+    ],
+    "search_forms": 1,
+    "inputs": 3,
+    "selects": 6,
+    "pagination": 0,
+    "tabs": 0,
+    "dialogs": 0,
+    "tags": [
+      "Tags"
+    ],
+    "table_headers": [
+      "Name",
+      "Tags",
+      "Status",
+      "Domain Name",
+      "Expiration",
+      "Subject Alternative Names",
+      "Listeners",
+      "Shared Scope",
+      "Project",
+      "Platform",
+      "Cloud account",
+      "Region",
+      "Operations"
+    ],
+    "action_buttons": []
+  }
+}

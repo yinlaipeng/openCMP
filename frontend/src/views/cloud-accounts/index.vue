@@ -607,6 +607,7 @@ import { getSyncPolicies } from '@/api/sync-policy'
 import { getProjects } from '@/api/project'
 import { getDomains } from '@/api/iam'
 import { getLatestSyncLog } from '@/api/sync-log'
+import { createScheduledTask } from '@/api/scheduled-task'
 import type { CloudAccount, CreateCloudAccountRequest, Project } from '@/types'
 import type { SyncPolicy } from '@/types/sync-policy'
 import EditAccountDialog from './components/EditAccountDialog.vue'
@@ -1207,8 +1208,51 @@ const submitWizard = async () => {
       default_project_id: wizardForm.defaultProjectId
     }
 
-    await createCloudAccount(formData)
+    // 创建云账号
+    const accountResponse = await createCloudAccount(formData)
+    const accountId = accountResponse?.id || accountResponse?.data?.id
+
     ElMessage.success('云账户添加成功')
+
+    // 如果设置了定时任务，创建定时同步任务
+    if (scheduleForm.name && accountId) {
+      try {
+        // 构建 cron 表达式
+        let cronExpression = ''
+        const [hour, minute] = scheduleForm.triggerTime.split(':')
+        switch (scheduleForm.frequency) {
+          case 'hourly':
+            cronExpression = `${minute} * * * *`
+            break
+          case 'daily':
+            cronExpression = `${minute} ${hour} * * *`
+            break
+          case 'weekly':
+            cronExpression = `${minute} ${hour} * * 1`
+            break
+          default:
+            cronExpression = `${minute} ${hour} * * *`
+        }
+
+        await createScheduledTask({
+          name: scheduleForm.name,
+          task_type: 'resource_sync',
+          target_id: accountId,
+          cron_expression: cronExpression,
+          enabled: true,
+          config: {
+            account_id: accountId,
+            account_name: wizardForm.name,
+            provider: selectedProvider.value,
+            sync_mode: 'incremental'
+          }
+        })
+        ElMessage.success('定时同步任务创建成功')
+      } catch (scheduleError) {
+        console.error('创建定时任务失败:', scheduleError)
+        ElMessage.warning('定时同步任务创建失败，可手动创建')
+      }
+    }
 
     resetWizard()
     showWizard.value = false

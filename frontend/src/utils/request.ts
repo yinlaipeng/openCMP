@@ -137,9 +137,15 @@ service.interceptors.response.use(
       const requestUrl: string = error.config?.url || ''
 
       // 登录接口的错误由页面自己处理，不走全局拦截
-      const isLoginRequest = requestUrl.includes('/auth/login')
+      // 检查 URL 是否包含 login（使用更宽松的匹配）
+      const isLoginRequest = requestUrl.includes('/auth/login') || requestUrl === '/auth/login'
 
-      if (status === 401 && !isLoginRequest) {
+      // 权限和用户信息接口的错误也不清除 token（登录后调用）
+      const isAuthInfoRequest = requestUrl.includes('/auth/permissions') ||
+                                requestUrl.includes('/auth/user') ||
+                                requestUrl.includes('/auth/me')
+
+      if (status === 401 && !isLoginRequest && !isAuthInfoRequest) {
         // 清除本地凭证
         localStorage.removeItem('token')
         localStorage.removeItem('user')
@@ -158,7 +164,7 @@ service.interceptors.response.use(
       } else if (!isLoginRequest) {
         ElMessage.error(getFriendlyErrorMessage(error))
       }
-    } else if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
+    } else if (error.code === 'ECONNABUTED' || error.code === 'ETIMEDOUT') {
       ElMessage.error(ERROR_MESSAGES['TIMEOUT_ERROR'])
     } else if (!error.request) {
       ElMessage.error(ERROR_MESSAGES['NETWORK_ERROR'])

@@ -5,13 +5,14 @@
         <el-icon :size="40"><Lock /></el-icon>
         <h1>openCMP</h1>
         <p>多云管理平台</p>
+        <p class="domain-info" v-if="domain">{{ domain }} 域</p>
       </div>
-      
+
       <el-form :model="form" :rules="rules" ref="formRef" class="login-form">
         <el-form-item prop="username">
           <el-input
             v-model="form.username"
-            placeholder="用户名"
+            placeholder="请输入用户名"
             size="large"
             prefix-icon="User"
           />
@@ -20,7 +21,7 @@
           <el-input
             v-model="form.password"
             type="password"
-            placeholder="密码"
+            placeholder="请输入密码"
             size="large"
             prefix-icon="Lock"
             show-password
@@ -35,27 +36,30 @@
             :loading="loading"
             @click="handleLogin"
           >
-            登录
+            登 录
           </el-button>
         </el-form-item>
       </el-form>
-      
+
       <div class="login-footer">
-        <p>默认管理员账号：admin / admin123</p>
+        <p>默认管理员账号：admin / admin@123</p>
+        <p class="chooser-link" @click="goToChooser">选择其他账号</p>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, reactive, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import request from '@/utils/request'
 
 const router = useRouter()
+const route = useRoute()
 const formRef = ref<FormInstance>()
 const loading = ref(false)
+const domain = ref('')
 
 const form = reactive({
   username: '',
@@ -69,6 +73,19 @@ const rules: FormRules = {
     { min: 6, message: '密码长度至少 6 位', trigger: 'blur' }
   ]
 }
+
+// 处理 URL 参数
+onMounted(() => {
+  const usernameParam = route.query.username as string
+  const domainParam = route.query.fd_domain as string
+
+  if (usernameParam) {
+    form.username = usernameParam
+  }
+  if (domainParam) {
+    domain.value = domainParam
+  }
+})
 
 const handleLogin = async () => {
   if (!formRef.value) return
@@ -87,23 +104,52 @@ const handleLogin = async () => {
         }
       })
 
-      // 保存 token 和用户信息到 localStorage
-      localStorage.setItem('token', res.token)
-      localStorage.setItem('user', JSON.stringify(res.user))
+      // 先保存 token 和用户信息到 localStorage
+      if (res && res.token) {
+        localStorage.setItem('token', res.token)
+        localStorage.setItem('user', JSON.stringify(res.user))
+        console.log('登录成功，token已保存')
 
-      ElMessage.success('登录成功')
-      router.push('/')
+        // 然后获取用户权限（异步，不阻塞跳转）
+        request({
+          url: '/auth/permissions',
+          method: 'post'
+        }).then(permRes => {
+          localStorage.setItem('permissions', JSON.stringify(permRes.permissions || []))
+        }).catch(e => {
+          console.log('获取权限失败:', e)
+        })
+
+        // 获取用户信息（异步，不阻塞跳转）
+        request({
+          url: '/auth/user',
+          method: 'get'
+        }).then(userRes => {
+          localStorage.setItem('userInfo', JSON.stringify(userRes))
+        }).catch(e => {
+          console.log('获取用户信息失败:', e)
+        })
+
+        ElMessage.success('登录成功')
+        router.push('/dashboard')
+      } else {
+        console.error('登录响应数据不正确:', res)
+        ElMessage.error('登录响应数据不正确')
+      }
     } catch (e: any) {
-      // axios 拦截器已处理了通用错误提示，登录失败单独处理
+      console.error('登录失败:', e)
       const status = e.response?.status
       if (status === 401 || status === 403) {
         ElMessage.error('用户名或密码错误')
       }
-      // 其他错误由拦截器统一提示，无需重复
     } finally {
       loading.value = false
     }
   })
+}
+
+const goToChooser = () => {
+  router.push('/auth/login/chooser')
 }
 </script>
 
@@ -145,6 +191,12 @@ const handleLogin = async () => {
   font-size: 14px;
 }
 
+.login-header .domain-info {
+  color: #667eea;
+  font-size: 12px;
+  margin-top: 5px;
+}
+
 .login-form {
   margin-top: 20px;
 }
@@ -154,5 +206,15 @@ const handleLogin = async () => {
   text-align: center;
   color: #999;
   font-size: 12px;
+}
+
+.chooser-link {
+  color: #667eea;
+  cursor: pointer;
+  margin-top: 10px;
+}
+
+.chooser-link:hover {
+  text-decoration: underline;
 }
 </style>

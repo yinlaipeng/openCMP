@@ -1,0 +1,57 @@
+{
+  "total_pages": 5,
+  "consistent_pages": 0,
+  "inconsistent_pages": 5,
+  "details": [
+    {
+      "page": "block_storage",
+      "result": "❌ 存在差异",
+      "matches": [],
+      "differences": [
+        "工具栏按钮不一致: Cloudpods=[], openCMP=['查看', '批量操作', '标签']",
+        "分页组件不一致",
+        "表格选择列不一致"
+      ]
+    },
+    {
+      "page": "buckets",
+      "result": "❌ 存在差异",
+      "matches": [],
+      "differences": [
+        "工具栏按钮不一致: Cloudpods=[], openCMP=['查看', '创建', '批量操作', '标签']",
+        "分页组件不一致",
+        "表格选择列不一致"
+      ]
+    },
+    {
+      "page": "table_storage",
+      "result": "❌ 存在差异",
+      "matches": [],
+      "differences": [
+        "工具栏按钮不一致: Cloudpods=[], openCMP=['查看']",
+        "分页组件不一致",
+        "表格选择列不一致"
+      ]
+    },
+    {
+      "page": "file_systems",
+      "result": "❌ 存在差异",
+      "matches": [],
+      "differences": [
+        "工具栏按钮不一致: Cloudpods=[], openCMP=['查看', '创建', '批量操作', '标签']",
+        "分页组件不一致",
+        "表格选择列不一致"
+      ]
+    },
+    {
+      "page": "nas_groups",
+      "result": "❌ 存在差异",
+      "matches": [],
+      "differences": [
+        "工具栏按钮不一致: Cloudpods=[], openCMP=['查看', '创建', '批量操作']",
+        "分页组件不一致",
+        "表格选择列不一致"
+      ]
+    }
+  ]
+}

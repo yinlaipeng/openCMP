@@ -1,0 +1,146 @@
+{
+  "pages": [
+    {
+      "name": "云账户管理",
+      "path": "/cloud-accounts",
+      "screenshot": "/Users/aurora/Desktop/xtwork/git/openCMP/scripts/test_results/云账户管理.png",
+      "empty_state_count": 0,
+      "table_exists": true,
+      "headers": [
+        "ID",
+        "名称",
+        "连接状态",
+        "启用状态",
+        "健康状态",
+        "余额",
+        "平台",
+        "账号",
+        "上次同步耗时",
+        "同步时间",
+        "所属域",
+        "资源归属方式",
+        "操作"
+      ],
+      "toolbar_buttons": [
+        "刷新",
+        "新建",
+        "批量操作",
+        "导出",
+        "设置"
+      ],
+      "has_error": false
+    },
+    {
+      "name": "同步策略",
+      "path": "/cloud-management/sync-policies",
+      "screenshot": "/Users/aurora/Desktop/xtwork/git/openCMP/scripts/test_results/同步策略.png",
+      "empty_state_count": 0,
+      "table_exists": true,
+      "headers": [
+        "ID",
+        "策略名称",
+        "规则数量",
+        "应用范围",
+        "执行次数",
+        "最后执行",
+        "状态",
+        "创建时间",
+        "操作"
+      ],
+      "toolbar_buttons": [
+        "刷新",
+        "新建策略",
+        "批量操作",
+        "导出"
+      ],
+      "has_error": false
+    },
+    {
+      "name": "云用户组",
+      "path": "/cloud-management/cloud-user-groups",
+      "screenshot": "/Users/aurora/Desktop/xtwork/git/openCMP/scripts/test_results/云用户组.png",
+      "empty_state_count": 0,
+      "table_exists": true,
+      "headers": [
+        "ID",
+        "名称",
+        "状态",
+        "权限",
+        "平台",
+        "云账号",
+        "共享范围",
+        "所属域",
+        "操作"
+      ],
+      "toolbar_buttons": [
+        "刷新",
+        "新建",
+        "批量操作"
+      ],
+      "has_error": false
+    },
+    {
+      "name": "代理管理",
+      "path": "/cloud-management/proxies",
+      "screenshot": "/Users/aurora/Desktop/xtwork/git/openCMP/scripts/test_results/代理管理.png",
+      "empty_state_count": 0,
+      "table_exists": true,
+      "headers": [
+        "ID",
+        "名称",
+        "HTTPS代理",
+        "HTTP代理",
+        "不走代理",
+        "所属域",
+        "操作"
+      ],
+      "toolbar_buttons": [
+        "刷新",
+        "新建",
+        "批量操作"
+      ],
+      "has_error": false
+    },
+    {
+      "name": "定时同步任务",
+      "path": "/scheduled-tasks",
+      "screenshot": "/Users/aurora/Desktop/xtwork/git/openCMP/scripts/test_results/定时同步任务.png",
+      "empty_state_count": 0,
+      "table_exists": true,
+      "headers": [
+        "ID",
+        "名称",
+        "类型",
+        "触发频次",
+        "触发时间",
+        "有效时间",
+        "状态",
+        "关联云账号",
+        "操作"
+      ],
+      "toolbar_buttons": [],
+      "has_error": false
+    },
+    {
+      "name": "同步日志",
+      "path": "/sync-logs",
+      "screenshot": "/Users/aurora/Desktop/xtwork/git/openCMP/scripts/test_results/同步日志.png",
+      "empty_state_count": 0,
+      "table_exists": true,
+      "headers": [
+        "ID",
+        "云账号",
+        "同步模式",
+        "资源类型",
+        "开始时间",
+        "耗时",
+        "状态",
+        "资源统计",
+        "触发方式",
+        "操作"
+      ],
+      "toolbar_buttons": [],
+      "has_error": false
+    }
+  ]
+}

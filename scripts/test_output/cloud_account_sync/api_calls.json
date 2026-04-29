@@ -1,0 +1,200 @@
+[
+  {
+    "url": "http://localhost:3000/src/api/iam.ts",
+    "method": "GET",
+    "type": "script",
+    "body": null
+  },
+  {
+    "url": "http://localhost:3000/src/api/auth.ts",
+    "method": "GET",
+    "type": "script",
+    "body": null
+  },
+  {
+    "url": "http://localhost:3000/src/api/permission.ts",
+    "method": "GET",
+    "type": "script",
+    "body": null
+  },
+  {
+    "url": "http://localhost:3000/api/v1/auth/login",
+    "method": "POST",
+    "type": "xhr",
+    "body": "{\"username\":\"admin\",\"password\":\"admin@123\"}"
+  },
+  {
+    "url": "http://localhost:3000/api/v1/auth/permissions",
+    "method": "POST",
+    "type": "xhr",
+    "body": null
+  },
+  {
+    "url": "http://localhost:3000/api/v1/auth/user",
+    "method": "GET",
+    "type": "xhr",
+    "body": null
+  },
+  {
+    "url": "http://localhost:3000/api/v1/auth/stats",
+    "method": "GET",
+    "type": "xhr",
+    "body": null
+  },
+  {
+    "url": "http://localhost:3000/api/v1/compute/vms",
+    "method": "GET",
+    "type": "xhr",
+    "body": null
+  },
+  {
+    "url": "http://localhost:3000/api/v1/projects",
+    "method": "GET",
+    "type": "xhr",
+    "body": null
+  },
+  {
+    "url": "http://localhost:3000/api/v1/cloud-accounts",
+    "method": "GET",
+    "type": "xhr",
+    "body": null
+  },
+  {
+    "url": "http://localhost:3000/api/v1/storage/disks",
+    "method": "GET",
+    "type": "xhr",
+    "body": null
+  },
+  {
+    "url": "http://localhost:3000/src/api/iam.ts",
+    "method": "GET",
+    "type": "script",
+    "body": null
+  },
+  {
+    "url": "http://localhost:3000/src/api/auth.ts",
+    "method": "GET",
+    "type": "script",
+    "body": null
+  },
+  {
+    "url": "http://localhost:3000/src/api/permission.ts",
+    "method": "GET",
+    "type": "script",
+    "body": null
+  },
+  {
+    "url": "http://localhost:3000/src/api/cloud-account.ts",
+    "method": "GET",
+    "type": "script",
+    "body": null
+  },
+  {
+    "url": "http://localhost:3000/src/api/sync-policy.ts",
+    "method": "GET",
+    "type": "script",
+    "body": null
+  },
+  {
+    "url": "http://localhost:3000/src/api/project.ts",
+    "method": "GET",
+    "type": "script",
+    "body": null
+  },
+  {
+    "url": "http://localhost:3000/src/api/sync-log.ts",
+    "method": "GET",
+    "type": "script",
+    "body": null
+  },
+  {
+    "url": "http://localhost:3000/src/api/scheduled-task.ts",
+    "method": "GET",
+    "type": "script",
+    "body": null
+  },
+  {
+    "url": "http://localhost:3000/api/v1/cloud-accounts?page=1&page_size=20",
+    "method": "GET",
+    "type": "xhr",
+    "body": null
+  },
+  {
+    "url": "http://localhost:3000/api/v1/sync-policies",
+    "method": "GET",
+    "type": "xhr",
+    "body": null
+  },
+  {
+    "url": "http://localhost:3000/api/v1/projects",
+    "method": "GET",
+    "type": "xhr",
+    "body": null
+  },
+  {
+    "url": "http://localhost:3000/api/v1/domains",
+    "method": "GET",
+    "type": "xhr",
+    "body": null
+  },
+  {
+    "url": "http://localhost:3000/api/v1/cloud-accounts/resource-types",
+    "method": "GET",
+    "type": "xhr",
+    "body": null
+  },
+  {
+    "url": "http://localhost:3000/api/v1/projects",
+    "method": "GET",
+    "type": "xhr",
+    "body": null
+  },
+  {
+    "url": "http://localhost:3000/src/api/iam.ts",
+    "method": "GET",
+    "type": "script",
+    "body": null
+  },
+  {
+    "url": "http://localhost:3000/src/api/auth.ts",
+    "method": "GET",
+    "type": "script",
+    "body": null
+  },
+  {
+    "url": "http://localhost:3000/src/api/permission.ts",
+    "method": "GET",
+    "type": "script",
+    "body": null
+  },
+  {
+    "url": "http://localhost:3000/src/api/scheduled-task.ts",
+    "method": "GET",
+    "type": "script",
+    "body": null
+  },
+  {
+    "url": "http://localhost:3000/src/api/cloud-account.ts",
+    "method": "GET",
+    "type": "script",
+    "body": null
+  },
+  {
+    "url": "http://localhost:3000/api/v1/scheduled-tasks?page=1&page_size=20",
+    "method": "GET",
+    "type": "xhr",
+    "body": null
+  },
+  {
+    "url": "http://localhost:3000/api/v1/cloud-accounts?page_size=100",
+    "method": "GET",
+    "type": "xhr",
+    "body": null
+  },
+  {
+    "url": "http://localhost:3000/api/v1/projects",
+    "method": "GET",
+    "type": "xhr",
+    "body": null
+  }
+]

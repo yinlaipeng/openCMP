@@ -1,0 +1,15 @@
+{
+  "accounts": [
+    {
+      "id": "22",
+      "name": "aliyun-test",
+      "status": "已连接",
+      "enabled": "启用",
+      "health": "正常",
+      "balance": "¥0.00",
+      "provider": "阿里云"
+    }
+  ],
+  "sync_status": "success",
+  "scheduled_tasks": []
+}

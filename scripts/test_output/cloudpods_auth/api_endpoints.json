@@ -1,0 +1,19 @@
+[
+  "/api/v1/auth/login",
+  "/api/v1/auth/permissions",
+  "/api/v1/auth/regions",
+  "/api/v1/auth/scoped_resources",
+  "/api/v1/auth/scopedpolicybindings",
+  "/api/v1/auth/stats",
+  "/api/v1/auth/user",
+  "/api/v1/monitorresourcealerts",
+  "/api/v1/parameters/dashboard-system-default",
+  "/api/v1/parameters/dashboard_system",
+  "/api/v1/parameters/profile",
+  "/api/v1/rpc/parameters/global-settings",
+  "/api/v1/service_settings",
+  "/api/v1/services",
+  "/api/v1/unifiedmonitors/query",
+  "/api/v2/capabilities",
+  "/api/v2/rpc/usages/general-usage"
+]

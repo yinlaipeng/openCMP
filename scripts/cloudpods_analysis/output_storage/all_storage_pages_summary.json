@@ -1,0 +1,182 @@
+{
+  "block_storage": {
+    "page_name": "block_storage",
+    "page_path": "/blockstorage",
+    "url": "https://127.0.0.1/blockstorage",
+    "title": "Cloudpods-Block Storage",
+    "elements": {
+      "cards": 0,
+      "tables": 24,
+      "buttons": [
+        "View",
+        "Batch Action",
+        "Tags"
+      ],
+      "search_forms": 1,
+      "inputs": 3,
+      "selects": 6,
+      "pagination": 0,
+      "tabs": 18,
+      "tab_labels": [],
+      "dialogs": 0,
+      "tags": [
+        "Tags"
+      ],
+      "table_headers": [
+        "Name",
+        "Status",
+        "Enable Status",
+        "Physical capacity",
+        "Virtual capacity",
+        "Platform",
+        "Owner Domain",
+        "Region",
+        "Operations"
+      ],
+      "action_buttons": []
+    }
+  },
+  "buckets": {
+    "page_name": "buckets",
+    "page_path": "/bucket",
+    "url": "https://127.0.0.1/bucket",
+    "title": "Cloudpods-Bucket",
+    "elements": {
+      "cards": 0,
+      "tables": 24,
+      "buttons": [
+        "View",
+        "Create",
+        "Batch Action",
+        "Tags"
+      ],
+      "search_forms": 1,
+      "inputs": 3,
+      "selects": 6,
+      "pagination": 0,
+      "tabs": 18,
+      "tab_labels": [],
+      "dialogs": 0,
+      "tags": [
+        "Tags"
+      ],
+      "table_headers": [
+        "Name",
+        "Status",
+        "Tags",
+        "Permission",
+        "Platform",
+        "Project",
+        "Region",
+        "Created At",
+        "Operations"
+      ],
+      "action_buttons": []
+    }
+  },
+  "table_storage": {
+    "page_name": "table_storage",
+    "page_path": "/table-storage",
+    "url": "https://127.0.0.1/table-storage",
+    "title": "Cloudpods-Table Storage",
+    "elements": {
+      "cards": 0,
+      "tables": 23,
+      "buttons": [
+        "View"
+      ],
+      "search_forms": 1,
+      "inputs": 3,
+      "selects": 6,
+      "pagination": 0,
+      "tabs": 0,
+      "tab_labels": [],
+      "dialogs": 0,
+      "tags": [],
+      "table_headers": [
+        "Name",
+        "Status",
+        "Platform",
+        "Cloud account",
+        "Project",
+        "Region"
+      ],
+      "action_buttons": []
+    }
+  },
+  "file_systems": {
+    "page_name": "file_systems",
+    "page_path": "/nas",
+    "url": "https://127.0.0.1/nas",
+    "title": "Cloudpods-File System",
+    "elements": {
+      "cards": 0,
+      "tables": 23,
+      "buttons": [
+        "View",
+        "Create",
+        "Batch Action",
+        "Tags"
+      ],
+      "search_forms": 1,
+      "inputs": 3,
+      "selects": 6,
+      "pagination": 0,
+      "tabs": 0,
+      "tab_labels": [],
+      "dialogs": 0,
+      "tags": [
+        "Tags"
+      ],
+      "table_headers": [
+        "Name",
+        "Tags",
+        "Status",
+        "FileSystem Type",
+        "Storage Type",
+        "Protocol Type",
+        "Billing Type",
+        "Platform",
+        "Cloud account",
+        "Owner Domain",
+        "Region",
+        "Operations"
+      ],
+      "action_buttons": []
+    }
+  },
+  "nas_groups": {
+    "page_name": "nas_groups",
+    "page_path": "/access-group",
+    "url": "https://127.0.0.1/access-group",
+    "title": "Cloudpods-Access Group",
+    "elements": {
+      "cards": 0,
+      "tables": 23,
+      "buttons": [
+        "View",
+        "Create",
+        "Batch Action"
+      ],
+      "search_forms": 1,
+      "inputs": 3,
+      "selects": 6,
+      "pagination": 0,
+      "tabs": 0,
+      "tab_labels": [],
+      "dialogs": 0,
+      "tags": [],
+      "table_headers": [
+        "Name",
+        "Mount Target Count",
+        "Status",
+        "Platform",
+        "Cloud account",
+        "Region",
+        "Owner Domain",
+        "Operations"
+      ],
+      "action_buttons": []
+    }
+  }
+}

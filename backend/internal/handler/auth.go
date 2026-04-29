@@ -17,9 +17,13 @@ import (
 type AuthHandler struct {
 	userService       *service.UserService
 	authSourceService *service.AuthSourceService
+	roleService       *service.RoleService
+	domainService     *service.DomainService
+	projectService    *service.ProjectService
 	logger            *zap.Logger
 	jwtSecret         string
 	jwtExpire         int
+	db                *gorm.DB
 }
 
 // NewAuthHandler 创建认证 Handler
@@ -27,9 +31,13 @@ func NewAuthHandler(db *gorm.DB, logger *zap.Logger, jwtSecret string, jwtExpire
 	return &AuthHandler{
 		userService:       service.NewUserService(db),
 		authSourceService: service.NewAuthSourceService(db),
+		roleService:       service.NewRoleService(db),
+		domainService:     service.NewDomainService(db),
+		projectService:    service.NewProjectService(db),
 		logger:            logger,
 		jwtSecret:         jwtSecret,
 		jwtExpire:         jwtExpire,
+		db:                db,
 	}
 }
 
@@ -225,4 +233,219 @@ func (h *AuthHandler) UpdateProfile(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "profile updated", "user": user})
+}
+
+// GetPermissions 获取用户权限列表
+func (h *AuthHandler) GetPermissions(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+		return
+	}
+
+	ctx := c.Request.Context()
+
+	// 获取用户的角色
+	roleIDs, err := h.userService.GetUserRoleIDs(ctx, userID.(uint))
+	if err != nil {
+		h.logger.Error("failed to get user roles", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get user roles"})
+		return
+	}
+
+	// 通过角色获取权限
+	var permissions []string
+	err = h.db.Table("role_permissions").
+		Select("permission_name").
+		Where("role_id IN ?", roleIDs).
+		Pluck("permission_name", &permissions).Error
+
+	if err != nil {
+		h.logger.Error("failed to get permissions", zap.Error(err))
+		permissions = []string{}
+	}
+
+	// 去重
+	uniquePerms := make(map[string]bool)
+	for _, p := range permissions {
+		uniquePerms[p] = true
+	}
+
+	result := make([]string, 0, len(uniquePerms))
+	for p := range uniquePerms {
+		result = append(result, p)
+	}
+
+	c.JSON(http.StatusOK, gin.H{"permissions": result})
+}
+
+// GetRegions 获取可用区域列表
+func (h *AuthHandler) GetRegions(c *gin.Context) {
+	// 返回云账号关联的区域列表
+	var regions []struct {
+		ID        uint   `json:"id"`
+		Name      string `json:"name"`
+		Provider  string `json:"provider"`
+		AccountID uint   `json:"account_id"`
+	}
+
+	err := h.db.Table("cloud_accounts").
+		Select("id, name, provider").
+		Where("status = ?", "enabled").
+		Find(&regions).Error
+
+	if err != nil {
+		h.logger.Error("failed to get regions", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get regions"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"regions": regions})
+}
+
+// GetStats 获取认证统计信息
+func (h *AuthHandler) GetStats(c *gin.Context) {
+	stats := struct {
+		UserCount    int64 `json:"user_count"`
+		DomainCount  int64 `json:"domain_count"`
+		ProjectCount int64 `json:"project_count"`
+		GroupCount   int64 `json:"group_count"`
+		RoleCount    int64 `json:"role_count"`
+	}{}
+
+	// 统计用户数
+	h.db.Model(&model.User{}).Count(&stats.UserCount)
+
+	// 统计域数
+	h.db.Model(&model.Domain{}).Count(&stats.DomainCount)
+
+	// 统计项目数
+	h.db.Model(&model.Project{}).Count(&stats.ProjectCount)
+
+	// 统计组数
+	h.db.Model(&model.Group{}).Count(&stats.GroupCount)
+
+	// 统计角色数
+	h.db.Model(&model.Role{}).Count(&stats.RoleCount)
+
+	c.JSON(http.StatusOK, stats)
+}
+
+// GetScopedResources 获取 scoped 资源
+func (h *AuthHandler) GetScopedResources(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+		return
+	}
+
+	ctx := c.Request.Context()
+
+	// 获取用户所属的项目
+	user, err := h.userService.GetUser(ctx, userID.(uint))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get user"})
+		return
+	}
+
+	// 返回用户可访问的域和项目
+	resources := struct {
+		DomainID   uint   `json:"domain_id"`
+		DomainName string `json:"domain_name"`
+		Projects   []struct {
+			ID   uint   `json:"id"`
+			Name string `json:"name"`
+		} `json:"projects"`
+	}{
+		DomainID:   user.DomainID,
+		DomainName: "",
+		Projects:   []struct {
+			ID   uint   `json:"id"`
+			Name string `json:"name"`
+		}{},
+	}
+
+	// 获取域名称
+	if user.DomainID > 0 {
+		domain, err := h.domainService.GetDomain(ctx, user.DomainID)
+		if err == nil {
+			resources.DomainName = domain.Name
+		}
+	}
+
+	// 获取用户关联的项目
+	var projectIDs []uint
+	h.db.Table("project_members").
+		Where("user_id = ?", userID).
+		Pluck("project_id", &projectIDs)
+
+	for _, pid := range projectIDs {
+		project, err := h.projectService.GetProject(ctx, pid)
+		if err == nil {
+			resources.Projects = append(resources.Projects, struct {
+				ID   uint   `json:"id"`
+				Name string `json:"name"`
+			}{ID: project.ID, Name: project.Name})
+		}
+	}
+
+	c.JSON(http.StatusOK, resources)
+}
+
+// GetScopedPolicyBindings 获取策略绑定
+func (h *AuthHandler) GetScopedPolicyBindings(c *gin.Context) {
+	category := c.Query("category")
+
+	// 返回策略绑定配置
+	bindings := []struct {
+		Category string `json:"category"`
+		Key      string `json:"key"`
+		Value    string `json:"value"`
+	}{}
+
+	// 简化实现：返回默认配置
+	defaultBindings := []string{
+		"sub_hidden_menus",
+		"server_hidden_columns",
+		"disk_hidden_columns",
+		"dashboard_hidden_actions",
+		"navbar_hidden_items",
+	}
+
+	for _, cat := range defaultBindings {
+		if category == "" || category == cat {
+			bindings = append(bindings, struct {
+				Category string `json:"category"`
+				Key      string `json:"key"`
+				Value    string `json:"value"`
+			}{
+				Category: cat,
+				Key:      "default",
+				Value:    "",
+			})
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"bindings": bindings})
+}
+
+// GetCapabilities 获取系统能力配置
+func (h *AuthHandler) GetCapabilities(c *gin.Context) {
+	capabilities := struct {
+		Features  []string `json:"features"`
+		Version   string   `json:"version"`
+		BuildTime string   `json:"build_time"`
+	}{
+		Features: []string{
+			"multi_cloud",
+			"iam",
+			"monitoring",
+			"finance",
+			"message_center",
+		},
+		Version:   "1.0.0",
+		BuildTime: "2026-04-22",
+	}
+
+	c.JSON(http.StatusOK, capabilities)
 }

@@ -1,0 +1,38 @@
+{
+  "page_name": "buckets",
+  "page_path": "/bucket",
+  "url": "https://127.0.0.1/bucket",
+  "title": "Cloudpods-Bucket",
+  "elements": {
+    "cards": 0,
+    "tables": 24,
+    "buttons": [
+      "View",
+      "Create",
+      "Batch Action",
+      "Tags"
+    ],
+    "search_forms": 1,
+    "inputs": 3,
+    "selects": 6,
+    "pagination": 0,
+    "tabs": 18,
+    "tab_labels": [],
+    "dialogs": 0,
+    "tags": [
+      "Tags"
+    ],
+    "table_headers": [
+      "Name",
+      "Status",
+      "Tags",
+      "Permission",
+      "Platform",
+      "Project",
+      "Region",
+      "Created At",
+      "Operations"
+    ],
+    "action_buttons": []
+  }
+}

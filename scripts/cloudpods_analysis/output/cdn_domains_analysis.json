@@ -1,0 +1,39 @@
+{
+  "page_name": "cdn_domains",
+  "page_path": "/cdn",
+  "url": "https://127.0.0.1/cdn",
+  "title": "Cloudpods-CDN Domain",
+  "elements": {
+    "cards": 0,
+    "tables": 23,
+    "buttons": [
+      "View",
+      "Create",
+      "Sync Status",
+      "Batch operations",
+      "Tags"
+    ],
+    "search_forms": 1,
+    "inputs": 3,
+    "selects": 6,
+    "pagination": 0,
+    "tabs": 0,
+    "dialogs": 0,
+    "tags": [
+      "Tags"
+    ],
+    "table_headers": [
+      "Name",
+      "Status",
+      "Tags",
+      "Area",
+      "CNAME",
+      "Service Type",
+      "Platform",
+      "Cloud account",
+      "Project",
+      "Operations"
+    ],
+    "action_buttons": []
+  }
+}

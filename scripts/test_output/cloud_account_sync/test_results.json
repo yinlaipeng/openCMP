@@ -1,0 +1,95 @@
+{
+  "login": {
+    "status": "success",
+    "url": "http://localhost:3000/dashboard"
+  },
+  "cloud_accounts_page": {
+    "status": "success",
+    "button_count": 12,
+    "table_row_count": 1,
+    "title": "openCMP - 多云管理平台"
+  },
+  "account_list": {
+    "status": "success",
+    "accounts": [
+      ""
+    ],
+    "aliyun_test_exists": false,
+    "total_count": 1
+  },
+  "sync_test": {
+    "status": "no_button_found"
+  },
+  "api_analysis": {
+    "total_calls": 25,
+    "sync_apis": [
+      {
+        "url": "http://localhost:3000/src/api/sync-policy.ts",
+        "method": "GET",
+        "type": "script",
+        "body": null
+      },
+      {
+        "url": "http://localhost:3000/src/api/sync-log.ts",
+        "method": "GET",
+        "type": "script",
+        "body": null
+      },
+      {
+        "url": "http://localhost:3000/api/v1/sync-policies",
+        "method": "GET",
+        "type": "xhr",
+        "body": null
+      }
+    ],
+    "account_apis": [
+      {
+        "url": "http://localhost:3000/api/v1/cloud-accounts",
+        "method": "GET"
+      },
+      {
+        "url": "http://localhost:3000/src/api/cloud-account.ts",
+        "method": "GET"
+      },
+      {
+        "url": "http://localhost:3000/api/v1/cloud-accounts?page=1&page_size=20",
+        "method": "GET"
+      },
+      {
+        "url": "http://localhost:3000/api/v1/cloud-accounts/resource-types",
+        "method": "GET"
+      }
+    ],
+    "task_apis": [
+      {
+        "url": "http://localhost:3000/src/api/scheduled-task.ts",
+        "method": "GET"
+      }
+    ]
+  },
+  "scheduled_tasks": {
+    "status": "success",
+    "tasks": [],
+    "total_count": 0
+  },
+  "console_errors": [
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    }
+  ],
+  "summary": {
+    "success_count": 4,
+    "total_phases": 7,
+    "api_call_count": 33,
+    "console_error_count": 3
+  }
+}

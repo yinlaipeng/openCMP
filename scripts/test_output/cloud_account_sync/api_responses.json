@@ -1,0 +1,142 @@
+[
+  {
+    "url": "http://localhost:3000/src/api/auth.ts",
+    "status": 200,
+    "body": "import request from \"/src/utils/request.ts\";\nexport function login(username, password) {\n  return request({\n    url: \"/auth/login\",\n    method: \"post\",\n    data: { username, password }\n  });\n}\nexport function getCurrentUser() {\n  return request({\n    url: \"/auth/me\",\n    method: \"get\"\n  });\n}\nexport function changePassword(oldPassword, newPassword) {\n  return request({\n    url: \"/auth/change-password\",\n    method: \"post\",\n    data: { old_password: oldPassword, new_password: newPassword }\n  });\n}\nexport function updateProfile(data) {\n  return request({\n    url: \"/auth/profile\",\n    method: \"put\",\n    data\n  });\n}\n\n//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbImF1dGgudHMiXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHJlcXVlc3QgZnJvbSAnQC91dGlscy9yZXF1ZXN0J1xuXG4vLyBMb2dpblxuZXhwb3J0IGZ1bmN0aW9uIGxvZ2luKHVzZXJuYW1lOiBzdHJpbmcsIHBhc3N3b3JkOiBzdHJpbmcpIHtcbiAgcmV0dXJuIHJlcXVlc3Q8eyB0b2tlbjogc3RyaW5nOyB1c2VyOiBhbnkgfT4oe1xuICAgIHVybDogJy9hdXRoL2xvZ2luJyxcbiAgICBtZ"
+  },
+  {
+    "url": "http://localhost:3000/src/api/iam.ts",
+    "status": 200,
+    "body": "import request from \"/src/utils/request.ts\";\nimport {\n  getPermissions,\n  createPermission,\n  updatePermission,\n  deletePermission,\n  enablePermission,\n  disablePermission,\n  clonePermission,\n  makePermissionPublic,\n  getPermission\n} from \"/src/api/permission.ts\";\nexport function getRoles(params) {\n  return request({\n    url: \"/roles\",\n    method: \"get\",\n    params\n  });\n}\nexport function getRole(id) {\n  return request({\n    url: `/roles/${id}`,\n    method: \"get\"\n  });\n}\nexport function createRole(data) {\n  return request({\n    url: \"/roles\",\n    method: \"post\",\n    data\n  });\n}\nexport function updateRole(id, data) {\n  return request({\n    url: `/roles/${id}`,\n    method: \"put\",\n    data\n  });\n}\nexport function deleteRole(id) {\n  return request({\n    url: `/roles/${id}`,\n    method: \"delete\"\n  });\n}\nexport function enableRole(id) {\n  return request({\n    url: `/roles/${id}/enable`,\n    method: \"post\"\n  });\n}\nexport function disableRole(id) {\n  return request({\n    url: `/roles/${id}/di"
+  },
+  {
+    "url": "http://localhost:3000/src/api/permission.ts",
+    "status": 200,
+    "body": "import request from \"/src/utils/request.ts\";\nexport function getPermissions(params) {\n  return request({\n    url: \"/permissions\",\n    method: \"get\",\n    params\n  });\n}\nexport function getPermission(id) {\n  return request({\n    url: `/permissions/${id}`,\n    method: \"get\"\n  });\n}\nexport function createPermission(data) {\n  return request({\n    url: \"/permissions\",\n    method: \"post\",\n    data\n  });\n}\nexport function updatePermission(id, data) {\n  return request({\n    url: `/permissions/${id}`,\n    method: \"put\",\n    data\n  });\n}\nexport function deletePermission(id) {\n  return request({\n    url: `/permissions/${id}`,\n    method: \"delete\"\n  });\n}\nexport function enablePermission(id) {\n  return request({\n    url: `/permissions/${id}/enable`,\n    method: \"post\"\n  });\n}\nexport function disablePermission(id) {\n  return request({\n    url: `/permissions/${id}/disable`,\n    method: \"post\"\n  });\n}\nexport function clonePermission(id, data) {\n  return request({\n    url: `/permissions/${id}/clone`,\n "
+  },
+  {
+    "url": "http://localhost:3000/api/v1/auth/login",
+    "status": 200,
+    "body": "{\"token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ1c2VyX25hbWUiOiJhZG1pbiIsInVzZXJfZW1haWwiOiIiLCJyb2xlX2lkcyI6WzEsMV0sImV4cCI6MTc3Njk1MjA0NX0.k8QEs3BcnRKne7AdiyeNF7IyRs-SqOGejF8p3fBHkEg\",\"user\":{\"id\":1,\"name\":\"admin\",\"display_name\":\"admin\",\"remark\":\"\",\"email\":\"admin@example.com\",\"phone\":\"\",\"domain_id\":1,\"enabled\":true,\"console_login\":true,\"mfa_enabled\":false,\"last_login_at\":\"2026-04-22T21:35:57.848+08:00\",\"last_login_ip\":\"::1\",\"password_expire\":null,\"created_at\":\"2026-04-05T12:27:10+08:00\",\"updated_at\":\"2026-04-22T21:35:57.849+08:00\"}}"
+  },
+  {
+    "url": "http://localhost:3000/api/v1/auth/permissions",
+    "status": 401,
+    "body": null
+  },
+  {
+    "url": "http://localhost:3000/api/v1/auth/user",
+    "status": 401,
+    "body": null
+  },
+  {
+    "url": "http://localhost:3000/api/v1/auth/stats",
+    "status": 200,
+    "body": "{\"user_count\":1,\"domain_count\":1,\"project_count\":1,\"group_count\":1,\"role_count\":17}"
+  },
+  {
+    "url": "http://localhost:3000/api/v1/storage/disks",
+    "status": 404,
+    "body": null
+  },
+  {
+    "url": "http://localhost:3000/api/v1/compute/vms",
+    "status": 200,
+    "body": "{\"items\":[],\"total\":0}"
+  },
+  {
+    "url": "http://localhost:3000/api/v1/projects",
+    "status": 200,
+    "body": "{\"items\":[{\"id\":1,\"name\":\"system\",\"description\":\"Default system project\",\"domain_id\":1,\"parent_id\":null,\"manager_id\":1,\"enabled\":true,\"created_at\":\"2026-04-05T23:14:52+08:00\",\"updated_at\":\"2026-04-09T21:44:41.602+08:00\"}],\"total\":1}"
+  },
+  {
+    "url": "http://localhost:3000/api/v1/cloud-accounts",
+    "status": 200,
+    "body": "{\"items\":[{\"id\":22,\"name\":\"aliyun-test\",\"provider_type\":\"alibaba\",\"credentials\":{\"proxy_id\":\"default\",\"account_type\":\"primary\",\"access_key_id\":\"LTAI5tDsXYXLKJkSy3jbHJ85\",\"proxy_enabled\":\"false\",\"read_only_mode\":\"false\",\"access_key_secret\":\"pP33lCqjqpa1kk4XsKiWmpep98Ufbs\",\"passwordless_enabled\":\"false\"},\"status\":\"active\",\"description\":\"测试\",\"enabled\":true,\"health_status\":\"healthy\",\"balance\":0,\"account_number\":\"\",\"last_sync\":\"2026-04-22T21:41:31.607+08:00\",\"sync_time\":\"\",\"domain_id\":1,\"sync_policy_id\":null,\"resource_assignment_method\":\"tag_mapping\",\"connection_check_error\":\"\",\"created_at\":\"2026-04-22T21:40:55.039+08:00\",\"updated_at\":\"2026-04-22T21:41:31.607+08:00\"}],\"page\":1,\"page_size\":20,\"total\":1}"
+  },
+  {
+    "url": "http://localhost:3000/src/api/iam.ts",
+    "status": 200,
+    "body": "import request from \"/src/utils/request.ts\";\nimport {\n  getPermissions,\n  createPermission,\n  updatePermission,\n  deletePermission,\n  enablePermission,\n  disablePermission,\n  clonePermission,\n  makePermissionPublic,\n  getPermission\n} from \"/src/api/permission.ts\";\nexport function getRoles(params) {\n  return request({\n    url: \"/roles\",\n    method: \"get\",\n    params\n  });\n}\nexport function getRole(id) {\n  return request({\n    url: `/roles/${id}`,\n    method: \"get\"\n  });\n}\nexport function createRole(data) {\n  return request({\n    url: \"/roles\",\n    method: \"post\",\n    data\n  });\n}\nexport function updateRole(id, data) {\n  return request({\n    url: `/roles/${id}`,\n    method: \"put\",\n    data\n  });\n}\nexport function deleteRole(id) {\n  return request({\n    url: `/roles/${id}`,\n    method: \"delete\"\n  });\n}\nexport function enableRole(id) {\n  return request({\n    url: `/roles/${id}/enable`,\n    method: \"post\"\n  });\n}\nexport function disableRole(id) {\n  return request({\n    url: `/roles/${id}/di"
+  },
+  {
+    "url": "http://localhost:3000/src/api/auth.ts",
+    "status": 200,
+    "body": "import request from \"/src/utils/request.ts\";\nexport function login(username, password) {\n  return request({\n    url: \"/auth/login\",\n    method: \"post\",\n    data: { username, password }\n  });\n}\nexport function getCurrentUser() {\n  return request({\n    url: \"/auth/me\",\n    method: \"get\"\n  });\n}\nexport function changePassword(oldPassword, newPassword) {\n  return request({\n    url: \"/auth/change-password\",\n    method: \"post\",\n    data: { old_password: oldPassword, new_password: newPassword }\n  });\n}\nexport function updateProfile(data) {\n  return request({\n    url: \"/auth/profile\",\n    method: \"put\",\n    data\n  });\n}\n\n//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbImF1dGgudHMiXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHJlcXVlc3QgZnJvbSAnQC91dGlscy9yZXF1ZXN0J1xuXG4vLyBMb2dpblxuZXhwb3J0IGZ1bmN0aW9uIGxvZ2luKHVzZXJuYW1lOiBzdHJpbmcsIHBhc3N3b3JkOiBzdHJpbmcpIHtcbiAgcmV0dXJuIHJlcXVlc3Q8eyB0b2tlbjogc3RyaW5nOyB1c2VyOiBhbnkgfT4oe1xuICAgIHVybDogJy9hdXRoL2xvZ2luJyxcbiAgICBtZ"
+  },
+  {
+    "url": "http://localhost:3000/src/api/permission.ts",
+    "status": 200,
+    "body": "import request from \"/src/utils/request.ts\";\nexport function getPermissions(params) {\n  return request({\n    url: \"/permissions\",\n    method: \"get\",\n    params\n  });\n}\nexport function getPermission(id) {\n  return request({\n    url: `/permissions/${id}`,\n    method: \"get\"\n  });\n}\nexport function createPermission(data) {\n  return request({\n    url: \"/permissions\",\n    method: \"post\",\n    data\n  });\n}\nexport function updatePermission(id, data) {\n  return request({\n    url: `/permissions/${id}`,\n    method: \"put\",\n    data\n  });\n}\nexport function deletePermission(id) {\n  return request({\n    url: `/permissions/${id}`,\n    method: \"delete\"\n  });\n}\nexport function enablePermission(id) {\n  return request({\n    url: `/permissions/${id}/enable`,\n    method: \"post\"\n  });\n}\nexport function disablePermission(id) {\n  return request({\n    url: `/permissions/${id}/disable`,\n    method: \"post\"\n  });\n}\nexport function clonePermission(id, data) {\n  return request({\n    url: `/permissions/${id}/clone`,\n "
+  },
+  {
+    "url": "http://localhost:3000/src/api/cloud-account.ts",
+    "status": 200,
+    "body": "import request from \"/src/utils/request.ts\";\nexport function getCloudAccounts(params) {\n  return request({\n    url: \"/cloud-accounts\",\n    method: \"get\",\n    params\n  });\n}\nexport function getCloudAccount(id) {\n  return request({\n    url: `/cloud-accounts/${id}`,\n    method: \"get\"\n  });\n}\nexport function createCloudAccount(data) {\n  return request({\n    url: \"/cloud-accounts\",\n    method: \"post\",\n    data\n  });\n}\nexport function updateCloudAccount(id, data) {\n  return request({\n    url: `/cloud-accounts/${id}`,\n    method: \"put\",\n    data\n  });\n}\nexport function deleteCloudAccount(id) {\n  return request({\n    url: `/cloud-accounts/${id}`,\n    method: \"delete\"\n  });\n}\nexport function verifyCloudAccount(id) {\n  return request({\n    url: `/cloud-accounts/${id}/verify`,\n    method: \"post\"\n  });\n}\nexport function syncCloudAccount(id, options) {\n  return request({\n    url: `/cloud-accounts/${id}/sync`,\n    method: \"post\",\n    data: options\n  });\n}\nexport function testConnection(id) {\n  retur"
+  },
+  {
+    "url": "http://localhost:3000/src/api/sync-policy.ts",
+    "status": 200,
+    "body": "import request from \"/src/utils/request.ts\";\nexport function getSyncPolicies(params) {\n  return request({ url: \"/sync-policies\", method: \"get\", params });\n}\nexport function getSyncPolicy(id) {\n  return request({ url: `/sync-policies/${id}`, method: \"get\" });\n}\nexport function createSyncPolicy(data) {\n  return request({ url: \"/sync-policies\", method: \"post\", data });\n}\nexport function updateSyncPolicy(id, data) {\n  return request({ url: `/sync-policies/${id}`, method: \"put\", data });\n}\nexport function deleteSyncPolicy(id) {\n  return request({ url: `/sync-policies/${id}`, method: \"delete\" });\n}\nexport function updateSyncPolicyStatus(id, enabled) {\n  return request({ url: `/sync-policies/${id}/status`, method: \"post\", data: { enabled } });\n}\nexport function executeSyncPolicy(id, data) {\n  return request({ url: `/sync-policies/${id}/execute`, method: \"post\", data });\n}\nexport function getExecutionLogs(id, params) {\n  return request({ url: `/sync-policies/${id}/execution-logs`, method: \"get"
+  },
+  {
+    "url": "http://localhost:3000/src/api/project.ts",
+    "status": 200,
+    "body": "import request from \"/src/utils/request.ts\";\nexport function getProjects(params) {\n  return request({\n    url: \"/projects\",\n    method: \"get\",\n    params\n  });\n}\nexport function getProject(id) {\n  return request({\n    url: `/projects/${id}`,\n    method: \"get\"\n  });\n}\nexport function createProject(data) {\n  return request({\n    url: \"/projects\",\n    method: \"post\",\n    data\n  });\n}\nexport function updateProject(id, data) {\n  return request({\n    url: `/projects/${id}`,\n    method: \"put\",\n    data\n  });\n}\nexport function deleteProject(id) {\n  return request({\n    url: `/projects/${id}`,\n    method: \"delete\"\n  });\n}\nexport function enableProject(id) {\n  return request({\n    url: `/projects/${id}/enable`,\n    method: \"post\"\n  });\n}\nexport function disableProject(id) {\n  return request({\n    url: `/projects/${id}/disable`,\n    method: \"post\"\n  });\n}\n\n//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbInByb2plY3QudHMiXSwic291cmNlc0NvbnRlbnQiOlsiaW1wb3J0IHJlcXVl"
+  },
+  {
+    "url": "http://localhost:3000/src/api/sync-log.ts",
+    "status": 200,
+    "body": "import request from \"/src/utils/request.ts\";\nexport function getSyncLogs(cloudAccountId, limit) {\n  return request({\n    url: \"/sync-logs\",\n    method: \"get\",\n    params: {\n      cloud_account_id: cloudAccountId,\n      limit: limit || 20\n    }\n  });\n}\nexport function getSyncLog(id) {\n  return request({\n    url: `/sync-logs/${id}`,\n    method: \"get\"\n  });\n}\nexport function getSyncStatistics(cloudAccountId, days) {\n  return request({\n    url: \"/sync-logs/statistics\",\n    method: \"get\",\n    params: {\n      cloud_account_id: cloudAccountId,\n      days: days || 30\n    }\n  });\n}\nexport function getLatestSyncLog(cloudAccountId) {\n  return request({\n    url: \"/sync-logs/latest\",\n    method: \"get\",\n    params: {\n      cloud_account_id: cloudAccountId\n    }\n  });\n}\n\n//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbInN5bmMtbG9nLnRzIl0sInNvdXJjZXNDb250ZW50IjpbImltcG9ydCByZXF1ZXN0IGZyb20gJ0AvdXRpbHMvcmVxdWVzdCdcblxuLy8g5ZCM5q2l5pel5b+XIEFQSVxuXG5leHBvcnQgaW50ZXJmYWN"
+  },
+  {
+    "url": "http://localhost:3000/src/api/scheduled-task.ts",
+    "status": 200,
+    "body": "import request from \"/src/utils/request.ts\";\nexport function getScheduledTasks(params) {\n  return request({\n    url: \"/scheduled-tasks\",\n    method: \"get\",\n    params\n  });\n}\nexport function getScheduledTask(id) {\n  return request({\n    url: `/scheduled-tasks/${id}`,\n    method: \"get\"\n  });\n}\nexport function createScheduledTask(data) {\n  return request({\n    url: \"/scheduled-tasks\",\n    method: \"post\",\n    data\n  });\n}\nexport function updateScheduledTask(id, data) {\n  return request({\n    url: `/scheduled-tasks/${id}`,\n    method: \"put\",\n    data\n  });\n}\nexport function deleteScheduledTask(id) {\n  return request({\n    url: `/scheduled-tasks/${id}`,\n    method: \"delete\"\n  });\n}\nexport function updateScheduledTaskStatus(id, status) {\n  return request({\n    url: `/scheduled-tasks/${id}/status`,\n    method: \"post\",\n    data: { status }\n  });\n}\nexport function executeScheduledTask(id) {\n  return request({\n    url: `/scheduled-tasks/${id}/execute`,\n    method: \"post\"\n  });\n}\n\n//# sourceMappi"
+  },
+  {
+    "url": "http://localhost:3000/api/v1/cloud-accounts/resource-types",
+    "status": 200,
+    "body": "{\"items\":[{\"id\":\"subnet\",\"name\":\"IP子网\"},{\"id\":\"vm\",\"name\":\"主机\"},{\"id\":\"load_balancer\",\"name\":\"负载均衡实例\"},{\"id\":\"oss\",\"name\":\"对象存储\"},{\"id\":\"rds\",\"name\":\"RDS\"},{\"id\":\"redis\",\"name\":\"缓存\"},{\"id\":\"nat_gateway\",\"name\":\"NAT网关\"},{\"id\":\"file_storage\",\"name\":\"文件存储\"},{\"id\":\"waf\",\"name\":\"WAF策略\"},{\"id\":\"mongodb\",\"name\":\"MongoDB实例\"},{\"id\":\"elasticsearch\",\"name\":\"Elasticsearch\"},{\"id\":\"kafka\",\"name\":\"Kafka\"},{\"id\":\"k8s\",\"name\":\"K8s集群\"},{\"id\":\"vpc_peering\",\"name\":\"VPC互联网络\"},{\"id\":\"cdn\",\"name\":\"内容分发网络\"},{\"id\":\"dns\",\"name\":\"DNS解析\"},{\"id\":\"image\",\"name\":\"镜像\"},{\"id\":\"disk\",\"name\":\"云硬盘\"},{\"id\":\"snapshot\",\"name\":\"快照\"},{\"id\":\"vpc\",\"name\":\"VPC\"},{\"id\":\"security_group\",\"name\":\"安全组\"},{\"id\":\"eip\",\"name\":\"弹性公网IP\"}],\"total\":22}"
+  },
+  {
+    "url": "http://localhost:3000/api/v1/cloud-accounts?page=1&page_size=20",
+    "status": 200,
+    "body": "{\"items\":[{\"id\":22,\"name\":\"aliyun-test\",\"provider_type\":\"alibaba\",\"credentials\":{\"proxy_id\":\"default\",\"account_type\":\"primary\",\"access_key_id\":\"LTAI5tDsXYXLKJkSy3jbHJ85\",\"proxy_enabled\":\"false\",\"read_only_mode\":\"false\",\"access_key_secret\":\"pP33lCqjqpa1kk4XsKiWmpep98Ufbs\",\"passwordless_enabled\":\"false\"},\"status\":\"active\",\"description\":\"测试\",\"enabled\":true,\"health_status\":\"healthy\",\"balance\":0,\"account_number\":\"\",\"last_sync\":\"2026-04-22T21:41:31.607+08:00\",\"sync_time\":\"\",\"domain_id\":1,\"sync_policy_id\":null,\"resource_assignment_method\":\"tag_mapping\",\"connection_check_error\":\"\",\"created_at\":\"2026-04-22T21:40:55.039+08:00\",\"updated_at\":\"2026-04-22T21:41:31.607+08:00\"}],\"page\":1,\"page_size\":20,\"total\":1}"
+  },
+  {
+    "url": "http://localhost:3000/api/v1/projects",
+    "status": 200,
+    "body": "{\"items\":[{\"id\":1,\"name\":\"system\",\"description\":\"Default system project\",\"domain_id\":1,\"parent_id\":null,\"manager_id\":1,\"enabled\":true,\"created_at\":\"2026-04-05T23:14:52+08:00\",\"updated_at\":\"2026-04-09T21:44:41.602+08:00\"}],\"total\":1}"
+  },
+  {
+    "url": "http://localhost:3000/api/v1/sync-policies",
+    "status": 200,
+    "body": "{\"items\":[],\"total\":0}"
+  },
+  {
+    "url": "http://localhost:3000/api/v1/domains",
+    "status": 200,
+    "body": "{\"items\":[{\"id\":1,\"name\":\"Default\",\"description\":\"默认域\",\"enabled\":true,\"parent_id\":null,\"created_at\":\"2026-04-05T12:27:10+08:00\",\"updated_at\":\"2026-04-05T20:05:39.002+08:00\",\"auth_source_count\":0}],\"total\":1}"
+  },
+  {
+    "url": "http://localhost:3000/api/v1/projects",
+    "status": 200,
+    "body": "{\"items\":[{\"id\":1,\"name\":\"system\",\"description\":\"Default system project\",\"domain_id\":1,\"parent_id\":null,\"manager_id\":1,\"enabled\":true,\"created_at\":\"2026-04-05T23:14:52+08:00\",\"updated_at\":\"2026-04-09T21:44:41.602+08:00\"}],\"total\":1}"
+  },
+  {
+    "url": "http://localhost:3000/api/v1/cloud-accounts?page_size=100",
+    "status": 200,
+    "body": "{\"items\":[{\"id\":22,\"name\":\"aliyun-test\",\"provider_type\":\"alibaba\",\"credentials\":{\"proxy_id\":\"default\",\"account_type\":\"primary\",\"access_key_id\":\"LTAI5tDsXYXLKJkSy3jbHJ85\",\"proxy_enabled\":\"false\",\"read_only_mode\":\"false\",\"access_key_secret\":\"pP33lCqjqpa1kk4XsKiWmpep98Ufbs\",\"passwordless_enabled\":\"false\"},\"status\":\"active\",\"description\":\"测试\",\"enabled\":true,\"health_status\":\"healthy\",\"balance\":0,\"account_number\":\"\",\"last_sync\":\"2026-04-22T21:41:31.607+08:00\",\"sync_time\":\"\",\"domain_id\":1,\"sync_policy_id\":null,\"resource_assignment_method\":\"tag_mapping\",\"connection_check_error\":\"\",\"created_at\":\"2026-04-22T21:40:55.039+08:00\",\"updated_at\":\"2026-04-22T21:41:31.607+08:00\"}],\"page\":1,\"page_size\":100,\"total\":1}"
+  },
+  {
+    "url": "http://localhost:3000/api/v1/projects",
+    "status": 200,
+    "body": "{\"items\":[{\"id\":1,\"name\":\"system\",\"description\":\"Default system project\",\"domain_id\":1,\"parent_id\":null,\"manager_id\":1,\"enabled\":true,\"created_at\":\"2026-04-05T23:14:52+08:00\",\"updated_at\":\"2026-04-09T21:44:41.602+08:00\"}],\"total\":1}"
+  },
+  {
+    "url": "http://localhost:3000/api/v1/scheduled-tasks?page=1&page_size=20",
+    "status": 200,
+    "body": "{\"items\":[],\"page\":1,\"page_size\":20,\"total\":0}"
+  }
+]

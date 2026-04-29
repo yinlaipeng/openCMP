@@ -1,0 +1,108 @@
+{
+  "cloudaccount": {
+    "status": "checked",
+    "cloudpods_buttons": [
+      "View",
+      "Create",
+      "Batch Action",
+      "Sync Account",
+      "More",
+      "Sync Account",
+      "More",
+      "Sync Account",
+      "More"
+    ],
+    "opencmp_buttons": [
+      "登录"
+    ],
+    "cloudpods_headers": [
+      "Name",
+      "Status",
+      "Enable Status",
+      "Health Status",
+      "Balance",
+      "Platform",
+      "Account",
+      "Last Sync Cost",
+      "Last Sync",
+      "Owner Domain",
+      "Resource attribution mode",
+      "Operations"
+    ],
+    "opencmp_headers": [],
+    "opencmp_table_exists": false
+  },
+  "cloudgroup": {
+    "status": "checked",
+    "cloudpods_buttons": [
+      "View",
+      "Create",
+      "Delete"
+    ],
+    "opencmp_buttons": [
+      "登录"
+    ],
+    "cloudpods_headers": [
+      "Name",
+      "Status",
+      "Permissions",
+      "Platform",
+      "Cloud Accounts",
+      "Shared Scope",
+      "Owner Domain",
+      "Operations"
+    ],
+    "opencmp_headers": [],
+    "opencmp_table_exists": false
+  },
+  "proxysetting": {
+    "status": "checked",
+    "cloudpods_buttons": [
+      "View",
+      "Create",
+      "Setup Sharing",
+      "Delete",
+      "Modify Properties",
+      "Setup Sharing",
+      "Delete"
+    ],
+    "opencmp_buttons": [
+      "登录"
+    ],
+    "cloudpods_headers": [
+      "Name",
+      "https proxy",
+      "http proxy",
+      "No proxy",
+      "Owner Domain",
+      "Operations"
+    ],
+    "opencmp_headers": [],
+    "opencmp_table_exists": false
+  },
+  "projectmapping": {
+    "status": "checked",
+    "cloudpods_buttons": [
+      "View",
+      "Create",
+      "Batch Action",
+      "Management Rules",
+      "More"
+    ],
+    "opencmp_buttons": [
+      "登录"
+    ],
+    "cloudpods_headers": [
+      "Name",
+      "Status",
+      "Enable Status",
+      "Rules",
+      "Application Scope",
+      "Shared Scope",
+      "Owner Domain",
+      "Operations"
+    ],
+    "opencmp_headers": [],
+    "opencmp_table_exists": false
+  }
+}

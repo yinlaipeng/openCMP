@@ -1,0 +1,35 @@
+{
+  "inputs": [
+    {
+      "type": "password",
+      "name": "",
+      "placeholder": "请输入密码",
+      "id": "",
+      "class": "ant-input"
+    }
+  ],
+  "buttons": [
+    {
+      "text": "登 录",
+      "type": "submit",
+      "class": "ant-btn ant-btn-primary ant-btn-block"
+    }
+  ],
+  "links": [
+    {
+      "text": "账号登录",
+      "href": "javascript:;"
+    }
+  ],
+  "forms": [
+    {
+      "action": "",
+      "method": "",
+      "id": ""
+    }
+  ],
+  "titles": [
+    "新一代产品化融合云"
+  ],
+  "api_calls": []
+}

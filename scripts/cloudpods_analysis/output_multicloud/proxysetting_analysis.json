@@ -1,0 +1,37 @@
+{
+  "page_name": "proxysetting",
+  "page_path": "/proxysetting",
+  "url": "https://127.0.0.1/proxysetting",
+  "title": "Cloudpods-Proxy",
+  "elements": {
+    "cards": 0,
+    "tables": 22,
+    "buttons": [
+      "View",
+      "Create",
+      "Setup Sharing",
+      "Delete",
+      "Modify Properties",
+      "Setup Sharing",
+      "Delete"
+    ],
+    "search_forms": 1,
+    "inputs": 3,
+    "selects": 6,
+    "pagination": 0,
+    "tabs": 0,
+    "tab_labels": [],
+    "dialogs": 0,
+    "tags": [],
+    "table_headers": [
+      "Name",
+      "https proxy",
+      "http proxy",
+      "No proxy",
+      "Owner Domain",
+      "Operations"
+    ],
+    "action_buttons": [],
+    "form_labels": []
+  }
+}

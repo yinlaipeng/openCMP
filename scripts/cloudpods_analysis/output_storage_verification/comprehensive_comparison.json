@@ -1,0 +1,323 @@
+{
+  "block_storage": {
+    "cloudpods": {
+      "page_name": "block_storage",
+      "system": "cloudpods",
+      "url": "https://127.0.0.1/blockstorage",
+      "title": "Cloudpods-Block Storage",
+      "elements": {
+        "table_headers": [],
+        "has_selection": false,
+        "has_pagination": false,
+        "tabs": [],
+        "visible_dialogs": 0
+      }
+    },
+    "opencmp": {
+      "page_name": "block_storage",
+      "system": "opencmp",
+      "url": "http://localhost:3003/storage/block/block-storage",
+      "title": "openCMP - 多云管理平台",
+      "elements": {
+        "toolbar_buttons": [
+          "查看",
+          "批量操作",
+          "标签"
+        ],
+        "search_inputs": 4,
+        "search_selects": 2,
+        "table_headers": [
+          "名称",
+          "状态",
+          "启用状态",
+          "物理容量",
+          "虚拟容量",
+          "平台",
+          "所属域",
+          "区域",
+          "操作",
+          "名称",
+          "状态",
+          "启用状态",
+          "物理容量",
+          "虚拟容量",
+          "平台",
+          "所属域",
+          "区域",
+          "操作"
+        ],
+        "has_selection": true,
+        "has_pagination": true,
+        "tabs": [
+          "宿主机",
+          "物理机"
+        ],
+        "visible_dialogs": 0
+      }
+    },
+    "comparison": {
+      "page_name": "block_storage",
+      "comparison_result": {
+        "toolbar_buttons": "❌ 不一致",
+        "table_headers": "⚠ 无法对比",
+        "search_form": "✅ 一致",
+        "pagination": "❌ 不一致",
+        "selection": "❌ 不一致"
+      },
+      "matches": [],
+      "differences": [
+        "工具栏按钮不一致: Cloudpods=[], openCMP=['查看', '批量操作', '标签']",
+        "分页组件不一致",
+        "表格选择列不一致"
+      ],
+      "final_result": "❌ 存在差异"
+    }
+  },
+  "buckets": {
+    "cloudpods": {
+      "page_name": "buckets",
+      "system": "cloudpods",
+      "url": "https://127.0.0.1/bucket",
+      "title": "Cloudpods-Bucket",
+      "elements": {
+        "table_headers": [],
+        "has_selection": false,
+        "has_pagination": false,
+        "tabs": [],
+        "visible_dialogs": 0
+      }
+    },
+    "opencmp": {
+      "page_name": "buckets",
+      "system": "opencmp",
+      "url": "http://localhost:3003/storage/object/buckets",
+      "title": "openCMP - 多云管理平台",
+      "elements": {
+        "toolbar_buttons": [
+          "查看",
+          "创建",
+          "批量操作",
+          "标签"
+        ],
+        "search_inputs": 4,
+        "search_selects": 2,
+        "table_headers": [
+          "名称",
+          "状态",
+          "标签",
+          "读写权限",
+          "平台",
+          "项目",
+          "区域",
+          "创建时间",
+          "操作"
+        ],
+        "has_selection": true,
+        "has_pagination": true,
+        "tabs": [],
+        "visible_dialogs": 0
+      }
+    },
+    "comparison": {
+      "page_name": "buckets",
+      "comparison_result": {
+        "toolbar_buttons": "❌ 不一致",
+        "table_headers": "⚠ 无法对比",
+        "search_form": "✅ 一致",
+        "pagination": "❌ 不一致",
+        "selection": "❌ 不一致"
+      },
+      "matches": [],
+      "differences": [
+        "工具栏按钮不一致: Cloudpods=[], openCMP=['查看', '创建', '批量操作', '标签']",
+        "分页组件不一致",
+        "表格选择列不一致"
+      ],
+      "final_result": "❌ 存在差异"
+    }
+  },
+  "table_storage": {
+    "cloudpods": {
+      "page_name": "table_storage",
+      "system": "cloudpods",
+      "url": "https://127.0.0.1/table-storage",
+      "title": "Cloudpods-Table Storage",
+      "elements": {
+        "table_headers": [],
+        "has_selection": false,
+        "has_pagination": false,
+        "tabs": [],
+        "visible_dialogs": 0
+      }
+    },
+    "opencmp": {
+      "page_name": "table_storage",
+      "system": "opencmp",
+      "url": "http://localhost:3003/storage/table/table-storage",
+      "title": "openCMP - 多云管理平台",
+      "elements": {
+        "toolbar_buttons": [
+          "查看"
+        ],
+        "search_inputs": 4,
+        "search_selects": 2,
+        "table_headers": [
+          "名称",
+          "状态",
+          "平台",
+          "云账号",
+          "项目",
+          "区域"
+        ],
+        "has_selection": true,
+        "has_pagination": true,
+        "tabs": [],
+        "visible_dialogs": 0
+      }
+    },
+    "comparison": {
+      "page_name": "table_storage",
+      "comparison_result": {
+        "toolbar_buttons": "❌ 不一致",
+        "table_headers": "⚠ 无法对比",
+        "search_form": "✅ 一致",
+        "pagination": "❌ 不一致",
+        "selection": "❌ 不一致"
+      },
+      "matches": [],
+      "differences": [
+        "工具栏按钮不一致: Cloudpods=[], openCMP=['查看']",
+        "分页组件不一致",
+        "表格选择列不一致"
+      ],
+      "final_result": "❌ 存在差异"
+    }
+  },
+  "file_systems": {
+    "cloudpods": {
+      "page_name": "file_systems",
+      "system": "cloudpods",
+      "url": "https://127.0.0.1/nas",
+      "title": "Cloudpods-File System",
+      "elements": {
+        "table_headers": [],
+        "has_selection": false,
+        "has_pagination": false,
+        "tabs": [],
+        "visible_dialogs": 0
+      }
+    },
+    "opencmp": {
+      "page_name": "file_systems",
+      "system": "opencmp",
+      "url": "http://localhost:3003/storage/file/file-systems",
+      "title": "openCMP - 多云管理平台",
+      "elements": {
+        "toolbar_buttons": [
+          "查看",
+          "创建",
+          "批量操作",
+          "标签"
+        ],
+        "search_inputs": 4,
+        "search_selects": 2,
+        "table_headers": [
+          "名称",
+          "标签",
+          "状态",
+          "文件系统类型",
+          "存储类型",
+          "协议类型",
+          "计费方式",
+          "平台",
+          "云账号",
+          "所属域",
+          "区域",
+          "操作"
+        ],
+        "has_selection": true,
+        "has_pagination": true,
+        "tabs": [],
+        "visible_dialogs": 0
+      }
+    },
+    "comparison": {
+      "page_name": "file_systems",
+      "comparison_result": {
+        "toolbar_buttons": "❌ 不一致",
+        "table_headers": "⚠ 无法对比",
+        "search_form": "✅ 一致",
+        "pagination": "❌ 不一致",
+        "selection": "❌ 不一致"
+      },
+      "matches": [],
+      "differences": [
+        "工具栏按钮不一致: Cloudpods=[], openCMP=['查看', '创建', '批量操作', '标签']",
+        "分页组件不一致",
+        "表格选择列不一致"
+      ],
+      "final_result": "❌ 存在差异"
+    }
+  },
+  "nas_groups": {
+    "cloudpods": {
+      "page_name": "nas_groups",
+      "system": "cloudpods",
+      "url": "https://127.0.0.1/access-group",
+      "title": "Cloudpods-Access Group",
+      "elements": {
+        "table_headers": [],
+        "has_selection": false,
+        "has_pagination": false,
+        "tabs": [],
+        "visible_dialogs": 0
+      }
+    },
+    "opencmp": {
+      "page_name": "nas_groups",
+      "system": "opencmp",
+      "url": "http://localhost:3003/storage/file/nas-groups",
+      "title": "openCMP - 多云管理平台",
+      "elements": {
+        "toolbar_buttons": [
+          "查看",
+          "创建",
+          "批量操作"
+        ],
+        "search_inputs": 4,
+        "search_selects": 2,
+        "table_headers": [
+          "名称",
+          "挂载点数量",
+          "状态",
+          "平台",
+          "云账号",
+          "区域",
+          "所属域",
+          "操作"
+        ],
+        "has_selection": true,
+        "has_pagination": true,
+        "tabs": [],
+        "visible_dialogs": 0
+      }
+    },
+    "comparison": {
+      "page_name": "nas_groups",
+      "comparison_result": {
+        "toolbar_buttons": "❌ 不一致",
+        "table_headers": "⚠ 无法对比",
+        "search_form": "✅ 一致",
+        "pagination": "❌ 不一致",
+        "selection": "❌ 不一致"
+      },
+      "matches": [],
+      "differences": [
+        "工具栏按钮不一致: Cloudpods=[], openCMP=['查看', '创建', '批量操作']",
+        "分页组件不一致",
+        "表格选择列不一致"
+      ],
+      "final_result": "❌ 存在差异"
+    }
+  }
+}

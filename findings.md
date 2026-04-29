@@ -7,6 +7,172 @@
 
 ---
 
+## Phase 61: 前端路由切换问题诊断与修复 (2026-04-23)
+
+### 问题描述
+用户报告：打开 `/compute/vms` 页面后点击其他页面，浏览器 URL 变了但页面内容一直是虚拟机页面，只有刷新页面才能显示新页面。
+
+### 诊断结果
+
+**Playwright 诊断脚本执行结果：**
+- Router 路径正确：`/compute/host-templates`
+- matched 数量正确：3层嵌套 (`/`, `/compute`, `/compute/host-templates`)
+- 但页面标题仍显示"虚拟机管理"
+- 页面 DOM 仍包含 `vms-container` 类
+
+**根因分析：**
+问题在于 `compute/index.vue` 的 `<router-view />` 没有正确响应子路由变化。Vue Router 在嵌套路由切换时，当父路由保持不变，只有子路由变化，父组件不会重新创建，其 `<router-view />` 应该自动响应变化，但可能因为缓存或响应性问题导致内容未更新。
+
+### 解决方案
+
+**修复文件：** `frontend/src/views/compute/index.vue`
+
+**修复内容：** 给 `<router-view />` 添加 `:key="$route.fullPath"` 属性，强制重新渲染
+
+```vue
+<template>
+  <div class="compute-layout">
+    <router-view :key="$route.fullPath" />
+  </div>
+</template>
+
+<script setup lang="ts">
+import { useRoute } from 'vue-router'
+const route = useRoute()
+// The :key ensures re-render when child route changes
+</script>
+```
+
+### 验证结果
+
+**直接导航测试 ✅ 成功：**
+- `page.goto('/compute/vms')` → 页面标题：虚拟机管理 ✅
+- `page.goto('/compute/host-templates')` → 页面标题：主机模版 ✅
+
+### 发现的其他问题
+
+**其他嵌套路由缺少父组件：**
+
+以下路由在 `router.ts` 中定义了 `children` 但没有对应的父组件：
+- `/middleware` - 缺少 `middleware/index.vue`
+- `/container` - 缺少 `container/index.vue`
+- `/monitoring` - 缺少 `monitoring/index.vue`
+- `/cloud-management` - 缺少 `cloud-management/index.vue`
+- `/network` - 缺少 `network/index.vue`
+- `/storage` - 缺少 `storage/index.vue`
+- `/database` - 缺少 `database/index.vue`
+- `/iam` - 缺少 `iam/index.vue`
+- `/message-center` - 缺少 `message-center/index.vue`
+- `/finance` - 缺少 `finance/index.vue`
+
+**注意：** 只有 `/compute` 有父组件且已修复。其他路由的子路由可能也存在类似问题。
+
+### 建议
+
+1. 为所有有 `children` 的路由创建父组件，包含 `<router-view :key="$route.fullPath" />`
+2. 或重构路由结构，避免不必要的嵌套
+
+---
+
+## Phase 59 Bug修复: Dashboard 菜单栏缺失 (2026-04-22)
+
+### 问题发现
+用户反馈：进入 http://localhost:3000/dashboard 后左侧菜单栏消失。
+
+### 原因分析
+Dashboard 路由定义在 Layout 组件外部：
+- `/dashboard` 作为独立路由
+- `Layout` 组件只包裹其他子路由
+- Dashboard 页面没有继承 Layout 的侧边栏
+
+### 修复方案
+将 Dashboard 移入 Layout 的 children：
+```typescript
+{ path: '/', component: Layout, redirect: '/dashboard',
+  children: [
+    { path: '/dashboard', name: 'Dashboard', component: Dashboard,
+      meta: { title: '控制面板', icon: 'HomeFilled' }
+    },
+    // 其他子路由...
+  ]
+}
+```
+
+### 关键决策
+1. **Dashboard 作为首页**: 使用 redirect: '/dashboard' 作为默认首页
+2. **添加 meta.icon**: 'HomeFilled' 用于菜单图标
+3. **Layout 包裹**: 所有需要菜单栏的页面必须在 Layout children 中
+
+---
+
+## Phase 59: CloudPods 登录与 Dashboard 分析 (2026-04-22)
+
+### 审查状态: in_progress 🔵
+
+### Playwright 分析方法
+- **CloudPods URL**: https://127.0.0.1/auth/login
+- **账号选择器**: https://127.0.0.1/auth/login/chooser
+- **参数登录**: https://127.0.0.1/auth/login?username=admin&fd_domain=Default
+- **Dashboard**: https://127.0.0.1/dashboard
+- **登录凭据**: admin/admin@123, 忽略 SSL 证书
+
+### 一、登录页面分析
+
+#### UI 组件对比
+
+| 特性 | CloudPods | openCMP |
+|------|-----------|---------|
+| UI 框架 | Ant Design Vue | Element Plus |
+| 输入框类名 | `ant-input` | `el-input` |
+| 按钮 | `ant-btn ant-btn-primary ant-btn-block` | `el-button el-button--primary` |
+| 页面标题 | "新一代产品化融合云" | "openCMP - 多云管理平台" |
+
+#### 输入框结构 (CloudPods)
+```json
+{
+  "inputs": [
+    {"type": "text", "placeholder": "请输入用户名", "class": "ant-input"},
+    {"type": "password", "placeholder": "请输入密码", "class": "ant-input"}
+  ],
+  "buttons": [
+    {"text": "登 录", "type": "submit", "class": "ant-btn ant-btn-primary ant-btn-block"}
+  ],
+  "titles": ["新一代产品化融合云"]
+}
+```
+
+### 二、登录 API 调用流程
+
+登录成功后 CloudPods 调用的 API 序列:
+
+1. **登录请求**: POST `/api/v1/auth/login`
+2. **获取用户信息**: GET `/api/v1/auth/user`
+3. **获取权限**: POST `/api/v1/auth/permissions`
+4. **获取区域**: GET `/api/v1/auth/regions`
+5. **获取 scoped 资源**: GET `/api/v1/auth/scoped_resources`
+6. **获取策略绑定**: GET `/api/v1/auth/scopedpolicybindings`
+
+### 三、Dashboard API 分析
+
+| API | 功能说明 |
+|-----|---------|
+| `/api/v1/auth/stats` | 认证统计信息 |
+| `/api/v1/parameters/dashboard_system` | Dashboard 配置 |
+| `/api/v1/monitorresourcealerts` | 监控告警 |
+| `/api/v1/unifiedmonitors/query` | 监控查询 |
+| `/api/v2/rpc/usages/general-usage` | 使用量统计 |
+| `/api/v1/services` | 服务列表 |
+| `/api/v2/capabilities` | 系统能力 |
+
+### 四、关键设计决策
+
+1. **保持 Element Plus**: 不更换 UI 框架
+2. **API 路径**: 保持 openCMP 现有路径设计
+3. **新增 API**: 添加 auth 相关 API 支持完整登录流程
+4. **Dashboard 分离**: 主页 Dashboard 与监控大盘分离
+
+---
+
 ## Phase 55: Cloudpods vs openCMP IAM 模块对比分析 (2026-04-22)
 
 ### 审查状态: complete ✅

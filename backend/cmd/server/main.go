@@ -926,8 +926,20 @@ func main() {
 		authGroup := v1.Group("/auth")
 		{
 			authGroup.GET("/me", authHandler.GetCurrentUser)
+			authGroup.GET("/user", authHandler.GetCurrentUser)  // CloudPods compatible
+			authGroup.POST("/permissions", authHandler.GetPermissions)
+			authGroup.GET("/regions", authHandler.GetRegions)
+			authGroup.GET("/stats", authHandler.GetStats)
+			authGroup.GET("/scoped_resources", authHandler.GetScopedResources)
+			authGroup.GET("/scopedpolicybindings", authHandler.GetScopedPolicyBindings)
 			authGroup.POST("/change-password", authHandler.ChangePassword)
 			authGroup.PUT("/profile", authHandler.UpdateProfile)
+		}
+
+		// 系统能力路由
+		capabilitiesGroup := v1.Group("/capabilities")
+		{
+			capabilitiesGroup.GET("", authHandler.GetCapabilities)
 		}
 	}
 
